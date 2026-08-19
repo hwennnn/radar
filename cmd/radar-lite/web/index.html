@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Fresh software, AI, data, infrastructure, and quant roles for interns and new graduates." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%230f766e'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='white'/%3E%3C/svg%3E" />
+    <title>Radar Lite | Early-career engineering jobs</title>
+    <link rel="stylesheet" href="/styles.css?v=20260819-company-loading1" />
+    <script src="/app.js?v=20260819-company-loading1" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#jobs-title">Skip to jobs</a>
+    <header class="site-header">
+      <a class="brand" href="/jobs" aria-label="Radar Lite home">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>Radar Lite</span>
+      </a>
+      <nav aria-label="Page sections">
+        <a href="/jobs" data-view-link="jobs">Jobs</a>
+        <a href="/companies" data-view-link="companies">Companies</a>
+        <a href="/system" data-view-link="system">System</a>
+        <a href="/docs">How it works</a>
+        <a href="https://t.me/earlycareerradar" target="_blank" rel="noopener noreferrer">Telegram ↗</a>
+      </nav>
+      <a class="source-state" id="source-state" href="/system" data-state="pending" aria-live="polite">
+        <span class="source-state-mark" aria-hidden="true"></span>
+        <span>Loading pipeline state</span>
+      </a>
+    </header>
+
+    <main>
+      <section class="briefing" data-view="jobs" aria-labelledby="briefing-title">
+        <div class="briefing-main">
+          <p class="briefing-label">Early-career engineering</p>
+          <h1 id="briefing-title">Jobs worth seeing, without the noise.</h1>
+          <p class="briefing-copy">Official employer sources, focused role filters, and durable state for the U.S. and Singapore.</p>
+          <a class="channel-cta" href="https://t.me/earlycareerradar" target="_blank" rel="noopener noreferrer">
+            <span class="channel-cta-mark" aria-hidden="true">↗</span>
+            <span><small>Live job alerts</small><strong>@earlycareerradar</strong></span>
+          </a>
+        </div>
+        <dl class="briefing-stats" aria-label="Job feed summary">
+          <div class="primary-stat">
+            <dt>Open roles</dt>
+            <dd id="eligible-count">...</dd>
+          </div>
+          <div>
+            <dt>Openings today</dt>
+            <dd id="today-count">...</dd>
+          </div>
+          <div>
+            <dt>Companies</dt>
+            <dd id="company-count">...</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="system-pulse" id="system-panel" data-view="system" aria-labelledby="system-title" hidden>
+        <header class="system-header">
+          <div>
+            <p class="section-label">Pipeline state</p>
+            <h2 id="system-title">System pulse</h2>
+            <p id="system-summary" aria-live="polite">Reading durable state across the crawler, discovery, and delivery layers.</p>
+          </div>
+          <p class="state-timestamp" id="state-updated">Loading state</p>
+        </header>
+
+        <div class="pulse-measures" aria-label="Pipeline readiness summary">
+          <div>
+            <span>Coverage</span>
+            <strong id="coverage-count">...</strong>
+            <small>healthy sources</small>
+          </div>
+          <div>
+            <span>Discovery</span>
+            <strong id="discovery-count">...</strong>
+            <small>sources promoted</small>
+          </div>
+          <div>
+            <span>Durable state</span>
+            <strong id="dedupe-count">...</strong>
+            <small>canonical jobs</small>
+          </div>
+          <div>
+            <span>Telegram</span>
+            <strong id="telegram-state">...</strong>
+            <small id="telegram-caption">checking delivery lock</small>
+          </div>
+        </div>
+
+        <div class="pulse-details" id="pulse-details">
+          <section class="attention-panel" id="source-attention" aria-labelledby="attention-title" hidden>
+            <div>
+              <h3 id="attention-title">Sources needing attention</h3>
+              <p>Healthy sources keep running while these routes retry with backoff.</p>
+            </div>
+            <div class="failure-list" id="failure-list"></div>
+          </section>
+
+          <div class="state-ledger" aria-label="Durable pipeline ledger">
+            <section>
+              <h3>Discovery</h3>
+              <dl>
+                <div><dt>Companies tracked</dt><dd id="candidate-total">...</dd></div>
+                <div><dt>Due for resolution</dt><dd id="candidate-due">...</dd></div>
+                <div><dt>Unhealthy routes</dt><dd id="discovery-unhealthy">...</dd></div>
+              </dl>
+            </section>
+            <section>
+              <h3>Dedupe and provenance</h3>
+              <dl>
+                <div><dt>Identity aliases</dt><dd id="identity-count">...</dd></div>
+                <div><dt>Source observations</dt><dd id="observation-count">...</dd></div>
+                <div><dt>Cross-source merges</dt><dd id="merge-count">...</dd></div>
+              </dl>
+            </section>
+            <section>
+              <h3>Delivery decisions</h3>
+              <dl>
+                <div><dt>Staged</dt><dd id="delivery-staged">...</dd></div>
+                <div><dt>Pending</dt><dd id="delivery-pending">...</dd></div>
+                <div><dt>Sent or previewed</dt><dd id="delivery-sent">...</dd></div>
+                <div><dt>Failed</dt><dd id="delivery-failed">...</dd></div>
+                <div><dt>Suppressed</dt><dd id="delivery-suppressed">...</dd></div>
+              </dl>
+            </section>
+            <section>
+              <h3>Runtime</h3>
+              <dl>
+                <div><dt>Process</dt><dd id="runtime-mode">...</dd></div>
+                <div><dt>Last cycle</dt><dd id="runtime-cycle">...</dd></div>
+                <div><dt>Cycle result</dt><dd id="runtime-result">...</dd></div>
+              </dl>
+            </section>
+          </div>
+
+          <div class="status-message" id="status-error" hidden>
+            <p>Operational state is temporarily unavailable. The job feed can still be used.</p>
+            <button id="status-retry" type="button">Retry state</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="companies-view" id="companies-panel" data-view="companies" aria-labelledby="companies-title" hidden>
+        <header class="companies-header">
+          <div>
+            <h1 id="companies-title">Monitored companies</h1>
+            <p id="source-roster-summary">Loading monitored companies...</p>
+          </div>
+          <label class="source-roster-search">
+            <span>Find a company</span>
+            <input id="source-search" type="search" placeholder="Search by company or provider" autocomplete="off" disabled>
+          </label>
+        </header>
+        <section class="source-roster" aria-label="Monitored company sources">
+          <div class="source-roster-list source-roster-loading" id="source-roster-list" role="status" aria-label="Loading monitored companies" aria-live="polite" aria-busy="true">
+            <article class="source-roster-skeleton" aria-hidden="true"><div class="source-roster-skeleton-heading"><span class="source-roster-skeleton-mark"></span><span class="source-roster-skeleton-copy"><span></span><span></span></span><span class="source-roster-skeleton-state"></span></div><div class="source-roster-skeleton-details"><span></span><span></span></div></article>
+            <article class="source-roster-skeleton" aria-hidden="true"><div class="source-roster-skeleton-heading"><span class="source-roster-skeleton-mark"></span><span class="source-roster-skeleton-copy"><span></span><span></span></span><span class="source-roster-skeleton-state"></span></div><div class="source-roster-skeleton-details"><span></span><span></span></div></article>
+            <article class="source-roster-skeleton" aria-hidden="true"><div class="source-roster-skeleton-heading"><span class="source-roster-skeleton-mark"></span><span class="source-roster-skeleton-copy"><span></span><span></span></span><span class="source-roster-skeleton-state"></span></div><div class="source-roster-skeleton-details"><span></span><span></span></div></article>
+            <article class="source-roster-skeleton" aria-hidden="true"><div class="source-roster-skeleton-heading"><span class="source-roster-skeleton-mark"></span><span class="source-roster-skeleton-copy"><span></span><span></span></span><span class="source-roster-skeleton-state"></span></div><div class="source-roster-skeleton-details"><span></span><span></span></div></article>
+            <article class="source-roster-skeleton" aria-hidden="true"><div class="source-roster-skeleton-heading"><span class="source-roster-skeleton-mark"></span><span class="source-roster-skeleton-copy"><span></span><span></span></span><span class="source-roster-skeleton-state"></span></div><div class="source-roster-skeleton-details"><span></span><span></span></div></article>
+            <article class="source-roster-skeleton" aria-hidden="true"><div class="source-roster-skeleton-heading"><span class="source-roster-skeleton-mark"></span><span class="source-roster-skeleton-copy"><span></span><span></span></span><span class="source-roster-skeleton-state"></span></div><div class="source-roster-skeleton-details"><span></span><span></span></div></article>
+            <article class="source-roster-skeleton" aria-hidden="true"><div class="source-roster-skeleton-heading"><span class="source-roster-skeleton-mark"></span><span class="source-roster-skeleton-copy"><span></span><span></span></span><span class="source-roster-skeleton-state"></span></div><div class="source-roster-skeleton-details"><span></span><span></span></div></article>
+            <article class="source-roster-skeleton" aria-hidden="true"><div class="source-roster-skeleton-heading"><span class="source-roster-skeleton-mark"></span><span class="source-roster-skeleton-copy"><span></span><span></span></span><span class="source-roster-skeleton-state"></span></div><div class="source-roster-skeleton-details"><span></span><span></span></div></article>
+            <article class="source-roster-skeleton" aria-hidden="true"><div class="source-roster-skeleton-heading"><span class="source-roster-skeleton-mark"></span><span class="source-roster-skeleton-copy"><span></span><span></span></span><span class="source-roster-skeleton-state"></span></div><div class="source-roster-skeleton-details"><span></span><span></span></div></article>
+          </div>
+        </section>
+      </section>
+
+      <section class="filters" data-view="jobs" aria-label="Job filters">
+        <div class="search-field">
+          <label for="search">Search company, role, or location</label>
+          <input id="search" type="search" autocomplete="off" placeholder="Try backend, Jane Street, or Singapore" />
+          <kbd aria-hidden="true">/</kbd>
+        </div>
+        <div class="filter-grid">
+          <div class="company-field">
+            <span id="company-field-label">Companies</span>
+            <details class="company-picker" id="company-picker" aria-labelledby="company-field-label company-picker-label">
+              <summary>
+                <strong id="company-picker-label">All visible</strong>
+              </summary>
+              <div class="company-picker-panel">
+                <header>
+                  <div>
+                    <strong>Company visibility</strong>
+                    <span id="company-picker-caption">Checked companies stay in your feed. Changes are saved in this browser.</span>
+                  </div>
+                  <button id="show-all-companies" type="button">Show all</button>
+                </header>
+                <label class="company-picker-search">
+                  <span>Find a company</span>
+                  <input id="company-filter-search" type="search" placeholder="Search companies" autocomplete="off" />
+                </label>
+                <div class="company-options" id="company-options"></div>
+              </div>
+            </details>
+          </div>
+          <div class="select-field">
+            <label id="location-filter-label" for="location-filter">Location</label>
+            <div class="select-shell">
+              <select id="location-filter">
+                <option value="all">U.S. + Singapore</option>
+                <option value="us">United States</option>
+                <option value="singapore">Singapore</option>
+              </select>
+            </div>
+          </div>
+          <div class="select-field">
+            <label id="track-filter-label" for="track-filter">Career track</label>
+            <div class="select-shell">
+              <select id="track-filter">
+                <option value="all">Internships + new grad</option>
+                <option value="internship">Internships</option>
+                <option value="new_grad">New grad</option>
+              </select>
+            </div>
+          </div>
+          <div class="select-field">
+            <label id="role-filter-label" for="role-filter">Role</label>
+            <div class="select-shell">
+              <select id="role-filter">
+                <option value="all">All engineering</option>
+                <option value="software">Software</option>
+                <option value="ai_ml">AI and machine learning</option>
+                <option value="data">Data</option>
+                <option value="infra_security">Infrastructure and security</option>
+                <option value="quant">Quant and trading</option>
+              </select>
+            </div>
+          </div>
+          <div class="select-field">
+            <label id="sort-filter-label" for="sort-filter">Sort</label>
+            <div class="select-shell">
+              <select id="sort-filter">
+                <option value="recent">Newest first</option>
+                <option value="company">Company name</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="jobs-section" id="jobs-panel" data-view="jobs" aria-labelledby="jobs-title">
+        <header class="jobs-header">
+          <div>
+            <p class="jobs-kicker" id="last-updated">Checking the latest source snapshot</p>
+            <h2 id="jobs-title">Open roles</h2>
+          </div>
+          <p id="showing-count" aria-live="polite">Loading jobs</p>
+        </header>
+
+        <div class="job-columns" aria-hidden="true">
+          <span>Role</span>
+          <span>Location</span>
+          <span>Track</span>
+          <span>Found</span>
+          <span>Apply</span>
+        </div>
+
+        <div class="skeleton-list" id="loading-state" aria-label="Loading jobs">
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+          <div class="skeleton-row"></div>
+        </div>
+
+        <div class="message-state" id="error-state" hidden>
+          <h3>Radar could not load the feed.</h3>
+          <p>The job service may still be starting. Try the feed again in a moment.</p>
+          <button id="retry-button" type="button">Retry jobs</button>
+        </div>
+
+        <div class="message-state" id="empty-state" hidden>
+          <h3 id="empty-title">No roles match these filters.</h3>
+          <p id="empty-copy">Clear the search or widen one filter to see more openings.</p>
+          <button id="clear-button" type="button">Clear filters</button>
+        </div>
+
+        <div class="job-list" id="job-list" role="list"></div>
+        <div class="load-more-wrap" id="load-more-wrap" hidden>
+          <button class="load-more" id="load-more" type="button">Show more roles</button>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <strong>Radar Lite</strong>
+      <span>Official sources. Durable state. One alert per job.</span>
+      <a href="/docs">How it works</a>
+      <a href="https://t.me/earlycareerradar" target="_blank" rel="noopener noreferrer">Follow on Telegram ↗</a>
+    </footer>
+  </body>
+</html>

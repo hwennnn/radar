@@ -1,0 +1,1057 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+	"syscall"
+	"time"
+
+	"github.com/hwennnn/radar/internal/db"
+	"github.com/hwennnn/radar/internal/lite"
+	"github.com/hwennnn/radar/internal/notify"
+	"github.com/hwennnn/radar/internal/scraper"
+	"github.com/hwennnn/radar/internal/scraper/tinyfishextractor"
+	"github.com/hwennnn/radar/internal/tinyfish"
+)
+
+const (
+	defaultCatalogPath       = "lite/verified-sources.json"
+	defaultSeedPath          = "lite/discovery-seed.json"
+	liteATSHTTPTimeout       = 60 * time.Second
+	telegramDeliveryInterval = 3200 * time.Millisecond
+)
+
+type config struct {
+	mode                  string
+	databaseURL           string
+	schema                string
+	catalogPath           string
+	seedPath              string
+	deliveryMode          string
+	recipient             string
+	telegramToken         string
+	telegramChat          string
+	publishingEnabled     bool
+	interval              time.Duration
+	cycleTimeout          time.Duration
+	healthAddress         string
+	once                  bool
+	marketOnly            bool
+	tinyFishAPIKey        string
+	tinyFishSearchBaseURL string
+	tinyFishFetchBaseURL  string
+	discoveryBatch        int
+	discoveryTimeout      time.Duration
+	discoveryRetry        time.Duration
+	discoveryEmptyRetry   time.Duration
+}
+
+type lookupEnv func(string) (string, bool)
+
+func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	if err := run(ctx, os.Args[1:], os.LookupEnv, os.Stdout, logger); err != nil {
+		logger.Error("radar lite stopped", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run(ctx context.Context, args []string, getenv lookupEnv, stdout io.Writer, logger *slog.Logger) error {
+	cfg, err := loadConfig(args, getenv)
+	if err != nil {
+		return err
+	}
+	if cfg.mode == "discover" || cfg.mode == "audit" {
+		return runDiscovery(cfg, stdout, cfg.mode == "audit")
+	}
+	if cfg.mode == "serve" {
+		return runServe(ctx, cfg, logger)
+	}
+	if cfg.mode == "reconcile" {
+		return runReconcile(ctx, cfg, stdout, logger)
+	}
+	if cfg.mode == "drain" {
+		return runDrain(ctx, cfg, stdout, logger)
+	}
+	return runRoutine(ctx, cfg, logger)
+}
+
+func loadConfig(args []string, getenv lookupEnv) (config, error) {
+	cfg := config{
+		mode:          "routine",
+		schema:        envOr(getenv, "RADAR_LITE_SCHEMA", lite.DefaultSchema),
+		catalogPath:   envOr(getenv, "RADAR_LITE_CATALOG", defaultCatalogPath),
+		seedPath:      envOr(getenv, "RADAR_LITE_DISCOVERY_SEED", defaultSeedPath),
+		deliveryMode:  strings.ToLower(envOr(getenv, "RADAR_LITE_DELIVERY_MODE", "log")),
+		recipient:     envOr(getenv, "RADAR_LITE_RECIPIENT", "local-preview"),
+		healthAddress: envOr(getenv, "RADAR_LITE_HEALTH_ADDR", ":8080"),
+	}
+	if len(args) > 1 {
+		return config{}, fmt.Errorf("usage: radar-lite [routine|once|market-once|serve|discover|audit|reconcile|drain]")
+	}
+	if len(args) == 1 {
+		switch strings.ToLower(strings.TrimSpace(args[0])) {
+		case "routine":
+		case "once":
+			cfg.once = true
+		case "market", "market-once":
+			cfg.mode = "market"
+			cfg.once = true
+			cfg.marketOnly = true
+		case "serve", "web":
+			cfg.mode = "serve"
+		case "discover", "catalog-gap":
+			cfg.mode = "discover"
+		case "audit", "coverage":
+			cfg.mode = "audit"
+		case "reconcile", "discover-live":
+			cfg.mode = "reconcile"
+		case "drain":
+			cfg.mode = "drain"
+		default:
+			return config{}, fmt.Errorf("unknown mode %q; use routine, once, market-once, serve, discover, audit, reconcile, or drain", args[0])
+		}
+	}
+
+	if cfg.mode == "discover" || cfg.mode == "audit" {
+		return cfg, nil
+	}
+	cfg.databaseURL = firstEnv(getenv, "RADAR_LITE_DATABASE_URL", "DATABASE_URL")
+	if strings.TrimSpace(cfg.databaseURL) == "" {
+		return config{}, errors.New("RADAR_LITE_DATABASE_URL or DATABASE_URL is required")
+	}
+	cfg.telegramToken = firstEnv(getenv, "RADAR_LITE_TELEGRAM_BOT_TOKEN", "RADAR_TELEGRAM_BOT_TOKEN")
+	cfg.telegramChat = firstEnv(getenv, "RADAR_LITE_TELEGRAM_CHAT_ID", "RADAR_TELEGRAM_CHAT_ID")
+	publishingValue, publishingSet := getenv("RADAR_LITE_PUBLISHING_ENABLED")
+	cfg.publishingEnabled = publishingSet && publishingValue == "true"
+	if cfg.mode == "serve" {
+		return cfg, nil
+	}
+	cfg.tinyFishAPIKey = firstEnv(getenv, "RADAR_LITE_TINYFISH_API_KEY", "TINYFISH_API_KEY")
+	cfg.tinyFishSearchBaseURL = firstEnv(getenv, "RADAR_LITE_TINYFISH_SEARCH_BASE_URL")
+	cfg.tinyFishFetchBaseURL = firstEnv(getenv, "RADAR_LITE_TINYFISH_FETCH_BASE_URL")
+	if cfg.mode == "reconcile" && cfg.tinyFishAPIKey == "" {
+		return config{}, errors.New("reconcile mode requires RADAR_LITE_TINYFISH_API_KEY or TINYFISH_API_KEY")
+	}
+	if cfg.marketOnly && cfg.tinyFishAPIKey == "" {
+		return config{}, errors.New("market-once mode requires RADAR_LITE_TINYFISH_API_KEY or TINYFISH_API_KEY")
+	}
+	switch cfg.deliveryMode {
+	case "log":
+	case "telegram":
+		if cfg.telegramToken == "" || cfg.telegramChat == "" {
+			return config{}, errors.New("telegram mode requires both RADAR_LITE_TELEGRAM_BOT_TOKEN (or RADAR_TELEGRAM_BOT_TOKEN) and RADAR_LITE_TELEGRAM_CHAT_ID (or RADAR_TELEGRAM_CHAT_ID)")
+		}
+		if !cfg.publishingEnabled {
+			return config{}, errors.New("telegram mode requires RADAR_LITE_PUBLISHING_ENABLED to be explicitly set to true")
+		}
+		cfg.recipient = cfg.telegramChat
+	default:
+		return config{}, fmt.Errorf("RADAR_LITE_DELIVERY_MODE %q is unsupported; use log or telegram", cfg.deliveryMode)
+	}
+	var err error
+	cfg.interval, err = durationEnv(getenv, "RADAR_LITE_INTERVAL", 15*time.Minute)
+	if err != nil {
+		return config{}, err
+	}
+	cfg.cycleTimeout, err = durationEnv(getenv, "RADAR_LITE_CYCLE_TIMEOUT", 20*time.Minute)
+	if err != nil {
+		return config{}, err
+	}
+	cfg.discoveryBatch, err = integerEnv(getenv, "RADAR_LITE_DISCOVERY_BATCH", 16, 1, 100)
+	if err != nil {
+		return config{}, err
+	}
+	cfg.discoveryTimeout, err = durationEnv(getenv, "RADAR_LITE_DISCOVERY_TIMEOUT", 45*time.Second)
+	if err != nil {
+		return config{}, err
+	}
+	cfg.discoveryRetry, err = durationEnv(getenv, "RADAR_LITE_DISCOVERY_RETRY", 6*time.Hour)
+	if err != nil {
+		return config{}, err
+	}
+	cfg.discoveryEmptyRetry, err = durationEnv(getenv, "RADAR_LITE_DISCOVERY_EMPTY_RETRY", time.Hour)
+	if err != nil {
+		return config{}, err
+	}
+	return cfg, nil
+}
+
+func runDiscovery(cfg config, output io.Writer, enforceCoverage bool) error {
+	catalogFile, err := os.Open(filepath.Clean(cfg.catalogPath))
+	if err != nil {
+		return fmt.Errorf("open verified catalog: %w", err)
+	}
+	defer catalogFile.Close()
+	catalog, err := lite.LoadCatalog(catalogFile)
+	if err != nil {
+		return err
+	}
+	seedFile, err := os.Open(filepath.Clean(cfg.seedPath))
+	if err != nil {
+		return fmt.Errorf("open discovery seed: %w", err)
+	}
+	defer seedFile.Close()
+	seed, err := lite.LoadDiscoverySeed(seedFile)
+	if err != nil {
+		return err
+	}
+
+	missing := lite.MissingDiscoveryCandidates(catalog, seed)
+	coverage := lite.AuditUniverse(catalog, seed)
+	encoder := json.NewEncoder(output)
+	encoder.SetIndent("", "  ")
+	if enforceCoverage {
+		if err := encoder.Encode(coverage); err != nil {
+			return err
+		}
+		if !coverage.Pass {
+			return fmt.Errorf("radar lite universe coverage audit failed: %s", strings.Join(coverage.Errors, "; "))
+		}
+		return nil
+	}
+	if err := encoder.Encode(struct {
+		Missing  []lite.DiscoveryCandidate `json:"missing_candidates"`
+		Count    int                       `json:"count"`
+		Coverage lite.UniverseCoverage     `json:"coverage"`
+	}{Missing: missing, Count: len(missing), Coverage: coverage}); err != nil {
+		return err
+	}
+	return nil
+}
+
+func runDrain(ctx context.Context, cfg config, output io.Writer, logger *slog.Logger) error {
+	startupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	store, closeStore, err := openLiteStore(startupCtx, cfg, false)
+	if err != nil {
+		return err
+	}
+	defer closeStore()
+	sender, err := newDeliverySender(cfg, logger)
+	if err != nil {
+		return err
+	}
+	drainer := lite.DeliveryDrainer{
+		Store: store, Sender: sender, Owner: processOwner(),
+		Channel: cfg.deliveryMode, Recipient: cfg.recipient,
+		Limit: 300, Lease: 2 * time.Minute, RetryDelay: time.Minute,
+	}
+	if cfg.deliveryMode == "telegram" {
+		drainer.MinInterval = telegramDeliveryInterval
+	}
+	report, err := drainer.Drain(ctx)
+	if encodeErr := json.NewEncoder(output).Encode(report); encodeErr != nil {
+		err = errors.Join(err, encodeErr)
+	}
+	return err
+}
+
+func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
+	catalog, err := loadCatalogFile(cfg.catalogPath)
+	if err != nil {
+		return err
+	}
+	baseSources := catalog.RoutineSources()
+	if cfg.marketOnly {
+		baseSources = nil
+	}
+	startupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	store, closeStore, err := openLiteStore(startupCtx, cfg, true)
+	if err != nil {
+		return err
+	}
+	defer closeStore()
+	suppressedKnown, err := store.SuppressKnownDiscoveredSources(startupCtx, catalog.RoutineSources(), time.Now().UTC())
+	if err != nil {
+		return fmt.Errorf("suppress discovered copies of verified sources: %w", err)
+	}
+	if suppressedKnown > 0 {
+		logger.Info("redundant discovered sources suppressed", "count", suppressedKnown)
+	}
+	suppressedDuplicates, err := store.SuppressDuplicateDiscoveredSources(startupCtx, time.Now().UTC())
+	if err != nil {
+		return fmt.Errorf("suppress duplicate discovered sources: %w", err)
+	}
+	if suppressedDuplicates > 0 {
+		logger.Info("duplicate discovered source routes compacted", "count", suppressedDuplicates)
+	}
+	promotedSources, err := store.ListPromotedSources(startupCtx)
+	if err != nil {
+		return fmt.Errorf("load promoted discovery sources: %w", err)
+	}
+	if cfg.marketOnly {
+		promotedSources = nil
+	}
+	marketSources := []lite.Source(nil)
+	if cfg.tinyFishAPIKey != "" {
+		marketSources = lite.MarketSearchSources()
+	}
+	sources := runtimeSources(baseSources, promotedSources, marketSources, cfg.marketOnly)
+	dashboardSources := lite.MergeRoutineSources(baseSources, marketSources)
+
+	health := &healthState{}
+	health.setRuntimeReader(store, false)
+	server, serverErrors := startWebServer(cfg.healthAddress, health, store, dashboardConfig{
+		BaseSources: dashboardSources, TotalSources: len(sources), RuntimeMode: cfg.mode,
+		LogoDomains:  loadCompanyLogoDomains(cfg.seedPath),
+		CycleTimeout: cfg.cycleTimeout,
+		DeliveryMode: cfg.deliveryMode, TelegramTokenPresent: cfg.telegramToken != "",
+		TelegramChatPresent: cfg.telegramChat != "", PublishingEnabled: cfg.publishingEnabled,
+	}, logger)
+	if server != nil {
+		defer func() {
+			shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer shutdownCancel()
+			_ = server.Shutdown(shutdownCtx)
+		}()
+	}
+
+	productionExtractor := newLiteExtractor(cfg, logger)
+	marketObservations := lite.NewMarketObservationExtractor(productionExtractor)
+	extractor := lite.Extractor(marketObservations)
+	var discoveryRunner *lite.DiscoveryRunner
+	if cfg.tinyFishAPIKey != "" && !cfg.marketOnly {
+		seed, err := loadDiscoverySeedFile(cfg.seedPath)
+		if err != nil {
+			return err
+		}
+		candidates := lite.MissingDiscoveryCandidates(catalog, seed)
+		discoveryRunner = newDiscoveryRunner(cfg, candidates, extractor, store, logger)
+		logger.Info("autodiscovery enabled", "candidates", len(candidates), "batch", cfg.discoveryBatch)
+	} else if cfg.marketOnly {
+		logger.Info("seed autodiscovery skipped", "reason", "market-only pass")
+	} else {
+		logger.Info("autodiscovery disabled", "reason", "TinyFish API key is not configured")
+	}
+	sender, err := newDeliverySender(cfg, logger)
+	if err != nil {
+		return err
+	}
+	owner := processOwner()
+	runner := lite.Runner{
+		Sources: sources, Extractor: extractor, Store: store,
+		Channel: cfg.deliveryMode, Recipient: cfg.recipient,
+		PublishBootstrap: cfg.deliveryMode == "telegram",
+	}
+	deliveryLimit := 100
+	deliveryTimeout := 30 * time.Second
+	deliveryInterval := time.Duration(0)
+	if cfg.deliveryMode == "telegram" {
+		// Telegram channels are limited to about 20 posts per minute. Leave
+		// enough headroom for minor scheduling and network jitter.
+		deliveryLimit = 300
+		deliveryTimeout = 6 * time.Minute
+		deliveryInterval = telegramDeliveryInterval
+	}
+	drainer := lite.DeliveryDrainer{
+		Store: store, Sender: sender, Owner: owner,
+		Channel: cfg.deliveryMode, Recipient: cfg.recipient,
+		Limit: deliveryLimit, Lease: 2 * time.Minute, RetryDelay: time.Minute,
+		MinInterval: deliveryInterval,
+	}
+
+	logger.Info("radar lite ready", "sources", len(runner.Sources), "schema", store.Schema(), "delivery_mode", cfg.deliveryMode)
+	for {
+		cycleStartedAt := time.Now().UTC()
+		leaseCtx, leaseCancel := context.WithTimeout(ctx, 5*time.Second)
+		cycleLease, acquired, leaseErr := store.TryAcquireCycle(leaseCtx, owner, cycleStartedAt)
+		leaseCancel()
+		if leaseErr != nil {
+			health.recordCycle(lite.RunReport{}, lite.DiscoveryReport{}, lite.DeliveryReport{}, leaseErr)
+			logger.Error("routine cycle ownership failed", "error", leaseErr)
+			if cfg.once {
+				return leaseErr
+			}
+			if err := waitForNextCycle(ctx, serverErrors, cfg.interval); err != nil {
+				if ctx.Err() != nil {
+					return nil
+				}
+				return err
+			}
+			continue
+		}
+		if !acquired {
+			operational, stateErr := store.ReadOperationalState(ctx)
+			if stateErr != nil {
+				health.recordCycle(lite.RunReport{}, lite.DiscoveryReport{}, lite.DeliveryReport{}, stateErr)
+				logger.Error("routine standby state unavailable", "error", stateErr)
+			} else {
+				health.recordStandby(operational.Runtime)
+				logger.Info("routine cycle skipped", "reason", "another instance owns the schema", "schema", store.Schema())
+			}
+			if cfg.once {
+				return stateErr
+			}
+			if err := waitForNextCycle(ctx, serverErrors, cfg.interval); err != nil {
+				if ctx.Err() != nil {
+					return nil
+				}
+				return err
+			}
+			continue
+		}
+
+		cycleCtx, cycleCancel := context.WithTimeout(ctx, cfg.cycleTimeout)
+		var discoveryReport lite.DiscoveryReport
+		var discoveryErr error
+		if cfg.marketOnly {
+			// Market-only is a bounded diagnostic pass: it does not spend
+			// quota on the fixed company seed or alter unrelated source health.
+		} else if discoveryRunner != nil {
+			discoveryReport, discoveryErr = discoveryRunner.Run(cycleCtx)
+		} else {
+			discoveryReport.SourcesDemoted, discoveryErr = store.DemoteUnhealthyDiscoveredSources(cycleCtx, 3, time.Now().UTC())
+		}
+		promoted, promotedErr := store.ListPromotedSources(cycleCtx)
+		if promotedErr != nil {
+			discoveryErr = errors.Join(discoveryErr, fmt.Errorf("load promoted discovery sources: %w", promotedErr))
+		} else {
+			runner.Sources = runtimeSources(baseSources, promoted, marketSources, cfg.marketOnly)
+		}
+		report, runErr := runner.Run(cycleCtx)
+		marketReport, marketErr := (lite.MarketSourcePromoter{
+			Extractor: productionExtractor,
+			Store:     store,
+			// Discovery runs before market promotion. Include the refreshed
+			// runtime set so a board promoted earlier in this same cycle is not
+			// re-created under a market-derived candidate alias.
+			KnownSources: runner.Sources,
+			Logger:       logger,
+		}).Run(cycleCtx, marketObservations.DrainMarketObservations())
+		if marketErr == nil && marketReport.SourcesPromoted > 0 {
+			promoted, promotedErr := store.ListPromotedSources(cycleCtx)
+			if promotedErr != nil {
+				marketErr = fmt.Errorf("reload market-promoted discovery sources: %w", promotedErr)
+			} else {
+				runner.Sources = runtimeSources(baseSources, promoted, marketSources, cfg.marketOnly)
+			}
+		}
+		cycleCancel()
+		deliveryCtx, deliveryCancel := context.WithTimeout(ctx, deliveryTimeout)
+		deliveryReport, deliveryErr := drainer.Drain(deliveryCtx)
+		deliveryCancel()
+		cycleErr := errors.Join(discoveryErr, runErr, marketErr, deliveryErr)
+		cycleResult := lite.CycleResult{
+			Status:           cycleResultStatus(report, discoveryReport, deliveryReport, cycleErr),
+			SourcesAttempted: report.SourcesAttempted, SourcesSucceeded: report.SourcesSucceeded,
+			SourcesFailed: report.SourcesFailed, Observed: report.Observed, Created: report.Created,
+			EligibleCreated: report.EligibleCreated, Enqueued: report.Enqueued,
+			DeliveriesSent: deliveryReport.Sent, DeliveryFailures: deliveryReport.Failed,
+			FinishedAt: time.Now().UTC(),
+		}
+		if cycleErr != nil {
+			cycleResult.LastError = "cycle failed; inspect structured runtime logs"
+		}
+		finalizeCtx, finalizeCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		finalizeErr := cycleLease.Complete(finalizeCtx, cycleResult)
+		finalizeCancel()
+		cycleErr = errors.Join(cycleErr, finalizeErr)
+		health.recordCycle(report, discoveryReport, deliveryReport, cycleErr)
+		logger.Info("routine cycle complete",
+			"discovery_attempted", discoveryReport.CandidatesAttempted,
+			"discovery_resolved", discoveryReport.SourcesResolved,
+			"discovery_probed", discoveryReport.SourcesProbed,
+			"discovery_healthy", discoveryReport.SourcesHealthy,
+			"discovery_empty", discoveryReport.SourcesEmpty,
+			"discovery_rejected", discoveryReport.SourcesRejected,
+			"discovery_promoted", discoveryReport.SourcesPromoted,
+			"discovery_demoted", discoveryReport.SourcesDemoted,
+			"discovery_failed", discoveryReport.CandidatesFailed,
+			"market_observations", marketReport.ObservationsSeen,
+			"market_companies_discovered", marketReport.CompaniesDiscovered,
+			"market_sources_derived", marketReport.SourcesDerived,
+			"market_sources_probed", marketReport.SourcesProbed,
+			"market_sources_healthy", marketReport.SourcesHealthy,
+			"market_sources_empty", marketReport.SourcesEmpty,
+			"market_sources_rejected", marketReport.SourcesRejected,
+			"market_sources_promoted", marketReport.SourcesPromoted,
+			"market_sources_already_monitored", marketReport.SourcesMonitored,
+			"monitored_sources", len(runner.Sources),
+			"sources_attempted", report.SourcesAttempted,
+			"sources_succeeded", report.SourcesSucceeded,
+			"sources_failed", report.SourcesFailed,
+			"sources_bootstrapped", report.SourcesBootstrapped,
+			"observed", report.Observed,
+			"created", report.Created,
+			"eligible_created", report.EligibleCreated,
+			"enqueued", report.Enqueued,
+			"deliveries_sent", deliveryReport.Sent,
+			"deliveries_failed", deliveryReport.Failed,
+			"bootstrapping", report.Bootstrapping,
+			"error", cycleErr,
+		)
+		if cfg.once {
+			return cycleErr
+		}
+		if err := waitForNextCycle(ctx, serverErrors, cfg.interval); err != nil {
+			if ctx.Err() != nil {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+func cycleResultStatus(report lite.RunReport, discovery lite.DiscoveryReport, delivery lite.DeliveryReport, err error) string {
+	if err != nil {
+		return "failure"
+	}
+	if report.SourcesFailed > 0 || discovery.CandidatesFailed > 0 || delivery.Failed > 0 {
+		return "degraded"
+	}
+	return "success"
+}
+
+func runtimeSources(base, promoted, market []lite.Source, marketOnly bool) []lite.Source {
+	if marketOnly {
+		return lite.MergeRoutineSources(nil, market)
+	}
+	return lite.MergeRoutineSources(lite.MergeRoutineSources(base, promoted), market)
+}
+
+func waitForNextCycle(ctx context.Context, serverErrors <-chan error, interval time.Duration) error {
+	timer := time.NewTimer(interval)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case serverErr := <-serverErrors:
+		return serverErr
+	case <-timer.C:
+		return nil
+	}
+}
+
+func runReconcile(ctx context.Context, cfg config, output io.Writer, logger *slog.Logger) error {
+	catalog, err := loadCatalogFile(cfg.catalogPath)
+	if err != nil {
+		return err
+	}
+	seed, err := loadDiscoverySeedFile(cfg.seedPath)
+	if err != nil {
+		return err
+	}
+	startupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	store, closeStore, err := openLiteStore(startupCtx, cfg, true)
+	if err != nil {
+		return err
+	}
+	defer closeStore()
+	if _, err := store.SuppressKnownDiscoveredSources(startupCtx, catalog.RoutineSources(), time.Now().UTC()); err != nil {
+		return fmt.Errorf("suppress discovered copies of verified sources: %w", err)
+	}
+	if _, err := store.SuppressDuplicateDiscoveredSources(startupCtx, time.Now().UTC()); err != nil {
+		return fmt.Errorf("suppress duplicate discovered sources: %w", err)
+	}
+	extractor := newLiteExtractor(cfg, logger)
+	runner := newDiscoveryRunner(cfg, lite.MissingDiscoveryCandidates(catalog, seed), extractor, store, logger)
+	report, err := runner.Run(ctx)
+	if err != nil {
+		return err
+	}
+	promoted, err := store.ListPromotedSources(ctx)
+	if err != nil {
+		return err
+	}
+	logger.Info("autodiscovery reconciliation complete", "attempted", report.CandidatesAttempted, "promoted", report.SourcesPromoted, "monitored_discovered_sources", len(promoted))
+	encoder := json.NewEncoder(output)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(struct {
+		Report          lite.DiscoveryReport `json:"report"`
+		PromotedSources []lite.Source        `json:"promoted_sources"`
+	}{Report: report, PromotedSources: promoted})
+}
+
+func newDiscoveryRunner(cfg config, candidates []lite.DiscoveryCandidate, extractor lite.Extractor, store *lite.PostgresStore, logger *slog.Logger) *lite.DiscoveryRunner {
+	client := lite.NewRetryingTinyFishDiscoveryClient(tinyfish.Client{
+		APIKey: cfg.tinyFishAPIKey, SearchBaseURL: cfg.tinyFishSearchBaseURL,
+		FetchBaseURL: cfg.tinyFishFetchBaseURL,
+	}, lite.DiscoveryClientRetryOptions{
+		MaxAttempts: 3,
+		Delay:       time.Second,
+		MaxDelay:    5 * time.Second,
+		OnRetry: func(operation string, nextAttempt int, delay time.Duration, err error) {
+			logger.Warn("transient TinyFish discovery request failed; retrying",
+				"component", "radar_lite_discovery",
+				"event", "tinyfish_request_retry",
+				"operation", operation,
+				"next_attempt", nextAttempt,
+				"delay_ms", delay.Milliseconds(),
+				"error", err,
+			)
+		},
+	})
+	return &lite.DiscoveryRunner{
+		Candidates: candidates,
+		Client:     client,
+		Extractor:  extractor, Store: store, Batch: cfg.discoveryBatch,
+		CandidateTimeout: cfg.discoveryTimeout, RetryDelay: cfg.discoveryRetry,
+		EmptyRetryDelay: cfg.discoveryEmptyRetry, Logger: logger,
+	}
+}
+
+func newLiteExtractor(cfg config, logger *slog.Logger) lite.Extractor {
+	if logger == nil {
+		logger = slog.Default()
+	}
+	structured := lite.NewATSExtractor(scraper.ATSOptions{
+		Client:                       scraper.NewSafeHTTPClient(liteATSHTTPTimeout),
+		SmartRecruitersDetailMaxJobs: 8,
+		// Large Workday boards otherwise spend the entire per-company discovery
+		// deadline fetching every description. Summaries preserve job identity;
+		// bounded details enrich the most recent rows without blocking coverage.
+		WorkdayDetailMaxJobs: 8,
+		WorkdayDetailTimeout: 4 * time.Second,
+	})
+	var search lite.Extractor
+	if cfg.tinyFishAPIKey != "" {
+		client := tinyfish.Client{
+			APIKey: cfg.tinyFishAPIKey, SearchBaseURL: cfg.tinyFishSearchBaseURL,
+			FetchBaseURL: cfg.tinyFishFetchBaseURL,
+		}
+		search = lite.NewScraperExtractorAtTier(
+			tinyfishextractor.NewTinyFishSearchExtractor(client),
+			scraper.TierSearchDiscovery,
+		)
+	}
+	resilient := lite.NewRetryingExtractor(
+		lite.NewDiscoveryAwareExtractor(structured, search),
+		lite.ExtractionRetryOptions{
+			MaxAttempts: 3,
+			Delay:       500 * time.Millisecond,
+			MaxDelay:    5 * time.Second,
+			OnRetry: func(source lite.Source, nextAttempt int, err error) {
+				logger.Warn("transient source extraction failure; retrying",
+					"source_id", source.ID,
+					"company", source.Company,
+					"provider", source.Provider,
+					"next_attempt", nextAttempt,
+					"error", err,
+				)
+			},
+		},
+	)
+	return loggingExtractor{
+		inner:  resilient,
+		logger: logger,
+	}
+}
+
+func runServe(ctx context.Context, cfg config, logger *slog.Logger) error {
+	catalog, err := loadCatalogFile(cfg.catalogPath)
+	if err != nil {
+		return err
+	}
+	startupCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	store, closeStore, err := openLiteStore(startupCtx, cfg, false)
+	if err != nil {
+		return err
+	}
+	defer closeStore()
+	if _, err := store.ListPostings(startupCtx); err != nil {
+		return errors.New("open Radar Lite job feed: database query failed")
+	}
+	if _, err := store.ListSourceStatuses(startupCtx); err != nil {
+		return errors.New("open Radar Lite source health: database query failed")
+	}
+
+	health := &healthState{}
+	health.setRuntimeReader(store, true)
+	operational, err := store.ReadOperationalState(startupCtx)
+	if err != nil {
+		return errors.New("open Radar Lite operational state: database query failed")
+	}
+	health.recordReadOnly(operational.Runtime)
+	// Market-search controls are durable source-status rows even though a
+	// read-only process does not need a TinyFish key. Include their static
+	// metadata so status counts and labels stay consistent across topologies.
+	baseSources := lite.MergeRoutineSources(catalog.RoutineSources(), lite.MarketSearchSources())
+	totalSources := len(baseSources) + operational.DiscoveredCounts["promoted"]
+	// A read-only web process intentionally has no TinyFish key, but it still
+	// represents the last routine owner's persisted market-search sources.
+	// Source status is the authoritative active-set floor in that topology.
+	if observedSources := len(operational.RoutineSourceStatus); observedSources > totalSources {
+		totalSources = observedSources
+	}
+	server, serverErrors := startWebServer(cfg.healthAddress, health, store, dashboardConfig{
+		BaseSources: baseSources, TotalSources: totalSources,
+		LogoDomains: loadCompanyLogoDomains(cfg.seedPath),
+		RuntimeMode: cfg.mode, CycleTimeout: cfg.cycleTimeout, DeliveryMode: cfg.deliveryMode,
+		TelegramTokenPresent: cfg.telegramToken != "", TelegramChatPresent: cfg.telegramChat != "",
+		PublishingEnabled: cfg.publishingEnabled,
+	}, logger)
+	if server == nil {
+		return errors.New("serve mode requires RADAR_LITE_HEALTH_ADDR to be enabled")
+	}
+	defer func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer shutdownCancel()
+		_ = server.Shutdown(shutdownCtx)
+	}()
+
+	logger.Info("radar lite UI ready", "address", cfg.healthAddress, "schema", store.Schema())
+	select {
+	case <-ctx.Done():
+		return nil
+	case serverErr := <-serverErrors:
+		return serverErr
+	}
+}
+
+func openLiteStore(ctx context.Context, cfg config, ensureSchema bool) (*lite.PostgresStore, func(), error) {
+	database, err := db.OpenPostgres(ctx, cfg.databaseURL, db.Options{
+		MaxOpenConns: 4, MaxIdleConns: 1, ConnMaxLifetime: 30 * time.Minute,
+	})
+	if err != nil {
+		return nil, func() {}, errors.New("connect to Radar Lite Postgres: database configuration or connectivity check failed")
+	}
+	closeStore := func() { _ = database.Close() }
+	store, err := lite.NewPostgresStore(database, lite.PostgresOptions{Schema: cfg.schema})
+	if err != nil {
+		closeStore()
+		return nil, func() {}, errors.New("initialize Radar Lite Postgres store: configuration is invalid")
+	}
+	if ensureSchema {
+		if err := store.EnsureSchema(ctx); err != nil {
+			closeStore()
+			return nil, func() {}, errors.New("initialize Radar Lite Postgres schema: migration failed")
+		}
+	}
+	return store, closeStore, nil
+}
+
+func loadCatalogFile(path string) (lite.Catalog, error) {
+	file, err := os.Open(filepath.Clean(path))
+	if err != nil {
+		return lite.Catalog{}, fmt.Errorf("open verified catalog: %w", err)
+	}
+	defer file.Close()
+	return lite.LoadCatalog(file)
+}
+
+func loadDiscoverySeedFile(path string) (lite.DiscoverySeed, error) {
+	file, err := os.Open(filepath.Clean(path))
+	if err != nil {
+		return lite.DiscoverySeed{}, fmt.Errorf("open discovery seed: %w", err)
+	}
+	defer file.Close()
+	return lite.LoadDiscoverySeed(file)
+}
+
+type logSender struct{ logger *slog.Logger }
+
+func (s logSender) Send(ctx context.Context, delivery lite.Delivery) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	var posting lite.Posting
+	if err := json.Unmarshal(delivery.Payload, &posting); err != nil {
+		return fmt.Errorf("decode delivery payload: %w", err)
+	}
+	logger := s.logger
+	if logger == nil {
+		logger = slog.Default()
+	}
+	logger.InfoContext(ctx, "job preview",
+		"delivery_id", delivery.ID,
+		"job_id", delivery.JobID,
+		"company", posting.Company,
+		"title", posting.Title,
+		"location", posting.Location,
+		"apply_url", posting.ApplyURL,
+	)
+	return nil
+}
+
+type outboxSender struct {
+	outbox        notify.Outbox
+	presentations map[string]companyPresentation
+}
+
+func (s outboxSender) Send(ctx context.Context, delivery lite.Delivery) error {
+	if s.outbox == nil {
+		return errors.New("notification outbox is required")
+	}
+	posting, err := decodePosting(delivery)
+	if err != nil {
+		return err
+	}
+	return s.outbox.Enqueue(ctx, postingMessage(delivery, posting, s.presentations))
+}
+
+func newDeliverySender(cfg config, logger *slog.Logger) (lite.Sender, error) {
+	switch cfg.deliveryMode {
+	case "log":
+		return logSender{logger: logger}, nil
+	case "telegram":
+		if cfg.telegramToken == "" || cfg.telegramChat == "" {
+			return nil, errors.New("telegram credentials are required")
+		}
+		client := notify.NewWebhookHTTPClient(10 * time.Second)
+		return outboxSender{
+			outbox:        notify.NewTelegramOutbox(cfg.telegramToken, cfg.telegramChat, client),
+			presentations: loadCompanyPresentations(cfg.seedPath),
+		}, nil
+	default:
+		return nil, fmt.Errorf("unsupported delivery mode %q", cfg.deliveryMode)
+	}
+}
+
+func decodePosting(delivery lite.Delivery) (lite.Posting, error) {
+	var posting lite.Posting
+	if err := json.Unmarshal(delivery.Payload, &posting); err != nil {
+		return lite.Posting{}, fmt.Errorf("decode delivery payload: %w", err)
+	}
+	return posting, nil
+}
+
+func postingMessage(delivery lite.Delivery, posting lite.Posting, presentations map[string]companyPresentation) notify.Message {
+	location := strings.TrimSpace(posting.Location)
+	if location == "" {
+		location = "Location not stated"
+	}
+	return notify.Message{
+		ID:        fmt.Sprintf("lite-%d", delivery.ID),
+		Channel:   "telegram",
+		Recipient: delivery.Recipient,
+		Subject:   strings.TrimSpace(posting.Title),
+		Body:      fmt.Sprintf("%s\n📍 %s\n%s", strings.TrimSpace(posting.Company), location, strings.TrimSpace(posting.ApplyURL)),
+		DedupeKey: delivery.JobID,
+		Metadata: map[string]string{
+			"company":         strings.TrimSpace(posting.Company),
+			"company_type":    companyPresentationLabel(posting.Company, presentations),
+			"title":           strings.TrimSpace(posting.Title),
+			"track":           postingTrackLabel(posting),
+			"category":        postingCategoryLabel(posting),
+			"location":        location,
+			"location_marker": postingLocationMarker(posting.Country, posting.Location),
+			"apply_url":       strings.TrimSpace(posting.ApplyURL),
+		},
+		CreatedAt: posting.FirstSeenAt,
+	}
+}
+
+type healthState struct {
+	mu               sync.RWMutex
+	runtimeReader    operationalStateReader
+	readOnly         bool
+	ready            bool
+	degraded         bool
+	lastCycleAt      time.Time
+	lastCycleFail    bool
+	sourcesSucceeded int
+	sourcesFailed    int
+	deliveryFailures int
+}
+
+type operationalStateReader interface {
+	ReadOperationalState(context.Context) (lite.OperationalState, error)
+}
+
+type runtimeSnapshot struct {
+	Ready            bool      `json:"ready"`
+	Degraded         bool      `json:"degraded"`
+	LastCycleAt      time.Time `json:"last_cycle_at"`
+	LastCycleError   bool      `json:"last_cycle_error"`
+	SourcesSucceeded int       `json:"sources_succeeded"`
+	SourcesFailed    int       `json:"sources_failed"`
+	DeliveryFailures int       `json:"delivery_failures"`
+}
+
+func (s *healthState) recordCycle(report lite.RunReport, discovery lite.DiscoveryReport, delivery lite.DeliveryReport, err error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.lastCycleAt = time.Now().UTC()
+	s.lastCycleFail = err != nil
+	s.ready = err == nil
+	s.degraded = err == nil && (report.SourcesFailed > 0 || discovery.CandidatesFailed > 0 || delivery.Failed > 0)
+	s.sourcesSucceeded = report.SourcesSucceeded
+	s.sourcesFailed = report.SourcesFailed
+	s.deliveryFailures = delivery.Failed
+}
+
+func (s *healthState) recordStandby(runtime *lite.RuntimeState) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	// Ownership proves only that a worker is attempting a cycle. Readiness
+	// requires at least one completed usable cycle; otherwise a brand-new
+	// deployment could report ready while its first extraction is still in
+	// flight (or about to fail).
+	s.ready = runtime != nil && (runtime.LastCycleState == "success" || runtime.LastCycleState == "degraded")
+	s.degraded = runtime != nil && runtime.LastCycleState == "degraded"
+	s.lastCycleFail = runtime != nil && runtime.LastCycleState == "failure"
+	if runtime == nil {
+		return
+	}
+	if runtime.LastCycleFinished != nil {
+		s.lastCycleAt = *runtime.LastCycleFinished
+	}
+	s.sourcesSucceeded = runtime.SourcesSucceeded
+	s.sourcesFailed = runtime.SourcesFailed
+	s.deliveryFailures = runtime.DeliveryFailures
+}
+
+func (s *healthState) recordReadOnly(runtime *lite.RuntimeState) {
+	s.recordStandby(runtime)
+	s.mu.Lock()
+	s.ready = true
+	s.mu.Unlock()
+}
+
+func (s *healthState) setRuntimeReader(reader operationalStateReader, readOnly bool) {
+	s.mu.Lock()
+	s.runtimeReader = reader
+	s.readOnly = readOnly
+	s.mu.Unlock()
+}
+
+func (s *healthState) refreshRuntime(ctx context.Context) error {
+	s.mu.RLock()
+	reader, readOnly := s.runtimeReader, s.readOnly
+	s.mu.RUnlock()
+	if reader == nil {
+		return nil
+	}
+	operational, err := reader.ReadOperationalState(ctx)
+	if err != nil {
+		return err
+	}
+	if readOnly {
+		s.recordReadOnly(operational.Runtime)
+	} else {
+		s.recordStandby(operational.Runtime)
+	}
+	return nil
+}
+
+func (s *healthState) snapshot() runtimeSnapshot {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return runtimeSnapshot{
+		Ready: s.ready, Degraded: s.degraded, LastCycleAt: s.lastCycleAt,
+		LastCycleError: s.lastCycleFail, SourcesSucceeded: s.sourcesSucceeded,
+		SourcesFailed: s.sourcesFailed, DeliveryFailures: s.deliveryFailures,
+	}
+}
+
+func (s *healthState) handler() http.Handler {
+	mux := http.NewServeMux()
+	s.registerHealthRoutes(mux)
+	return mux
+}
+
+func (s *healthState) registerHealthRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"status":"ok"}`+"\n")
+	})
+	mux.HandleFunc("GET /readyz", func(w http.ResponseWriter, request *http.Request) {
+		ctx, cancel := context.WithTimeout(request.Context(), 3*time.Second)
+		defer cancel()
+		if err := s.refreshRuntime(ctx); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"ready": false, "degraded": true, "state_error": true,
+			})
+			return
+		}
+		current := s.snapshot()
+		w.Header().Set("Content-Type", "application/json")
+		if !current.Ready {
+			w.WriteHeader(http.StatusServiceUnavailable)
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"ready":             current.Ready,
+			"degraded":          current.Degraded,
+			"last_cycle_at":     current.LastCycleAt,
+			"last_cycle_error":  current.LastCycleError,
+			"sources_succeeded": current.SourcesSucceeded,
+			"sources_failed":    current.SourcesFailed,
+			"delivery_failures": current.DeliveryFailures,
+		})
+	})
+}
+
+func newServerHandler(state *healthState, store dashboardStore, cfg dashboardConfig, logger *slog.Logger) http.Handler {
+	mux := http.NewServeMux()
+	state.registerHealthRoutes(mux)
+	mux.HandleFunc("GET /api/jobs", (feedServer{store: store, totalSources: cfg.TotalSources, logoDomains: cfg.LogoDomains, logger: logger}).handler)
+	mux.HandleFunc("GET /api/status", (statusServer{store: store, health: state, config: cfg, logger: logger}).handler)
+	registerUI(mux)
+	return mux
+}
+
+func startWebServer(address string, state *healthState, store dashboardStore, cfg dashboardConfig, logger *slog.Logger) (*http.Server, <-chan error) {
+	errorsChannel := make(chan error, 1)
+	if strings.TrimSpace(address) == "" || strings.TrimSpace(address) == "-" {
+		return nil, errorsChannel
+	}
+	server := &http.Server{
+		Addr: address, Handler: newServerHandler(state, store, cfg, logger),
+		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second,
+	}
+	go func() {
+		logger.Info("radar lite web server listening", "address", address)
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errorsChannel <- fmt.Errorf("web server: %w", err)
+		}
+	}()
+	return server, errorsChannel
+}
+
+func envOr(getenv lookupEnv, key, fallback string) string {
+	if value, ok := getenv(key); ok && strings.TrimSpace(value) != "" {
+		return strings.TrimSpace(value)
+	}
+	return fallback
+}
+
+func firstEnv(getenv lookupEnv, keys ...string) string {
+	for _, key := range keys {
+		if value, ok := getenv(key); ok && strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func durationEnv(getenv lookupEnv, key string, fallback time.Duration) (time.Duration, error) {
+	raw := envOr(getenv, key, fallback.String())
+	duration, err := time.ParseDuration(raw)
+	if err != nil || duration <= 0 {
+		return 0, fmt.Errorf("%s must be a positive duration", key)
+	}
+	return duration, nil
+}
+
+func integerEnv(getenv lookupEnv, key string, fallback, minimum, maximum int) (int, error) {
+	raw := envOr(getenv, key, strconv.Itoa(fallback))
+	value, err := strconv.Atoi(raw)
+	if err != nil || value < minimum || value > maximum {
+		return 0, fmt.Errorf("%s must be an integer between %d and %d", key, minimum, maximum)
+	}
+	return value, nil
+}
+
+func processOwner() string {
+	hostname, _ := os.Hostname()
+	return fmt.Sprintf("%s-%d", hostname, os.Getpid())
+}

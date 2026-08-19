@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="A technical reference for Radar Lite source discovery, job ingestion, deduplication, filtering, and delivery." />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%230f766e'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='white'/%3E%3C/svg%3E" />
+    <title>How Radar Lite works</title>
+    <link rel="stylesheet" href="/styles.css?v=20260819-docs3" />
+    <script src="/docs.js?v=20260819-docs3" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to technical reference</a>
+    <header class="site-header">
+      <a class="brand" href="/jobs" aria-label="Radar Lite home">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span>Radar Lite</span>
+      </a>
+      <nav aria-label="Page sections">
+        <a href="/jobs">Jobs</a>
+        <a href="/companies">Companies</a>
+        <a href="/system">System</a>
+        <a href="/docs" aria-current="page">How it works</a>
+        <a href="https://t.me/earlycareerradar" target="_blank" rel="noopener noreferrer">Telegram ↗</a>
+      </nav>
+      <a class="source-state" id="source-state" href="/system" data-state="pending" aria-live="polite">
+        <span class="source-state-mark" aria-hidden="true"></span>
+        <span>Loading pipeline state</span>
+      </a>
+    </header>
+
+    <main class="docs-main" id="content">
+      <header class="docs-hero">
+        <p class="section-label">Implementation</p>
+        <h1>How Radar Lite works</h1>
+        <p>This page follows a job from source discovery to PostgreSQL, the public job list, and the Telegram outbox.</p>
+      </header>
+
+      <div class="docs-layout">
+        <aside class="docs-index" aria-label="Technical reference index">
+          <strong>Contents</strong>
+          <nav>
+            <a href="#pipeline">Pipeline</a>
+            <a href="#sources">Source discovery</a>
+            <a href="#ingestion">Crawl cycle</a>
+            <a href="#dedupe">Job identity</a>
+            <a href="#eligibility">Eligibility</a>
+            <a href="#delivery">Delivery and recovery</a>
+          </nav>
+        </aside>
+
+        <article class="docs-content">
+          <section id="pipeline">
+            <h2>Request path</h2>
+            <p>One loop finds possible career pages. A second loop fetches jobs from pages that passed the source checks.</p>
+
+            <figure class="system-diagram" aria-labelledby="pipeline-caption">
+              <figcaption id="pipeline-caption">From company name to notification row</figcaption>
+              <div class="pipeline-row">
+                <div class="pipeline-node"><span>Discovery</span><strong>Candidate URL</strong><small>company name and careers page</small></div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node"><span>Verification</span><strong>Verified source</strong><small>company match and supported adapter</small></div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node"><span>Extraction</span><strong>Posting list</strong><small>all jobs returned by the source</small></div>
+              </div>
+              <div class="pipeline-store"><strong>PostgreSQL</strong><span>source registry · health · jobs · aliases · observations · deliveries · runtime lease</span></div>
+              <div class="pipeline-row pipeline-row-wide">
+                <div class="pipeline-node"><span>Identity</span><strong>Job row</strong><small>matched by source ID or apply URL</small></div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node"><span>Filter</span><strong>Keep or suppress</strong><small>role, timing, geography</small></div>
+                <i aria-hidden="true">→</i>
+                <div class="pipeline-node"><span>Delivery</span><strong>Outbox row</strong><small>recipient and send status</small></div>
+              </div>
+            </figure>
+
+            <dl class="tech-ledger">
+              <div><dt>Source records</dt><dd>Candidate URLs, verified sources, check results, failure counts, and the next retry time.</dd></div>
+              <div><dt>Job records</dt><dd>Raw observations, job rows, identity aliases, source history, and filter results.</dd></div>
+              <div><dt>Persistence</dt><dd>PostgreSQL stores dedupe and retry state. Restarting the process does not clear either one.</dd></div>
+            </dl>
+          </section>
+
+          <section id="sources">
+            <h2>Source discovery</h2>
+            <p>A discovered URL is saved as a candidate first. Radar identifies the job platform and tests the URL with the same adapter used by scheduled crawls.</p>
+
+            <div class="state-flow" role="list" aria-label="Source states">
+              <div role="listitem"><code>candidate</code><span>A possible careers URL. Scheduled crawls do not use it yet.</span></div>
+              <div role="listitem"><code>validating</code><span>The worker is checking the company, adapter, and response.</span></div>
+              <div role="listitem"><code>promoted</code><span>The test returned a valid job list. Scheduled crawls may now use it.</span></div>
+              <div role="listitem"><code>unhealthy</code><span>The request or parser failed. The next attempt runs after a stored delay.</span></div>
+            </div>
+
+            <h3>Source checks</h3>
+            <ul class="check-list">
+              <li>The careers route belongs to the expected company.</li>
+              <li>The provider has a supported structured or company-specific adapter.</li>
+              <li>The adapter can read the full job list, not only one search result page.</li>
+              <li>A non-empty response contains job titles and apply links. Known ATS APIs may also return a confirmed empty list.</li>
+            </ul>
+            <p>HTTP 200 is not enough. An unknown page that returns no jobs stays a candidate until Radar can verify what it is.</p>
+          </section>
+
+          <section id="ingestion">
+            <h2>Crawl cycle</h2>
+            <ol class="technical-steps">
+              <li><span>1</span><div><strong>Lock the scheduler</strong><p>A PostgreSQL advisory lock allows only one routine process to start the cycle.</p></div></li>
+              <li><span>2</span><div><strong>Read scheduled sources</strong><p>The query selects promoted sources whose next attempt time has arrived.</p></div></li>
+              <li><span>3</span><div><strong>Fetch every current posting</strong><p>The source adapter returns a complete list or an error. A failure for one company does not stop the others.</p></div></li>
+              <li><span>4</span><div><strong>Write each posting</strong><p>The transaction resolves job identity, updates the job and source history, and inserts the delivery row.</p></div></li>
+              <li><span>5</span><div><strong>Mark the fetch complete</strong><p>Staged delivery rows become pending only after the whole source response has been processed.</p></div></li>
+              <li><span>6</span><div><strong>Update source status</strong><p>The worker stores the job count, error, failure count, and next attempt time.</p></div></li>
+            </ol>
+          </section>
+
+          <section id="dedupe">
+            <h2>Job identity and deduplication</h2>
+            <p>A title or location can change while the job stays open. Radar therefore matches postings by source ID and apply URL before using a title-based fallback.</p>
+
+            <div class="identity-table" role="table" aria-label="Job identity hierarchy">
+              <div class="identity-table-head" role="row"><span role="columnheader">Key</span><span role="columnheader">Scope</span><span role="columnheader">Purpose</span></div>
+              <div role="row"><strong role="cell">Native posting ID</strong><code role="cell">native:source:654321</code><span role="cell">Primary identity within one source.</span></div>
+              <div role="row"><strong role="cell">Canonical apply URL</strong><code role="cell">company-url:company|url:…</code><span role="cell">Connects source routes without crossing company boundaries.</span></div>
+              <div role="row"><strong role="cell">Requisition UUID</strong><code role="cell">requisition:company:8f0c…</code><span role="cell">Still matches after an ATS host or route change.</span></div>
+              <div role="row"><strong role="cell">Posting fingerprint</strong><code role="cell">posting:company|title|location</code><span role="cell">Fallback only when strong identifiers are absent.</span></div>
+            </div>
+
+            <h3>URL canonicalization</h3>
+            <p>The canonicalizer removes fragments and known tracking parameters, sorts meaningful query values, normalizes default ports, and unifies equivalent Greenhouse board hosts. It preserves reserved path escapes and meaningful query parameters because they may distinguish requisitions.</p>
+
+            <div class="code-sample" aria-label="URL identity example">
+              <div><span>input A</span><code>boards.greenhouse.io/acme/jobs/42?gh_jid=42&amp;utm_source=x</code></div>
+              <div><span>input B</span><code>job-boards.greenhouse.io/acme/jobs/42</code></div>
+              <div><span>identity</span><code>url:https://job-boards.greenhouse.io/acme/jobs/42</code></div>
+            </div>
+
+            <h3>Concurrent writes</h3>
+            <p>For each posting, Radar computes the available identity keys, sorts them, and takes PostgreSQL advisory locks in that order. If those keys already point to different job rows, the rows are merged before the update. Two workers processing the same new job therefore cannot create separate owners.</p>
+            <pre class="schema-rule"><code>UNIQUE (job_id, channel, recipient)</code></pre>
+            <p>The aliases, source history, job row, and delivery row use one database transaction. If one write fails, none of them are committed.</p>
+          </section>
+
+          <section id="eligibility">
+            <h2>Eligibility policy</h2>
+            <p>Radar stores every parsed posting with its source. The web feed and Telegram outbox include only postings that pass these checks.</p>
+            <dl class="tech-ledger">
+              <div><dt>Role</dt><dd>Software, infrastructure, data, ML, research engineering, and quantitative engineering roles.</dd></div>
+              <div><dt>Career timing</dt><dd>Internship, university graduate, new graduate, and explicit early-career evidence.</dd></div>
+              <div><dt>Geography</dt><dd>United States, Singapore, and supported remote locations after country normalization.</dd></div>
+              <div><dt>Hard rejects</dt><dd>Senior management, support, generic operations, QA-only, stale postings, and unusable apply links.</dd></div>
+            </dl>
+            <p>A rejected posting gets a delivery row with status <code>suppressed</code>. Seeing the same job again does not create another decision.</p>
+          </section>
+
+          <section id="delivery">
+            <h2>Delivery and recovery</h2>
+            <p>The first complete fetch from a new source is saved without sending old jobs. New eligible jobs use these delivery statuses:</p>
+
+            <div class="delivery-flow" aria-label="Delivery states">
+              <code>staged</code><i aria-hidden="true">→</i><code>pending</code><i aria-hidden="true">→</i><code>claimed</code><i aria-hidden="true">→</i><code>sent</code>
+            </div>
+
+            <dl class="tech-ledger">
+              <div><dt>Source request fails</dt><dd>Retry during the cycle. If it still fails, write a later <code>next_attempt_at</code>.</dd></div>
+              <div><dt>Fetch stops halfway</dt><dd>Keep new delivery rows staged. A later complete fetch can activate them.</dd></div>
+              <div><dt>Telegram request fails</dt><dd>Return the same row to pending and retry it. Do not insert another row.</dd></div>
+              <div><dt>Worker exits</dt><dd>The database lock releases and claimed delivery leases eventually expire.</dd></div>
+            </dl>
+
+            <p>The unique index prevents Radar from creating two delivery rows for the same job, channel, and recipient. One edge case remains: Telegram may accept a message while its response is lost, so retrying that timed-out request can duplicate the message in Telegram.</p>
+            <div class="docs-links">
+              <a class="inline-doc-link" href="/#system">Inspect live system state ↗</a>
+              <a class="inline-doc-link" href="https://t.me/earlycareerradar" target="_blank" rel="noopener noreferrer">Open the Telegram channel ↗</a>
+            </div>
+          </section>
+        </article>
+      </div>
+    </main>
+
+    <footer>
+      <strong>Radar Lite</strong>
+      <span>Source checks, job identities, and delivery status are stored in PostgreSQL.</span>
+      <a href="/">Browse jobs ↗</a>
+    </footer>
+  </body>
+</html>
