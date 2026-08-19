@@ -5,6 +5,15 @@ company-owned career sources, discovers and verifies new ATS boards, filters for
 technical internships and new-grad roles, deduplicates openings in Postgres,
 publishes durable notifications, and serves a read-only dashboard.
 
+## Repository map
+
+- `cmd/radar` — runtime modes, HTTP API, and embedded dashboard
+- `internal/core` — discovery, filtering, identity, persistence, and delivery state
+- `internal/provider` and `internal/scraper` — career-source extraction
+- `internal/delivery` — log and Telegram senders
+- `config` — verified sources and the discovery research seed
+- `docs` — architecture, operation, API, and development references
+
 ## Run locally
 
 Copy `.env.example` to `.env`, configure a dedicated Postgres database, then run:
@@ -31,6 +40,9 @@ Postgres database:
 ```sh
 RADAR_TEST_DATABASE_URL='postgres://...' make test-db
 ```
+
+See [docs/README.md](docs/README.md) for the documentation map and
+[CONTRIBUTING.md](CONTRIBUTING.md) for the change workflow.
 
 ## Deploy
 

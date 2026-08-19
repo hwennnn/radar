@@ -3,6 +3,13 @@
 Radar is an autonomous early-career job intelligence service. Work from
 evidence, preserve user changes, and keep commits focused and green.
 
+## Start here
+
+1. Read [docs/README.md](docs/README.md) and follow its task routing.
+2. Read the nearest nested `AGENTS.md` before editing a governed subtree.
+3. Inspect the dirty worktree and reproduce or measure before changing behavior.
+4. Treat code and tests as authoritative when documentation disagrees.
+
 ## Product boundary
 
 This repository is the complete Radar product. Keep it focused on source
@@ -40,3 +47,9 @@ disposable database. Dashboard changes require a real browser pass.
 
 Never log or commit secrets. Do not push or change production unless the user
 explicitly asks.
+
+## Completion evidence
+
+Report the behavior changed, exact tests run, and any unverified risk. For live
+pipeline work, include source/job/dedupe counts, degraded sources, and the
+publishing decision. Do not describe intent as completed work.
