@@ -4,14 +4,14 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/radar-lite ./cmd/radar-lite
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags="-s -w" -o /out/radar ./cmd/radar
 
 FROM gcr.io/distroless/static-debian12:nonroot
 
 WORKDIR /app
-COPY --from=build /out/radar-lite /app/radar-lite
-COPY --from=build /src/lite /app/lite
+COPY --from=build /out/radar /app/radar
+COPY --from=build /src/config /app/config
 EXPOSE 8080
 USER nonroot:nonroot
-ENTRYPOINT ["/app/radar-lite"]
+ENTRYPOINT ["/app/radar"]
 CMD ["routine"]

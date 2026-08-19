@@ -1,0 +1,13 @@
+.git
+.github
+.env
+.env.*
+!.env.example
+
+.local
+.data
+tmp
+.playwright-cli
+
+radar
+coverage.out

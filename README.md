@@ -11,8 +11,8 @@ Copy `.env.example` to `.env`, configure a dedicated Postgres database, then run
 
 ```sh
 set -a; . ./.env; set +a
-go run ./cmd/radar-lite once
-go run ./cmd/radar-lite serve
+go run ./cmd/radar once
+go run ./cmd/radar serve
 ```
 
 The dashboard is available at `http://localhost:8080`. Delivery defaults to the
@@ -34,7 +34,9 @@ RADAR_TEST_DATABASE_URL='postgres://...' make test-db
 
 ## Deploy
 
-`coolify/docker-compose.yaml` runs the service with a private Postgres 16
-database and persistent volume. Production cutover must reuse the existing
-Coolify resource and database volume; creating a new Compose resource would
-create a fresh empty volume.
+`compose.yaml` runs Radar with a private Postgres 16 database and persistent
+volume:
+
+```sh
+docker compose up --build
+```

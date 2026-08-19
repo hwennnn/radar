@@ -5,11 +5,9 @@ evidence, preserve user changes, and keep commits focused and green.
 
 ## Product boundary
 
-This repository contains only the standalone Radar Lite product. It owns source
+This repository is the complete Radar product. Keep it focused on source
 discovery, ATS verification, source health, job identity and provenance,
-early-career filtering, the read-only dashboard, and its delivery outbox. Do not
-reintroduce Full Radar profiles, watchlists, scoring, applications, Redis,
-ClickHouse, or the legacy React application.
+early-career filtering, the read-only dashboard, and durable delivery.
 
 ## Non-negotiable invariants
 
@@ -22,8 +20,17 @@ ClickHouse, or the legacy React application.
   `(job, channel, recipient)`.
 - Initial snapshots and recovery baselines suppress historical jobs.
 - A single Postgres cycle lease owns crawling and delivery draining.
-- External publishing stays behind credentials, Telegram mode, and the explicit
-  `RADAR_LITE_PUBLISHING_ENABLED=true` gate.
+- External publishing stays disabled unless the user says exactly
+  `enable publishing`. Tests and previews must blank Telegram credentials and
+  use log delivery.
+
+## Target bar
+
+Prioritize big tech, frontier AI/data/devtools/security, strong unicorns,
+credible YC-backed startups, and established quant firms. Include genuinely
+technical software, ML, data, infrastructure, security, and quantitative roles.
+Suppress defense-first employers, low-signal agencies, support, QA-only,
+business analyst, generic operations, management, and experienced-only roles.
 
 ## Verification
 

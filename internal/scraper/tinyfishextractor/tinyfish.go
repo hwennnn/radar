@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hwennnn/radar/internal/discovery"
 	"github.com/hwennnn/radar/internal/scraper"
+	"github.com/hwennnn/radar/internal/sourcekind"
 	"github.com/hwennnn/radar/internal/tinyfish"
 )
 
@@ -1093,7 +1093,7 @@ func isHostedFallbackKind(kind string) bool {
 }
 
 func isScopedSearchDiscoveryKind(kind string) bool {
-	return discovery.IsSearchDiscoveryKind(kind)
+	return sourcekind.IsSearchDiscoveryKind(kind)
 }
 
 func sourceSiteScope(rawURL string) string {

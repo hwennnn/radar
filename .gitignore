@@ -5,7 +5,7 @@
 
 bin/
 coverage.out
-/radar-lite
+/radar
 
 .local/
 .data/

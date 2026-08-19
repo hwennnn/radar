@@ -4,17 +4,17 @@ Radar is one Go service backed by Postgres.
 
 ## Runtime
 
-- `cmd/radar-lite` owns the process modes, status API, JSON feed, and embedded
+- `cmd/radar` owns the process modes, status API, JSON feed, and embedded
   dashboard.
-- `internal/lite` owns catalog management, discovery scheduling, job identity,
+- `internal/core` owns catalog management, discovery scheduling, job identity,
   filtering, persistence, delivery decisions, and the cycle lease.
 - `internal/provider` and `internal/scraper` extract company-owned career
   sources.
 - `internal/tinyfish` supports bounded source discovery. Discovery results are
   evidence only until a real source is verified by an extractor.
-- `internal/notify` contains the log and Telegram delivery clients.
-- `lite/verified-sources.json` is the trusted source floor;
-  `lite/discovery-seed.json` is the research queue.
+- `internal/delivery` contains the log and Telegram delivery clients.
+- `config/sources.json` is the trusted source floor;
+  `config/discovery-seed.json` is the research queue.
 
 `routine` crawls, discovers, drains deliveries, and serves HTTP. `serve` exposes
 the read-only dashboard without migrations, crawling, or delivery. `once` runs
@@ -22,7 +22,7 @@ one complete cycle. `audit` validates the static catalog without a database.
 
 ## Persistence
 
-Radar owns its schema from `internal/lite/postgres.go`. Migrations are embedded
+Radar owns its schema from `internal/core/postgres.go`. Migrations are embedded
 in the application and remain compatible with the existing production database.
 
 Postgres stores canonical jobs, identity aliases, source observations, source

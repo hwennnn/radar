@@ -1,0 +1,48 @@
+services:
+  radar:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["${RADAR_COMMAND:-routine}"]
+    environment:
+      RADAR_LITE_DATABASE_URL: postgres://${POSTGRES_USER:-radar}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-radar}?sslmode=disable
+      RADAR_LITE_SCHEMA: radar_lite
+      RADAR_LITE_INTERVAL: ${RADAR_LITE_INTERVAL:-15m}
+      RADAR_LITE_CYCLE_TIMEOUT: ${RADAR_LITE_CYCLE_TIMEOUT:-20m}
+      RADAR_LITE_HEALTH_ADDR: :8080
+      RADAR_LITE_DISCOVERY_BATCH: ${RADAR_LITE_DISCOVERY_BATCH:-8}
+      RADAR_LITE_DISCOVERY_TIMEOUT: ${RADAR_LITE_DISCOVERY_TIMEOUT:-45s}
+      RADAR_LITE_DISCOVERY_RETRY: ${RADAR_LITE_DISCOVERY_RETRY:-6h}
+      RADAR_LITE_DISCOVERY_EMPTY_RETRY: ${RADAR_LITE_DISCOVERY_EMPTY_RETRY:-1h}
+      RADAR_LITE_DELIVERY_MODE: ${RADAR_LITE_DELIVERY_MODE:-log}
+      RADAR_LITE_RECIPIENT: ${RADAR_LITE_RECIPIENT:-local-preview}
+      RADAR_LITE_PUBLISHING_ENABLED: ${RADAR_LITE_PUBLISHING_ENABLED:-false}
+      RADAR_LITE_TELEGRAM_BOT_TOKEN: ${RADAR_LITE_TELEGRAM_BOT_TOKEN:-}
+      RADAR_LITE_TELEGRAM_CHAT_ID: ${RADAR_LITE_TELEGRAM_CHAT_ID:-}
+      TINYFISH_API_KEY: ${TINYFISH_API_KEY:?Set the TinyFish API key}
+    expose:
+      - "8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    stop_grace_period: 30s
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-radar}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-radar}
+    volumes:
+      - radar-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  radar-data:
