@@ -28,6 +28,13 @@ The outbox is durable and unique by `(job, channel, recipient)`. Delivery moves
 through `staged`, `pending`, `claimed`, `sent`, `failed`, or `suppressed`.
 Claims expire for replay after interruption; retries do not create a second row.
 
+During an owned routine cycle, a delivery pump checks the durable outbox every
+500 ms while source crawling continues. A job can be claimed only after its
+complete source snapshot activates the delivery row. Telegram messages are then
+paced at the configured transport-safe interval; a final drain closes the race
+between the last source activation and pump shutdown. Standby and read-only
+processes never run this pump.
+
 External Telegram publishing is active only when all of these are true:
 
 1. `RADAR_LITE_DELIVERY_MODE=telegram`

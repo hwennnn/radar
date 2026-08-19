@@ -30,6 +30,8 @@ const (
 	defaultSeedPath          = "config/discovery-seed.json"
 	atsHTTPTimeout           = 60 * time.Second
 	telegramDeliveryInterval = 3200 * time.Millisecond
+	realtimeDeliveryPoll     = 500 * time.Millisecond
+	realtimeDeliveryBatch    = 25
 )
 
 type config struct {
@@ -58,6 +60,11 @@ type config struct {
 }
 
 type lookupEnv func(string) (string, bool)
+
+type deliveryPumpResult struct {
+	report core.DeliveryReport
+	err    error
+}
 
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
@@ -364,6 +371,8 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		Limit: deliveryLimit, Lease: 2 * time.Minute, RetryDelay: time.Minute,
 		MinInterval: deliveryInterval,
 	}
+	realtimeDrainer := drainer
+	realtimeDrainer.Limit = realtimeDeliveryBatch
 
 	logger.Info("radar lite ready", "sources", len(runner.Sources), "schema", store.Schema(), "delivery_mode", cfg.deliveryMode)
 	for {
@@ -406,6 +415,16 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			continue
 		}
 
+		// Start draining as soon as this process owns the cycle. This clears
+		// replayable backlog during discovery and publishes newly activated rows
+		// while later sources are still crawling.
+		deliveryPumpCtx, stopDeliveryPump := context.WithCancel(ctx)
+		deliveryPumpDone := make(chan deliveryPumpResult, 1)
+		go func() {
+			pumpReport, pumpErr := runDeliveryPump(deliveryPumpCtx, realtimeDeliveryPoll, realtimeDrainer.Drain)
+			deliveryPumpDone <- deliveryPumpResult{report: pumpReport, err: pumpErr}
+		}()
+
 		cycleCtx, cycleCancel := context.WithTimeout(ctx, cfg.cycleTimeout)
 		var discoveryReport core.DiscoveryReport
 		var discoveryErr error
@@ -442,9 +461,13 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			}
 		}
 		cycleCancel()
+		stopDeliveryPump()
+		pumpResult := <-deliveryPumpDone
 		deliveryCtx, deliveryCancel := context.WithTimeout(ctx, deliveryTimeout)
-		deliveryReport, deliveryErr := drainer.Drain(deliveryCtx)
+		finalDeliveryReport, finalDeliveryErr := drainer.Drain(deliveryCtx)
 		deliveryCancel()
+		deliveryReport := mergeDeliveryReports(pumpResult.report, finalDeliveryReport)
+		deliveryErr := errors.Join(pumpResult.err, finalDeliveryErr)
 		cycleErr := errors.Join(discoveryErr, runErr, marketErr, deliveryErr)
 		cycleResult := core.CycleResult{
 			Status:           cycleResultStatus(report, discoveryReport, deliveryReport, cycleErr),
@@ -505,6 +528,46 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			return err
 		}
 	}
+}
+
+type deliveryDrainFunc func(context.Context) (core.DeliveryReport, error)
+
+func runDeliveryPump(ctx context.Context, interval time.Duration, drain deliveryDrainFunc) (core.DeliveryReport, error) {
+	var total core.DeliveryReport
+	if drain == nil {
+		return total, errors.New("delivery drain function is required")
+	}
+	if interval <= 0 {
+		return total, errors.New("delivery poll interval must be positive")
+	}
+	var pumpErr error
+	for {
+		report, err := drain(ctx)
+		total = mergeDeliveryReports(total, report)
+		if err != nil && !errors.Is(err, context.Canceled) {
+			// Retain evidence that this cycle experienced a drain failure without
+			// accumulating one copy of the same outage on every poll.
+			pumpErr = err
+		}
+		if ctx.Err() != nil {
+			return total, pumpErr
+		}
+		timer := time.NewTimer(interval)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return total, pumpErr
+		case <-timer.C:
+		}
+	}
+}
+
+func mergeDeliveryReports(left, right core.DeliveryReport) core.DeliveryReport {
+	left.Claimed += right.Claimed
+	left.Sent += right.Sent
+	left.Failed += right.Failed
+	left.Errors = append(left.Errors, right.Errors...)
+	return left
 }
 
 func cycleResultStatus(report core.RunReport, discovery core.DiscoveryReport, delivery core.DeliveryReport, err error) string {

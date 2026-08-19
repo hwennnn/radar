@@ -362,6 +362,57 @@ func TestCycleResultStatusDistinguishesManagedDegradation(t *testing.T) {
 	}
 }
 
+func TestDeliveryPumpDrainsAgainWithoutWaitingForTheCrawlToFinish(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	calls := 0
+	report, err := runDeliveryPump(ctx, time.Millisecond, func(context.Context) (core.DeliveryReport, error) {
+		calls++
+		if calls == 1 {
+			return core.DeliveryReport{}, nil
+		}
+		cancel()
+		return core.DeliveryReport{Claimed: 1, Sent: 1}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 || report.Claimed != 1 || report.Sent != 1 {
+		t.Fatalf("pump calls=%d report=%#v, want a second live drain with one send", calls, report)
+	}
+}
+
+func TestDeliveryPumpKeepsPollingAfterDrainFailure(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	calls := 0
+	report, err := runDeliveryPump(ctx, time.Millisecond, func(context.Context) (core.DeliveryReport, error) {
+		calls++
+		if calls == 1 {
+			return core.DeliveryReport{Failed: 1}, errors.New("temporary database failure")
+		}
+		cancel()
+		return core.DeliveryReport{Claimed: 1, Sent: 1}, nil
+	})
+	if err == nil || !strings.Contains(err.Error(), "temporary database failure") {
+		t.Fatalf("pump error=%v, want retained temporary failure", err)
+	}
+	if calls != 2 || report.Failed != 1 || report.Sent != 1 {
+		t.Fatalf("pump calls=%d report=%#v, want failure isolation and later send", calls, report)
+	}
+}
+
+func TestDeliveryPumpRejectsInvalidConfiguration(t *testing.T) {
+	if _, err := runDeliveryPump(context.Background(), time.Second, nil); err == nil {
+		t.Fatal("nil drain function must fail")
+	}
+	if _, err := runDeliveryPump(context.Background(), 0, func(context.Context) (core.DeliveryReport, error) {
+		return core.DeliveryReport{}, nil
+	}); err == nil {
+		t.Fatal("non-positive poll interval must fail")
+	}
+}
+
 func TestHealthHandlerReadinessTracksLastCompletedCycle(t *testing.T) {
 	state := &healthState{}
 	assertReadiness(t, state, http.StatusServiceUnavailable, readinessExpectation{})
