@@ -1,0 +1,4693 @@
+{
+  "candidates": [
+    {
+      "id": "airbnb",
+      "name": "Airbnb",
+      "website": "https://www.airbnb.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "amd",
+      "name": "AMD",
+      "website": "https://www.amd.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "anyscale",
+      "name": "Anyscale",
+      "website": "https://www.anyscale.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "applied-intuition",
+      "name": "Applied Intuition",
+      "website": "https://www.applied.co",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "applied-materials",
+      "name": "Applied Materials",
+      "website": "https://www.appliedmaterials.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "aqr",
+      "name": "AQR",
+      "website": "https://www.aqr.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "arm",
+      "name": "Arm",
+      "website": "https://www.arm.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "asml",
+      "name": "ASML",
+      "website": "https://www.asml.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "atlassian",
+      "name": "Atlassian",
+      "website": "https://www.atlassian.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "baseten",
+      "name": "Baseten",
+      "website": "https://www.baseten.co",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "developer-tools",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "black-forest-labs",
+      "name": "Black Forest Labs",
+      "website": "https://blackforestlabs.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "blackrock",
+      "name": "BlackRock",
+      "website": "https://www.blackrock.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "block",
+      "name": "Block",
+      "website": "https://block.xyz",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "broadcom",
+      "name": "Broadcom",
+      "website": "https://www.broadcom.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "cadence",
+      "name": "Cadence Design Systems",
+      "website": "https://www.cadence.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "canva",
+      "name": "Canva",
+      "website": "https://www.canva.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "cerebras",
+      "name": "Cerebras",
+      "website": "https://www.cerebras.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "semiconductor",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "chai-discovery",
+      "name": "Chai Discovery",
+      "website": "https://www.chaidiscovery.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "chainguard",
+      "name": "Chainguard",
+      "website": "https://www.chainguard.dev",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "security",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "chime",
+      "name": "Chime",
+      "website": "https://www.chime.com",
+      "tags": [
+        "priority-1",
+        "fintech",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "citadel",
+      "name": "Citadel",
+      "website": "https://www.citadel.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "clerk",
+      "name": "Clerk",
+      "website": "https://clerk.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "security",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "clickhouse",
+      "name": "ClickHouse",
+      "website": "https://clickhouse.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "data",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "cockroach-labs",
+      "name": "Cockroach Labs",
+      "website": "https://www.cockroachlabs.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "data",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "cognition",
+      "name": "Cognition",
+      "website": "https://cognition.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "coinbase",
+      "name": "Coinbase",
+      "website": "https://www.coinbase.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "coreweave",
+      "name": "CoreWeave",
+      "website": "https://www.coreweave.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "big-tech",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "crowdstrike",
+      "name": "CrowdStrike",
+      "website": "https://www.crowdstrike.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "security",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "crusoe",
+      "name": "Crusoe",
+      "website": "https://www.crusoe.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "cursor",
+      "name": "Cursor",
+      "website": "https://www.cursor.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "cyera",
+      "name": "Cyera",
+      "website": "https://www.cyera.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "security",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "d-e-shaw",
+      "name": "D. E. Shaw",
+      "website": "https://www.deshaw.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "datadog",
+      "name": "Datadog",
+      "website": "https://www.datadoghq.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "data",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "dbt-labs",
+      "name": "dbt Labs",
+      "website": "https://www.getdbt.com",
+      "tags": [
+        "priority-1",
+        "data",
+        "developer-tools",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "decagon",
+      "name": "Decagon",
+      "website": "https://decagon.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "deepmind",
+      "name": "Google DeepMind",
+      "website": "https://deepmind.google",
+      "tags": [
+        "priority-1",
+        "ai",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "discord",
+      "name": "Discord",
+      "website": "https://discord.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "docker",
+      "name": "Docker",
+      "website": "https://www.docker.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "doordash",
+      "name": "DoorDash",
+      "website": "https://www.doordash.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "dropbox",
+      "name": "Dropbox",
+      "website": "https://www.dropbox.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "elastic",
+      "name": "Elastic",
+      "website": "https://www.elastic.co",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "data",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "elevenlabs",
+      "name": "ElevenLabs",
+      "website": "https://elevenlabs.io",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "faire",
+      "name": "Faire",
+      "website": "https://www.faire.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "unicorn",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "fal",
+      "name": "fal",
+      "website": "https://fal.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "fireworks-ai",
+      "name": "Fireworks AI",
+      "website": "https://fireworks.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "five-rings",
+      "name": "Five Rings",
+      "website": "https://fiverings.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "flow-traders",
+      "name": "Flow Traders",
+      "website": "https://www.flowtraders.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "fortinet",
+      "name": "Fortinet",
+      "website": "https://www.fortinet.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "security",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "front",
+      "name": "Front",
+      "website": "https://front.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "g-research",
+      "name": "G-Research",
+      "website": "https://www.gresearch.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "github",
+      "name": "GitHub",
+      "website": "https://www.github.careers",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "gitlab",
+      "name": "GitLab",
+      "website": "https://about.gitlab.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "grafana-labs",
+      "name": "Grafana Labs",
+      "website": "https://grafana.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "groq",
+      "name": "Groq",
+      "website": "https://groq.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "semiconductor",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "harvey",
+      "name": "Harvey",
+      "website": "https://www.harvey.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "hashicorp",
+      "name": "HashiCorp",
+      "website": "https://www.hashicorp.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "security",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "headlands-technologies",
+      "name": "Headlands Technologies",
+      "website": "https://www.headlandstech.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "heygen",
+      "name": "HeyGen",
+      "website": "https://www.heygen.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "hubspot",
+      "name": "HubSpot",
+      "website": "https://www.hubspot.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "hugging-face",
+      "name": "Hugging Face",
+      "website": "https://huggingface.co",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "instacart",
+      "name": "Instacart",
+      "website": "https://www.instacart.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "kla",
+      "name": "KLA",
+      "website": "https://www.kla.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "lam-research",
+      "name": "Lam Research",
+      "website": "https://www.lamresearch.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "lambda",
+      "name": "Lambda",
+      "website": "https://lambda.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "semiconductor",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "langchain",
+      "name": "LangChain",
+      "website": "https://www.langchain.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "linear",
+      "name": "Linear",
+      "website": "https://linear.app",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "linkedin",
+      "name": "LinkedIn",
+      "website": "https://careers.linkedin.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "data",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "lovable",
+      "name": "Lovable",
+      "website": "https://lovable.dev",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "lyft",
+      "name": "Lyft",
+      "website": "https://www.lyft.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "man-group",
+      "name": "Man Group",
+      "website": "https://www.man.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "maven-securities",
+      "name": "Maven Securities",
+      "website": "https://www.mavensecurities.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "mercury",
+      "name": "Mercury",
+      "website": "https://mercury.com",
+      "tags": [
+        "priority-1",
+        "fintech",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "midjourney",
+      "name": "Midjourney",
+      "website": "https://www.midjourney.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "millennium",
+      "name": "Millennium",
+      "website": "https://www.mlp.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "mistral-ai",
+      "name": "Mistral AI",
+      "website": "https://mistral.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "modal",
+      "name": "Modal",
+      "website": "https://modal.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "mongodb",
+      "name": "MongoDB",
+      "website": "https://www.mongodb.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "data",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "monzo",
+      "name": "Monzo",
+      "website": "https://monzo.com",
+      "tags": [
+        "priority-1",
+        "fintech",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "nebius",
+      "name": "Nebius",
+      "website": "https://nebius.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "big-tech",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "neon",
+      "name": "Neon",
+      "website": "https://neon.tech",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "data",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "nubank",
+      "name": "Nubank",
+      "website": "https://nubank.com.br",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "okta",
+      "name": "Okta",
+      "website": "https://www.okta.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "security",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "old-mission-capital",
+      "name": "Old Mission Capital",
+      "website": "https://www.oldmissioncapital.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "open-evidence",
+      "name": "OpenEvidence",
+      "website": "https://www.openevidence.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "palo-alto-networks",
+      "name": "Palo Alto Networks",
+      "website": "https://www.paloaltonetworks.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "security",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "paypal",
+      "name": "PayPal",
+      "website": "https://www.paypal.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "pdt-partners",
+      "name": "PDT Partners",
+      "website": "https://www.pdtpartners.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "perplexity",
+      "name": "Perplexity",
+      "website": "https://www.perplexity.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "physical-intelligence",
+      "name": "Physical Intelligence",
+      "website": "https://www.physicalintelligence.company",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "pinecone",
+      "name": "Pinecone",
+      "website": "https://www.pinecone.io",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "pinterest",
+      "name": "Pinterest",
+      "website": "https://www.pinterest.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "plaid",
+      "name": "Plaid",
+      "website": "https://plaid.com",
+      "tags": [
+        "priority-1",
+        "fintech",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "poolside",
+      "name": "Poolside",
+      "website": "https://poolside.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "posthog",
+      "name": "PostHog",
+      "website": "https://posthog.com",
+      "tags": [
+        "priority-1",
+        "data",
+        "developer-tools",
+        "unicorn",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "postman",
+      "name": "Postman",
+      "website": "https://www.postman.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "quadrature-capital",
+      "name": "Quadrature Capital",
+      "website": "https://www.quadrature.ai",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "reddit",
+      "name": "Reddit",
+      "website": "https://www.redditinc.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "reflection-ai",
+      "name": "Reflection AI",
+      "website": "https://reflection.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "retool",
+      "name": "Retool",
+      "website": "https://retool.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "robinhood",
+      "name": "Robinhood",
+      "website": "https://robinhood.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "rubrik",
+      "name": "Rubrik",
+      "website": "https://www.rubrik.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "security",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "runway",
+      "name": "Runway",
+      "website": "https://runwayml.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "safe-superintelligence",
+      "name": "Safe Superintelligence",
+      "website": "https://ssi.inc",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "sambanova-systems",
+      "name": "SambaNova Systems",
+      "website": "https://sambanova.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "semiconductor",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "samsung",
+      "name": "Samsung",
+      "website": "https://www.samsung.com/us/careers",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "sandisk",
+      "name": "SanDisk",
+      "website": "https://www.sandisk.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "schonfeld",
+      "name": "Schonfeld",
+      "website": "https://www.schonfeld.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "semgrep",
+      "name": "Semgrep",
+      "website": "https://semgrep.dev",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "security",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "shopify",
+      "name": "Shopify",
+      "website": "https://www.shopify.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "sierra",
+      "name": "Sierra",
+      "website": "https://sierra.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "snap",
+      "name": "Snap",
+      "website": "https://www.snap.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "snyk",
+      "name": "Snyk",
+      "website": "https://snyk.io",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "security",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "spotify",
+      "name": "Spotify",
+      "website": "https://www.spotify.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "squarepoint-capital",
+      "name": "Squarepoint Capital",
+      "website": "https://www.squarepoint-capital.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "suno",
+      "name": "Suno",
+      "website": "https://suno.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "supabase",
+      "name": "Supabase",
+      "website": "https://supabase.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "data",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "surge-ai",
+      "name": "Surge AI",
+      "website": "https://www.surgehq.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "susquehanna",
+      "name": "Susquehanna International Group",
+      "website": "https://sig.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "synthesia",
+      "name": "Synthesia",
+      "website": "https://www.synthesia.io",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "the-trade-desk",
+      "name": "The Trade Desk",
+      "website": "https://www.thetradedesk.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "data",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "thinking-machines-lab",
+      "name": "Thinking Machines Lab",
+      "website": "https://thinkingmachines.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "tiktok",
+      "name": "TikTok",
+      "website": "https://careers.tiktok.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "early-career",
+        "source-needed",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "together-ai",
+      "name": "Together AI",
+      "website": "https://www.together.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "twilio",
+      "name": "Twilio",
+      "website": "https://www.twilio.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "two-sigma",
+      "name": "Two Sigma",
+      "website": "https://www.twosigma.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "uber",
+      "name": "Uber",
+      "website": "https://www.uber.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "vanta",
+      "name": "Vanta",
+      "website": "https://www.vanta.com",
+      "tags": [
+        "priority-1",
+        "security",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "visa",
+      "name": "Visa",
+      "website": "https://www.visa.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "waymo",
+      "name": "Waymo",
+      "website": "https://waymo.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "wayve",
+      "name": "Wayve",
+      "website": "https://wayve.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "wise",
+      "name": "Wise",
+      "website": "https://wise.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "wiz",
+      "name": "Wiz",
+      "website": "https://www.wiz.io",
+      "tags": [
+        "priority-1",
+        "security",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "world-labs",
+      "name": "World Labs",
+      "website": "https://www.worldlabs.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "writer",
+      "name": "Writer",
+      "website": "https://writer.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "forbes-cloud100-2025"
+      ]
+    },
+    {
+      "id": "xai",
+      "name": "xAI",
+      "website": "https://x.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "xtx-markets",
+      "name": "XTX Markets",
+      "website": "https://www.xtxmarkets.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "affirm",
+      "name": "Affirm",
+      "website": "https://www.affirm.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "fintech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "ai21-labs",
+      "name": "AI21 Labs",
+      "website": "https://www.ai21.com",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "airbyte",
+      "name": "Airbyte",
+      "website": "https://airbyte.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "airtable",
+      "name": "Airtable",
+      "website": "https://www.airtable.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "alchemy",
+      "name": "Alchemy",
+      "website": "https://www.alchemy.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "algolia",
+      "name": "Algolia",
+      "website": "https://www.algolia.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "data",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "applovin",
+      "name": "AppLovin",
+      "website": "https://www.applovin.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "data",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "asana",
+      "name": "Asana",
+      "website": "https://asana.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "astera-labs",
+      "name": "Astera Labs",
+      "website": "https://www.asteralabs.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "astronomer",
+      "name": "Astronomer",
+      "website": "https://www.astronomer.io",
+      "tags": [
+        "priority-2",
+        "data",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "attio",
+      "name": "Attio",
+      "website": "https://attio.com",
+      "tags": [
+        "priority-2",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "autodesk",
+      "name": "Autodesk",
+      "website": "https://www.autodesk.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "developer-tools",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "b2c2",
+      "name": "B2C2",
+      "website": "https://www.b2c2.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "fintech",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "benchling",
+      "name": "Benchling",
+      "website": "https://www.benchling.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "buildkite",
+      "name": "Buildkite",
+      "website": "https://buildkite.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "cartesia",
+      "name": "Cartesia",
+      "website": "https://cartesia.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "character-ai",
+      "name": "Character.AI",
+      "website": "https://character.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "coursera",
+      "name": "Coursera",
+      "website": "https://www.coursera.org",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "cribl",
+      "name": "Cribl",
+      "website": "https://cribl.io",
+      "tags": [
+        "priority-2",
+        "data",
+        "security",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "deel",
+      "name": "Deel",
+      "website": "https://www.deel.com",
+      "tags": [
+        "priority-2",
+        "fintech",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "depot",
+      "name": "Depot",
+      "website": "https://depot.dev",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "duolingo",
+      "name": "Duolingo",
+      "website": "https://www.duolingo.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "eliseai",
+      "name": "EliseAI",
+      "website": "https://www.eliseai.com",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "engineers-gate",
+      "name": "Engineers Gate",
+      "website": "https://www.eglp.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "exa",
+      "name": "Exa",
+      "website": "https://exa.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "exoduspoint",
+      "name": "ExodusPoint",
+      "website": "https://www.exoduspoint.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "fastly",
+      "name": "Fastly",
+      "website": "https://www.fastly.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "fivetran",
+      "name": "Fivetran",
+      "website": "https://www.fivetran.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "flexport",
+      "name": "Flexport",
+      "website": "https://www.flexport.com",
+      "tags": [
+        "priority-2",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "gamma",
+      "name": "Gamma",
+      "website": "https://gamma.app",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "genspark",
+      "name": "Genspark",
+      "website": "https://www.genspark.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "gong",
+      "name": "Gong",
+      "website": "https://www.gong.io",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "group-one-trading",
+      "name": "Group One Trading",
+      "website": "https://www.group1.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "gsa-capital",
+      "name": "GSA Capital",
+      "website": "https://www.gsacapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "gsr-markets",
+      "name": "GSR Markets",
+      "website": "https://www.gsr.io",
+      "tags": [
+        "priority-2",
+        "quant",
+        "fintech",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "gusto",
+      "name": "Gusto",
+      "website": "https://gusto.com",
+      "tags": [
+        "priority-2",
+        "fintech",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "hebbia",
+      "name": "Hebbia",
+      "website": "https://www.hebbia.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "hightouch",
+      "name": "Hightouch",
+      "website": "https://hightouch.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "inngest",
+      "name": "Inngest",
+      "website": "https://www.inngest.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "intercom",
+      "name": "Intercom",
+      "website": "https://www.intercom.com",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "klaviyo",
+      "name": "Klaviyo",
+      "website": "https://www.klaviyo.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "data",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "krea",
+      "name": "Krea",
+      "website": "https://www.krea.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "legora",
+      "name": "Legora",
+      "website": "https://legora.com",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "llamaindex",
+      "name": "LlamaIndex",
+      "website": "https://www.llamaindex.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "magic",
+      "name": "Magic",
+      "website": "https://magic.dev",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "marshall-wace",
+      "name": "Marshall Wace",
+      "website": "https://www.mwam.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "miro",
+      "name": "Miro",
+      "website": "https://miro.com",
+      "tags": [
+        "priority-2",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "mixpanel",
+      "name": "Mixpanel",
+      "website": "https://mixpanel.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "monte-carlo",
+      "name": "Monte Carlo",
+      "website": "https://www.montecarlodata.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "n8n",
+      "name": "n8n",
+      "website": "https://n8n.io",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "navan",
+      "name": "Navan",
+      "website": "https://navan.com",
+      "tags": [
+        "priority-2",
+        "fintech",
+        "unicorn",
+        "forbes-cloud100-2025"
+      ]
+    },
+    {
+      "id": "nuro",
+      "name": "Nuro",
+      "website": "https://www.nuro.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "pagerduty",
+      "name": "PagerDuty",
+      "website": "https://www.pagerduty.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "peak6",
+      "name": "PEAK6",
+      "website": "https://www.peak6.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "fintech",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "pika",
+      "name": "Pika",
+      "website": "https://pika.art",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "planetscale",
+      "name": "PlanetScale",
+      "website": "https://planetscale.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "data",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "prefect",
+      "name": "Prefect",
+      "website": "https://www.prefect.io",
+      "tags": [
+        "priority-2",
+        "data",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "quantedge",
+      "name": "Quantedge",
+      "website": "https://www.quantedge.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "radix-trading",
+      "name": "Radix Trading",
+      "website": "https://radixtrading.co",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "render",
+      "name": "Render",
+      "website": "https://render.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "rocket-lab",
+      "name": "Rocket Lab",
+      "website": "https://www.rocketlabusa.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "rogo",
+      "name": "Rogo",
+      "website": "https://rogo.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "fintech",
+        "forbes-ai50-2026"
+      ]
+    },
+    {
+      "id": "sakana-ai",
+      "name": "Sakana AI",
+      "website": "https://sakana.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "unicorn",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "samsara",
+      "name": "Samsara",
+      "website": "https://www.samsara.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "data",
+        "forbes-cloud100-2025"
+      ]
+    },
+    {
+      "id": "seven-eight-capital",
+      "name": "Seven Eight Capital",
+      "website": "https://www.seveneightcapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "stytch",
+      "name": "Stytch",
+      "website": "https://stytch.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "security",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "teradyne",
+      "name": "Teradyne",
+      "website": "https://www.teradyne.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "semiconductor",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "toast",
+      "name": "Toast",
+      "website": "https://pos.toasttab.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "fintech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "trade-republic",
+      "name": "Trade Republic",
+      "website": "https://traderepublic.com",
+      "tags": [
+        "priority-2",
+        "fintech",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "transmarket-group",
+      "name": "TransMarket Group",
+      "website": "https://www.transmarketgroup.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "vellum",
+      "name": "Vellum",
+      "website": "https://www.vellum.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "walleye-capital",
+      "name": "Walleye Capital",
+      "website": "https://www.walleyecapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "weaviate",
+      "name": "Weaviate",
+      "website": "https://weaviate.io",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "webflow",
+      "name": "Webflow",
+      "website": "https://webflow.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "wintermute",
+      "name": "Wintermute",
+      "website": "https://www.wintermute.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "fintech",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "winton",
+      "name": "Winton",
+      "website": "https://www.winton.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "wolverine-trading",
+      "name": "Wolverine Trading",
+      "website": "https://www.wolve.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "workos",
+      "name": "WorkOS",
+      "website": "https://workos.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "security",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "worldquant",
+      "name": "WorldQuant",
+      "website": "https://www.worldquant.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "zapier",
+      "name": "Zapier",
+      "website": "https://zapier.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "zoom",
+      "name": "Zoom",
+      "website": "https://www.zoom.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "zscaler",
+      "name": "Zscaler",
+      "website": "https://www.zscaler.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "security",
+        "nasdaq-tech-2026"
+      ]
+    },
+    {
+      "id": "amber-group",
+      "name": "Amber Group",
+      "website": "https://www.ambergroup.io",
+      "tags": [
+        "priority-3",
+        "quant",
+        "fintech",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "checkr",
+      "name": "Checkr",
+      "website": "https://checkr.com",
+      "tags": [
+        "priority-3",
+        "unicorn",
+        "benchmark-hiremepls",
+        "yc-top"
+      ]
+    },
+    {
+      "id": "deepset",
+      "name": "deepset",
+      "website": "https://www.deepset.ai",
+      "tags": [
+        "priority-3",
+        "ai",
+        "developer-tools",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "keyrock",
+      "name": "Keyrock",
+      "website": "https://keyrock.com",
+      "tags": [
+        "priority-3",
+        "quant",
+        "fintech",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "lattice",
+      "name": "Lattice",
+      "website": "https://lattice.com",
+      "tags": [
+        "priority-3",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "papaya-global",
+      "name": "Papaya Global",
+      "website": "https://www.papayaglobal.com",
+      "tags": [
+        "priority-3",
+        "fintech",
+        "unicorn",
+        "forbes-cloud100-2025"
+      ]
+    },
+    {
+      "id": "qcp",
+      "name": "QCP",
+      "website": "https://www.qcpgroup.com",
+      "tags": [
+        "priority-3",
+        "quant",
+        "fintech",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "quora",
+      "name": "Quora",
+      "website": "https://www.quora.com",
+      "tags": [
+        "priority-3",
+        "big-tech",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "scalable-capital",
+      "name": "Scalable Capital",
+      "website": "https://de.scalable.capital",
+      "tags": [
+        "priority-3",
+        "fintech",
+        "unicorn",
+        "benchmark-hiremepls"
+      ]
+    },
+    {
+      "id": "valkyrie-trading",
+      "name": "Valkyrie Trading",
+      "website": "https://www.valkyrietrading.com",
+      "tags": [
+        "priority-3",
+        "quant",
+        "quant-benchmark-2026"
+      ]
+    },
+    {
+      "id": "alkira",
+      "name": "Alkira",
+      "website": "https://www.alkira.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "security",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "arcee-ai",
+      "name": "Arcee AI",
+      "website": "https://www.arcee.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "arrcus",
+      "name": "Arrcus",
+      "website": "https://arrcus.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "aryaka",
+      "name": "Aryaka",
+      "website": "https://www.aryaka.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "security",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "aviatrix",
+      "name": "Aviatrix",
+      "website": "https://aviatrix.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "security",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "aviz-networks",
+      "name": "Aviz Networks",
+      "website": "https://aviznetworks.com",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "cast-ai",
+      "name": "CAST AI",
+      "website": "https://cast.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "cato-networks",
+      "name": "Cato Networks",
+      "website": "https://www.catonetworks.com",
+      "tags": [
+        "priority-1",
+        "security",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "clearblade",
+      "name": "ClearBlade",
+      "website": "https://www.clearblade.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "drivenets",
+      "name": "DriveNets",
+      "website": "https://drivenets.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "eclypsium",
+      "name": "Eclypsium",
+      "website": "https://eclypsium.com",
+      "tags": [
+        "priority-2",
+        "security",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "elisity",
+      "name": "Elisity",
+      "website": "https://www.elisity.com",
+      "tags": [
+        "priority-2",
+        "security",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "engflow",
+      "name": "EngFlow",
+      "website": "https://www.engflow.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "exaforce",
+      "name": "Exaforce",
+      "website": "https://www.exaforce.com",
+      "tags": [
+        "priority-2",
+        "ai",
+        "security",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "fortanix",
+      "name": "Fortanix",
+      "website": "https://www.fortanix.com",
+      "tags": [
+        "priority-2",
+        "security",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "graphiant",
+      "name": "Graphiant",
+      "website": "https://graphiant.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "index-engines",
+      "name": "Index Engines",
+      "website": "https://www.indexengines.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "security",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "itential",
+      "name": "Itential",
+      "website": "https://www.itential.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "komprise",
+      "name": "Komprise",
+      "website": "https://www.komprise.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "kong",
+      "name": "Kong",
+      "website": "https://konghq.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "minio",
+      "name": "MinIO",
+      "website": "https://min.io",
+      "tags": [
+        "priority-2",
+        "data",
+        "developer-tools",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "nasuni",
+      "name": "Nasuni",
+      "website": "https://www.nasuni.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "netbox-labs",
+      "name": "NetBox Labs",
+      "website": "https://netboxlabs.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "netris",
+      "name": "Netris",
+      "website": "https://www.netris.io",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "nile",
+      "name": "Nile",
+      "website": "https://nilesecure.com",
+      "tags": [
+        "priority-2",
+        "security",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "prosperops",
+      "name": "ProsperOps",
+      "website": "https://www.prosperops.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "pulumi",
+      "name": "Pulumi",
+      "website": "https://www.pulumi.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "qumulo",
+      "name": "Qumulo",
+      "website": "https://qumulo.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "redpanda",
+      "name": "Redpanda",
+      "website": "https://www.redpanda.com",
+      "tags": [
+        "priority-1",
+        "data",
+        "developer-tools",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "resolve-ai",
+      "name": "Resolve AI",
+      "website": "https://resolve.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "selector-ai",
+      "name": "Selector AI",
+      "website": "https://www.selector.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "spacelift",
+      "name": "Spacelift",
+      "website": "https://spacelift.io",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "stellar-cyber",
+      "name": "Stellar Cyber",
+      "website": "https://stellarcyber.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "security",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "teleport",
+      "name": "Teleport",
+      "website": "https://goteleport.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "security",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "tigera",
+      "name": "Tigera",
+      "website": "https://www.tigera.io",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "security",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "unifyapps",
+      "name": "UnifyApps",
+      "website": "https://www.unifyapps.com",
+      "tags": [
+        "priority-2",
+        "ai",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "vantage",
+      "name": "Vantage",
+      "website": "https://www.vantage.sh",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "vast-data",
+      "name": "VAST Data",
+      "website": "https://www.vastdata.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "data",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "versa-networks",
+      "name": "Versa Networks",
+      "website": "https://versa-networks.com",
+      "tags": [
+        "priority-2",
+        "security",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "vdura",
+      "name": "VDURA",
+      "website": "https://www.vdura.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "vultr",
+      "name": "Vultr",
+      "website": "https://www.vultr.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "wasabi",
+      "name": "Wasabi Technologies",
+      "website": "https://wasabi.com",
+      "tags": [
+        "priority-2",
+        "data",
+        "unicorn",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "zededa",
+      "name": "ZEDEDA",
+      "website": "https://zededa.com",
+      "tags": [
+        "priority-2",
+        "developer-tools",
+        "futuriom50-2026"
+      ]
+    },
+    {
+      "id": "acadian-asset-management",
+      "name": "Acadian Asset Management",
+      "website": "https://www.acadian-asset.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "allston-trading",
+      "name": "Allston Trading",
+      "website": "https://www.allstontrading.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "alphadyne-asset-management",
+      "name": "AlphaDyne Asset Management",
+      "website": "https://www.alphadyne.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "ansatz-capital",
+      "name": "Ansatz Capital",
+      "website": "https://www.ansatzcapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "aquatic-capital-management",
+      "name": "Aquatic Capital Management",
+      "website": "https://www.aquatic.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "arrowstreet-capital",
+      "name": "Arrowstreet Capital",
+      "website": "https://www.arrowstreetcapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "aspect-capital",
+      "name": "Aspect Capital",
+      "website": "https://www.aspectcapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "balyasny-asset-management",
+      "name": "Balyasny Asset Management",
+      "website": "https://www.bamfunds.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "bluecrest-capital-management",
+      "name": "BlueCrest Capital Management",
+      "website": "https://www.bluecrestcapital.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "brevan-howard",
+      "name": "Brevan Howard",
+      "website": "https://www.brevanhoward.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "bridgewater-associates",
+      "name": "Bridgewater Associates",
+      "website": "https://www.bridgewater.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "campbell-company",
+      "name": "Campbell & Company",
+      "website": "https://www.campbell.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "cfm",
+      "name": "Capital Fund Management",
+      "website": "https://www.cfm.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "capstone-investment-advisors",
+      "name": "Capstone Investment Advisors",
+      "website": "https://www.capstoneco.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "capula-investment-management",
+      "name": "Capula Investment Management",
+      "website": "https://www.capulaglobal.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "chicago-trading-company",
+      "name": "Chicago Trading Company",
+      "website": "https://www.chicagotrading.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "coatue",
+      "name": "Coatue",
+      "website": "https://www.coatue.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "davidson-kempner",
+      "name": "Davidson Kempner",
+      "website": "https://www.davidsonkempner.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "dimensional-fund-advisors",
+      "name": "Dimensional Fund Advisors",
+      "website": "https://www.dimensional.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "eisler-capital",
+      "name": "Eisler Capital",
+      "website": "https://www.eislercapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "ellington-management",
+      "name": "Ellington Management Group",
+      "website": "https://www.ellington.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "gelber-group",
+      "name": "Gelber Group",
+      "website": "https://www.gelbergroup.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "goldman-sachs",
+      "name": "Goldman Sachs",
+      "website": "https://www.goldmansachs.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "fintech",
+        "big-tech",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "gts",
+      "name": "GTS",
+      "website": "https://gtsx.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "hap-capital",
+      "name": "HAP Capital",
+      "website": "https://www.hap-capital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "hudson-bay-capital",
+      "name": "Hudson Bay Capital",
+      "website": "https://www.hudsonbaycapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "kepos-capital",
+      "name": "Kepos Capital",
+      "website": "https://www.keposcapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "morgan-stanley",
+      "name": "Morgan Stanley",
+      "website": "https://www.morganstanley.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "fintech",
+        "big-tech",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "panagora-asset-management",
+      "name": "PanAgora Asset Management",
+      "website": "https://www.panagora.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "quantlab",
+      "name": "Quantlab",
+      "website": "https://www.quantlab.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "qube-research-technologies",
+      "name": "Qube Research & Technologies",
+      "website": "https://www.qube-rt.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "renaissance-technologies",
+      "name": "Renaissance Technologies",
+      "website": "https://www.rentec.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "rokos-capital-management",
+      "name": "Rokos Capital Management",
+      "website": "https://www.rokoscapital.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "simplex-trading",
+      "name": "Simplex Trading",
+      "website": "https://www.simplextrading.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "spiderrock",
+      "name": "SpiderRock",
+      "website": "https://www.spiderrock.net",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "systematica-investments",
+      "name": "Systematica Investments",
+      "website": "https://www.systematica.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "teza-technologies",
+      "name": "Teza Technologies",
+      "website": "https://www.teza.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "voleon-group",
+      "name": "The Voleon Group",
+      "website": "https://www.voleon.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "tibra",
+      "name": "Tibra",
+      "website": "https://www.tibra.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "trillium-trading",
+      "name": "Trillium Trading",
+      "website": "https://www.trlm.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "vatic-investments",
+      "name": "Vatic Investments",
+      "website": "https://www.vaticinvestments.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "verition-fund-management",
+      "name": "Verition Fund Management",
+      "website": "https://www.verition.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "xr-trading",
+      "name": "XR Trading",
+      "website": "https://www.xrtrading.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "xantium",
+      "name": "Xantium",
+      "website": "https://www.xantium.com",
+      "tags": [
+        "priority-1",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "trexquant",
+      "name": "Trexquant",
+      "website": "https://www.trexquant.com",
+      "tags": [
+        "priority-2",
+        "quant",
+        "benchmark-quantt-2026"
+      ]
+    },
+    {
+      "id": "akamai",
+      "name": "Akamai",
+      "website": "https://www.akamai.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "security",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "analog-devices",
+      "name": "Analog Devices",
+      "website": "https://www.analog.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "booking",
+      "name": "Booking.com",
+      "website": "https://www.booking.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "cisco",
+      "name": "Cisco",
+      "website": "https://www.cisco.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "security",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "dell-technologies",
+      "name": "Dell Technologies",
+      "website": "https://www.dell.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "electronic-arts",
+      "name": "Electronic Arts",
+      "website": "https://www.ea.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "expedia-group",
+      "name": "Expedia Group",
+      "website": "https://www.expediagroup.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "globalfoundries",
+      "name": "GlobalFoundries",
+      "website": "https://gf.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "godaddy",
+      "name": "GoDaddy",
+      "website": "https://www.godaddy.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "developer-tools",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "hewlett-packard-enterprise",
+      "name": "Hewlett Packard Enterprise",
+      "website": "https://www.hpe.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "hp",
+      "name": "HP",
+      "website": "https://www.hp.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "intel",
+      "name": "Intel",
+      "website": "https://www.intel.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "intuit",
+      "name": "Intuit",
+      "website": "https://www.intuit.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "lattice-semiconductor",
+      "name": "Lattice Semiconductor",
+      "website": "https://www.latticesemi.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "marvell",
+      "name": "Marvell",
+      "website": "https://www.marvell.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "mercado-libre",
+      "name": "Mercado Libre",
+      "website": "https://www.mercadolibre.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "microchip-technology",
+      "name": "Microchip Technology",
+      "website": "https://www.microchip.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026",
+        "benchmark-speedyapply-2027"
+      ]
+    },
+    {
+      "id": "micron",
+      "name": "Micron",
+      "website": "https://www.micron.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "motorola-solutions",
+      "name": "Motorola Solutions",
+      "website": "https://www.motorolasolutions.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "netapp",
+      "name": "NetApp",
+      "website": "https://www.netapp.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "data",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "nokia",
+      "name": "Nokia",
+      "website": "https://www.nokia.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "qualcomm",
+      "name": "Qualcomm",
+      "website": "https://www.qualcomm.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "roku",
+      "name": "Roku",
+      "website": "https://www.roku.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "sap",
+      "name": "SAP",
+      "website": "https://www.sap.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "seagate",
+      "name": "Seagate",
+      "website": "https://www.seagate.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "data",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "sony",
+      "name": "Sony",
+      "website": "https://www.sony.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "synopsys",
+      "name": "Synopsys",
+      "website": "https://www.synopsys.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "developer-tools",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "take-two-interactive",
+      "name": "Take-Two Interactive",
+      "website": "https://www.take2games.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "texas-instruments",
+      "name": "Texas Instruments",
+      "website": "https://www.ti.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "tsmc",
+      "name": "TSMC",
+      "website": "https://www.tsmc.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "semiconductor",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "unity",
+      "name": "Unity",
+      "website": "https://unity.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "walmart-global-tech",
+      "name": "Walmart Global Tech",
+      "website": "https://tech.walmart.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "western-digital",
+      "name": "Western Digital",
+      "website": "https://www.westerndigital.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "data",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "workday",
+      "name": "Workday",
+      "website": "https://www.workday.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "zillow",
+      "name": "Zillow",
+      "website": "https://www.zillow.com",
+      "tags": [
+        "priority-2",
+        "big-tech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "onepassword",
+      "name": "1Password",
+      "website": "https://1password.com",
+      "tags": [
+        "priority-1",
+        "security",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "abnormal-ai",
+      "name": "Abnormal AI",
+      "website": "https://abnormal.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "security",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "ampere-computing",
+      "name": "Ampere Computing",
+      "website": "https://amperecomputing.com",
+      "tags": [
+        "priority-1",
+        "semiconductor",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "ayar-labs",
+      "name": "Ayar Labs",
+      "website": "https://ayarlabs.com",
+      "tags": [
+        "priority-2",
+        "semiconductor",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "celestial-ai",
+      "name": "Celestial AI",
+      "website": "https://www.celestial.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "semiconductor",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "d-matrix",
+      "name": "d-Matrix",
+      "website": "https://www.d-matrix.ai",
+      "tags": [
+        "priority-2",
+        "ai",
+        "semiconductor",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "enfabrica",
+      "name": "Enfabrica",
+      "website": "https://www.enfabrica.net",
+      "tags": [
+        "priority-1",
+        "ai",
+        "semiconductor",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "etched",
+      "name": "Etched",
+      "website": "https://www.etched.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "semiconductor",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "figure-ai",
+      "name": "Figure AI",
+      "website": "https://www.figure.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "lightmatter",
+      "name": "Lightmatter",
+      "website": "https://lightmatter.co",
+      "tags": [
+        "priority-1",
+        "ai",
+        "semiconductor",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "mercor",
+      "name": "Mercor",
+      "website": "https://www.mercor.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "rivos",
+      "name": "Rivos",
+      "website": "https://www.rivosinc.com",
+      "tags": [
+        "priority-1",
+        "semiconductor",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "sifive",
+      "name": "SiFive",
+      "website": "https://www.sifive.com",
+      "tags": [
+        "priority-1",
+        "semiconductor",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "tenstorrent",
+      "name": "Tenstorrent",
+      "website": "https://tenstorrent.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "semiconductor",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "temporal",
+      "name": "Temporal",
+      "website": "https://temporal.io",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "tailscale",
+      "name": "Tailscale",
+      "website": "https://tailscale.com",
+      "tags": [
+        "priority-1",
+        "developer-tools",
+        "security",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "replicate",
+      "name": "Replicate",
+      "website": "https://replicate.com",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "curated-2026"
+      ]
+    },
+    {
+      "id": "weights-biases",
+      "name": "Weights & Biases",
+      "website": "https://wandb.ai",
+      "tags": [
+        "priority-1",
+        "ai",
+        "developer-tools",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "bloomberg",
+      "name": "Bloomberg",
+      "website": "https://www.bloomberg.com/company",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "quant",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "jpmorgan-chase",
+      "name": "JPMorgan Chase",
+      "website": "https://www.jpmorganchase.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "quant",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "capital-one",
+      "name": "Capital One",
+      "website": "https://www.capitalone.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "epic-games",
+      "name": "Epic Games",
+      "website": "https://www.epicgames.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "developer-tools",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "revolut",
+      "name": "Revolut",
+      "website": "https://www.revolut.com",
+      "tags": [
+        "priority-1",
+        "fintech",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "klarna",
+      "name": "Klarna",
+      "website": "https://www.klarna.com",
+      "tags": [
+        "priority-1",
+        "big-tech",
+        "fintech",
+        "curated-public-tech-2026"
+      ]
+    },
+    {
+      "id": "checkout-com",
+      "name": "Checkout.com",
+      "website": "https://www.checkout.com",
+      "tags": [
+        "priority-1",
+        "fintech",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "airwallex",
+      "name": "Airwallex",
+      "website": "https://www.airwallex.com",
+      "tags": [
+        "priority-1",
+        "fintech",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "kraken",
+      "name": "Kraken",
+      "website": "https://www.kraken.com",
+      "tags": [
+        "priority-1",
+        "fintech",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "celonis",
+      "name": "Celonis",
+      "website": "https://www.celonis.com",
+      "tags": [
+        "priority-1",
+        "data",
+        "unicorn",
+        "pwc-unicorns-2025"
+      ]
+    },
+    {
+      "id": "abnormal-security",
+      "name": "Abnormal Security",
+      "website": "https://abnormal.ai",
+      "tags": ["priority-1", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "appian",
+      "name": "Appian",
+      "website": "https://appian.com",
+      "tags": ["priority-2", "big-tech", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "apptronik",
+      "name": "Apptronik",
+      "website": "https://apptronik.com",
+      "tags": ["priority-1", "ai", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "cohesity",
+      "name": "Cohesity",
+      "website": "https://www.cohesity.com",
+      "tags": ["priority-1", "data", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "composio",
+      "name": "Composio",
+      "website": "https://composio.dev",
+      "tags": ["priority-1", "ai", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "coveo",
+      "name": "Coveo",
+      "website": "https://www.coveo.com",
+      "tags": ["priority-2", "ai", "big-tech", "data", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "deepgram",
+      "name": "Deepgram",
+      "website": "https://deepgram.com",
+      "tags": ["priority-1", "ai", "developer-tools", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "digitalocean",
+      "name": "DigitalOcean",
+      "website": "https://www.digitalocean.com",
+      "tags": ["priority-1", "big-tech", "data", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "dv-trading",
+      "name": "DV Trading",
+      "website": "https://www.dvtrading.co",
+      "tags": ["priority-1", "fintech", "quant", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "esri",
+      "name": "Esri",
+      "website": "https://www.esri.com",
+      "tags": ["priority-1", "big-tech", "data", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "fidelity-investments",
+      "name": "Fidelity Investments",
+      "website": "https://www.fidelity.com",
+      "tags": ["priority-1", "big-tech", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "geocomply",
+      "name": "GeoComply",
+      "website": "https://www.geocomply.com",
+      "tags": ["priority-1", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "handshake",
+      "name": "Handshake",
+      "website": "https://joinhandshake.com",
+      "tags": ["priority-1", "data", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "lseg",
+      "name": "LSEG",
+      "website": "https://www.lseg.com",
+      "tags": ["priority-1", "big-tech", "data", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "mastercard",
+      "name": "Mastercard",
+      "website": "https://www.mastercard.com",
+      "tags": ["priority-1", "big-tech", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "new-relic",
+      "name": "New Relic",
+      "website": "https://newrelic.com",
+      "tags": ["priority-1", "big-tech", "data", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "nxp-semiconductors",
+      "name": "NXP Semiconductors",
+      "website": "https://www.nxp.com",
+      "tags": ["priority-1", "big-tech", "semiconductor", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "polymarket",
+      "name": "Polymarket",
+      "website": "https://polymarket.com",
+      "tags": ["priority-2", "fintech", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "pylon-lending",
+      "name": "Pylon Lending",
+      "website": "https://www.pylonlending.com",
+      "tags": ["priority-2", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "red-hat",
+      "name": "Red Hat",
+      "website": "https://www.redhat.com",
+      "tags": ["priority-1", "big-tech", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "retell-ai",
+      "name": "Retell AI",
+      "website": "https://www.retellai.com",
+      "tags": ["priority-1", "ai", "developer-tools", "yc-top", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "rivian",
+      "name": "Rivian",
+      "website": "https://careers.rivian.com",
+      "tags": ["priority-1", "big-tech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "s-p-global",
+      "name": "S&P Global",
+      "website": "https://www.spglobal.com",
+      "tags": ["priority-1", "big-tech", "data", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "sonar",
+      "name": "Sonar",
+      "website": "https://www.sonarsource.com",
+      "tags": ["priority-2", "developer-tools", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "spacex",
+      "name": "SpaceX",
+      "website": "https://www.spacex.com",
+      "tags": ["priority-1", "big-tech", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "trend-micro",
+      "name": "Trend Micro",
+      "website": "https://www.trendmicro.com",
+      "tags": ["priority-1", "big-tech", "security", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "twitch",
+      "name": "Twitch",
+      "website": "https://www.twitch.tv",
+      "tags": ["priority-1", "big-tech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "uniswap-labs",
+      "name": "Uniswap Labs",
+      "website": "https://uniswap.org",
+      "tags": ["priority-1", "developer-tools", "fintech", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "verkada",
+      "name": "Verkada",
+      "website": "https://www.verkada.com",
+      "tags": ["priority-1", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "weride-ai",
+      "name": "WeRide.ai",
+      "website": "https://www.weride.ai",
+      "tags": ["priority-1", "ai", "big-tech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "zoox",
+      "name": "Zoox",
+      "website": "https://zoox.com",
+      "tags": ["priority-1", "ai", "big-tech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "blackstone",
+      "name": "Blackstone",
+      "website": "https://www.blackstone.com",
+      "tags": ["priority-1", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "canonical",
+      "name": "Canonical",
+      "website": "https://canonical.com",
+      "tags": ["priority-1", "big-tech", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "cboe-global-markets",
+      "name": "Cboe Global Markets",
+      "website": "https://www.cboe.com",
+      "tags": ["priority-1", "fintech", "quant", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "circleback",
+      "name": "Circleback",
+      "website": "https://circleback.ai",
+      "tags": ["priority-2", "ai", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "clear-street",
+      "name": "Clear Street",
+      "website": "https://clearstreet.io",
+      "tags": ["priority-1", "fintech", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "complyadvantage",
+      "name": "ComplyAdvantage",
+      "website": "https://complyadvantage.com",
+      "tags": ["priority-1", "ai", "fintech", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "delinea",
+      "name": "Delinea",
+      "website": "https://delinea.com",
+      "tags": ["priority-1", "big-tech", "security", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "ionq",
+      "name": "IonQ",
+      "website": "https://ionq.com",
+      "tags": ["priority-1", "big-tech", "semiconductor", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "nooks",
+      "name": "Nooks",
+      "website": "https://www.nooks.ai",
+      "tags": ["priority-2", "ai", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "obsidian-security",
+      "name": "Obsidian Security",
+      "website": "https://www.obsidiansecurity.com",
+      "tags": ["priority-1", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "persona-ai",
+      "name": "Persona AI",
+      "website": "https://persona.ai",
+      "tags": ["priority-1", "ai", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "plaud",
+      "name": "Plaud",
+      "website": "https://www.plaud.ai",
+      "tags": ["priority-2", "ai", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "pony-ai",
+      "name": "Pony.ai",
+      "website": "https://www.pony.ai",
+      "tags": ["priority-1", "ai", "big-tech", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "reliaquest",
+      "name": "ReliaQuest",
+      "website": "https://reliaquest.com",
+      "tags": ["priority-1", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "smartsheet",
+      "name": "Smartsheet",
+      "website": "https://www.smartsheet.com",
+      "tags": ["priority-1", "big-tech", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "taktile",
+      "name": "Taktile",
+      "website": "https://www.taktile.com",
+      "tags": ["priority-1", "ai", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "talos-trading",
+      "name": "Talos",
+      "website": "https://talos.com",
+      "tags": ["priority-2", "fintech", "quant", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "threatlocker",
+      "name": "ThreatLocker",
+      "website": "https://www.threatlocker.com",
+      "tags": ["priority-1", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "woven-by-toyota",
+      "name": "Woven by Toyota",
+      "website": "https://woven.toyota",
+      "tags": ["priority-1", "ai", "big-tech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "bosch",
+      "name": "Bosch",
+      "website": "https://www.bosch.com",
+      "tags": ["priority-1", "big-tech", "semiconductor", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "ciena",
+      "name": "Ciena",
+      "website": "https://www.ciena.com",
+      "tags": ["priority-1", "big-tech", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "anaplan",
+      "name": "Anaplan",
+      "website": "https://www.anaplan.com",
+      "tags": ["priority-1", "big-tech", "developer-tools", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "astera-institute",
+      "name": "Astera Institute",
+      "website": "https://astera.org",
+      "tags": ["priority-2", "ai", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "base-power",
+      "name": "Base Power",
+      "website": "https://www.basepowercompany.com",
+      "tags": ["priority-1", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "blend",
+      "name": "Blend",
+      "website": "https://blend.com",
+      "tags": ["priority-2", "ai", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "boson-ai",
+      "name": "Boson AI",
+      "website": "https://boson.ai",
+      "tags": ["priority-2", "ai", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "clearwater-analytics",
+      "name": "Clearwater Analytics",
+      "website": "https://clearwateranalytics.com",
+      "tags": ["priority-1", "data", "fintech", "quant", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "datavisor",
+      "name": "DataVisor",
+      "website": "https://www.datavisor.com",
+      "tags": ["priority-2", "ai", "data", "security", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "draftkings",
+      "name": "DraftKings",
+      "website": "https://draftkings.com",
+      "tags": ["priority-1", "big-tech", "data", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "factset",
+      "name": "FactSet",
+      "website": "https://www.factset.com",
+      "tags": ["priority-1", "big-tech", "data", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "flexcompute",
+      "name": "FlexCompute",
+      "website": "https://www.flexcompute.com",
+      "tags": ["priority-2", "ai", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "formlabs",
+      "name": "Formlabs",
+      "website": "https://formlabs.com",
+      "tags": ["priority-2", "developer-tools", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "ge-healthcare",
+      "name": "GE HealthCare",
+      "website": "https://www.gehealthcare.com",
+      "tags": ["priority-1", "ai", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "general-motors",
+      "name": "General Motors",
+      "website": "https://www.gm.com",
+      "tags": ["priority-1", "ai", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "ixl-learning",
+      "name": "IXL Learning",
+      "website": "https://www.ixl.com",
+      "tags": ["priority-2", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "joby-aviation",
+      "name": "Joby Aviation",
+      "website": "https://www.jobyaviation.com",
+      "tags": ["priority-1", "ai", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "lightfield",
+      "name": "Lightfield",
+      "website": "https://lightfield.app",
+      "tags": ["priority-2", "ai", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "loft-orbital",
+      "name": "Loft Orbital",
+      "website": "https://www.loftorbital.com",
+      "tags": ["priority-2", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "logitech",
+      "name": "Logitech",
+      "website": "https://www.logitech.com",
+      "tags": ["priority-1", "big-tech", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "mimecast",
+      "name": "Mimecast",
+      "website": "https://www.mimecast.com",
+      "tags": ["priority-1", "big-tech", "security", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "muon-space",
+      "name": "Muon Space",
+      "website": "https://www.muonspace.com",
+      "tags": ["priority-2", "data", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "netic",
+      "name": "Netic",
+      "website": "https://www.netic.ai",
+      "tags": ["priority-2", "ai", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "ninjatech-ai",
+      "name": "NinjaTech AI",
+      "website": "https://www.ninjatech.ai",
+      "tags": ["priority-2", "ai", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "northwood-space",
+      "name": "Northwood Space",
+      "website": "https://www.northwoodspace.io",
+      "tags": ["priority-2", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "opswat",
+      "name": "OPSWAT",
+      "website": "https://www.opswat.com",
+      "tags": ["priority-1", "ai", "security", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "oxford-quantum-circuits",
+      "name": "Oxford Quantum Circuits",
+      "website": "https://oqc.tech",
+      "tags": ["priority-1", "ai", "developer-tools", "semiconductor", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "philips",
+      "name": "Philips",
+      "website": "https://www.usa.philips.com",
+      "tags": ["priority-1", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "priceline",
+      "name": "Priceline",
+      "website": "https://www.priceline.com",
+      "tags": ["priority-1", "big-tech", "data", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "quantbot-technologies",
+      "name": "Quantbot Technologies",
+      "website": "https://www.quantbot.com",
+      "tags": ["priority-1", "fintech", "quant", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "redwood-materials",
+      "name": "Redwood Materials",
+      "website": "https://www.redwoodmaterials.com",
+      "tags": ["priority-1", "engineering-heavy", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "remitly",
+      "name": "Remitly",
+      "website": "https://www.remitly.com",
+      "tags": ["priority-1", "big-tech", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "reversinglabs",
+      "name": "ReversingLabs",
+      "website": "https://www.reversinglabs.com",
+      "tags": ["priority-1", "security", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "simplisafe",
+      "name": "SimpliSafe",
+      "website": "https://simplisafe.com",
+      "tags": ["priority-1", "security", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "sonos",
+      "name": "Sonos",
+      "website": "https://www.sonos.com",
+      "tags": ["priority-1", "big-tech", "developer-tools", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "state-street",
+      "name": "State Street",
+      "website": "https://www.statestreet.com",
+      "tags": ["priority-1", "big-tech", "fintech", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "stevens-capital-management",
+      "name": "Stevens Capital Management",
+      "website": "https://www.scm-lp.com",
+      "tags": ["priority-1", "fintech", "quant", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "super-com",
+      "name": "Super.com",
+      "website": "https://www.super.com",
+      "tags": ["priority-2", "fintech", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "symbotic",
+      "name": "Symbotic",
+      "website": "https://www.symbotic.com",
+      "tags": ["priority-1", "ai", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "thumbtack",
+      "name": "Thumbtack",
+      "website": "https://www.thumbtack.com",
+      "tags": ["priority-1", "ai", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "torc-robotics",
+      "name": "Torc Robotics",
+      "website": "https://torc.ai",
+      "tags": ["priority-1", "ai", "engineering-heavy", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "wayflyer",
+      "name": "Wayflyer",
+      "website": "https://www.wayflyer.com",
+      "tags": ["priority-1", "fintech", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "whoop",
+      "name": "WHOOP",
+      "website": "https://www.whoop.com",
+      "tags": ["priority-1", "big-tech", "unicorn", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "windborne-systems",
+      "name": "WindBorne Systems",
+      "website": "https://windbornesystems.com",
+      "tags": ["priority-2", "ai", "data", "benchmark-speedyapply-2027"]
+    },
+    {
+      "id": "yotpo",
+      "name": "Yotpo",
+      "website": "https://www.yotpo.com",
+      "tags": ["priority-2", "developer-tools", "unicorn", "benchmark-speedyapply-2027"]
+    }
+  ]
+}
