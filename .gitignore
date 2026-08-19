@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+
+bin/
+coverage.out
+/radar-lite
+
+.local/
+.data/
+tmp/
+.playwright-cli/

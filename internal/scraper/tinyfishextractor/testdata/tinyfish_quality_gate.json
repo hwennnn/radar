@@ -1,0 +1,172 @@
+{
+  "name": "tinyfish-live-canary-quality-gate-v1",
+  "now": "2026-07-03T12:00:00Z",
+  "targets": {
+    "precision": 0.95,
+    "good_recall": 1,
+    "junk_rejection": 1
+  },
+  "source": {
+    "id": "tinyfish-quality-fixture",
+    "name": "TinyFish quality fixture",
+    "url": "tinyfish://search/quality-fixture",
+    "metadata": {
+      "query": "software engineer intern 2026 premium companies",
+      "location": "US"
+    }
+  },
+  "cases": [
+    {
+      "id": "good-databricks-swe-intern",
+      "label": "good",
+      "reason": "specific live software engineering internship with company, apply URL, and location",
+      "search": {
+        "title": "Software Engineering Intern (2026) - Databricks",
+        "url": "https://jobs.stripes.co/companies/databricks/jobs/39286073-software-engineering-intern-2026",
+        "snippet": "Software Engineering Intern (2026), Vancouver and US locations.",
+        "site_name": "Stripes Job Board",
+        "position": 1
+      },
+      "fetch": {
+        "url": "https://jobs.stripes.co/companies/databricks/jobs/39286073-software-engineering-intern-2026",
+        "title": "Stripes Job Board",
+        "markdown": "Stripes Job Board\n## Software Engineering Intern (2026) Databricks\nSoftware Engineering\nCalifornia, USA · Canada · San Francisco, CA, USA · Washington, USA · Mountain View, CA, USA · Bellevue, WA, USA · Vancouver, BC, Canada · Multiple locations\nPosted 4 days ago\nP-963\nBuild distributed systems and product infrastructure as a software engineering intern during 2026.\nApply now"
+      }
+    },
+    {
+      "id": "good-ramp-new-grad",
+      "label": "good",
+      "reason": "specific live new-grad backend software role with clear company and location",
+      "search": {
+        "title": "New Grad Software Engineer, Backend - Ramp",
+        "url": "https://jobs.ashbyhq.com/ramp/abc123-new-grad-software-engineer-backend",
+        "snippet": "New Grad Software Engineer, Backend in New York.",
+        "site_name": "Ramp",
+        "position": 2
+      },
+      "fetch": {
+        "url": "https://jobs.ashbyhq.com/ramp/abc123-new-grad-software-engineer-backend",
+        "title": "New Grad Software Engineer, Backend",
+        "markdown": "New Grad Software Engineer, Backend\n\nNew York, NY, United States\n\nPosted on 2026-07-01\nBuild backend systems in Go and Python for finance automation. Apply now for the 2026 new grad class."
+      }
+    },
+    {
+      "id": "junk-closed-databricks-swe",
+      "label": "junk",
+      "reason": "specific role shape but the page says applications are closed",
+      "search": {
+        "title": "Software Engineering Intern (2026) - Databricks",
+        "url": "https://jobs.stripes.co/companies/databricks/jobs/39286073-software-engineering-intern-2026-closed",
+        "snippet": "Software Engineering Intern (2026), but applications are closed.",
+        "site_name": "Stripes Job Board",
+        "position": 3
+      },
+      "fetch": {
+        "url": "https://jobs.stripes.co/companies/databricks/jobs/39286073-software-engineering-intern-2026-closed",
+        "title": "Stripes Job Board",
+        "markdown": "Stripes Job Board\n## Software Engineering Intern (2026) Databricks\nThis job is no longer accepting applications.\nSee open jobs at Databricks.\nSoftware Engineering California, USA · Canada · San Francisco, CA, USA · Vancouver, BC, Canada\nPosted 6+ months ago\nP-963"
+      }
+    },
+    {
+      "id": "junk-mba-tpm",
+      "label": "junk",
+      "reason": "MBA technical program management is not a software engineering intern/new-grad role",
+      "search": {
+        "title": "MBA Intern - Technical Program Management (TPM) - Databricks",
+        "url": "https://jobs.stripes.co/companies/databricks/jobs/67302309-mba-intern-technical-program-management-tpm",
+        "snippet": "MBA Intern TPM in San Francisco.",
+        "site_name": "Stripes Job Board",
+        "position": 4
+      },
+      "fetch": {
+        "url": "https://jobs.stripes.co/companies/databricks/jobs/67302309-mba-intern-technical-program-management-tpm",
+        "title": "Stripes Job Board",
+        "markdown": "Stripes Job Board\n## MBA Intern - Technical Program Management (TPM) Databricks\nIT\nSan Francisco, CA, USA · Mountain View, CA, USA\nPosted on Feb 10, 2026\nAt Databricks, TPM interns partner with product and engineering leaders on planning."
+      }
+    },
+    {
+      "id": "junk-generic-board",
+      "label": "junk",
+      "reason": "generic board page without a specific role title",
+      "search": {
+        "title": "Stripes Job Board",
+        "url": "https://jobs.stripes.co/companies/databricks/jobs",
+        "snippet": "Browse jobs at Databricks.",
+        "site_name": "Stripes Job Board",
+        "position": 5
+      },
+      "fetch": {
+        "url": "https://jobs.stripes.co/companies/databricks/jobs",
+        "title": "Stripes Job Board",
+        "markdown": "Stripes Job Board\nDatabricks jobs\nBrowse open software engineering, product, sales, and internship jobs across San Francisco, Mountain View, Vancouver, and remote locations."
+      }
+    },
+    {
+      "id": "junk-aggregator-list",
+      "label": "junk",
+      "reason": "aggregator/search listing rather than a concrete apply-able posting",
+      "search": {
+        "title": "128 Software Engineer Intern jobs in Canada",
+        "url": "https://ca.linkedin.com/jobs/software-engineer-intern-jobs",
+        "snippet": "Browse software engineer intern jobs in Canada.",
+        "position": 6
+      },
+      "fetch": {
+        "url": "https://ca.linkedin.com/jobs/software-engineer-intern-jobs",
+        "title": "128 Software Engineer Intern jobs in Canada",
+        "markdown": "128 Software Engineer Intern jobs in Canada\nSearch results for software engineer intern jobs. Create alert. Browse companies and salaries."
+      }
+    },
+    {
+      "id": "junk-missing-location",
+      "label": "junk",
+      "reason": "specific-looking role but no parseable location evidence",
+      "search": {
+        "title": "Software Engineer Intern - Example Cloud",
+        "url": "https://jobs.example.com/software-engineer-intern-no-location",
+        "snippet": "Software engineering internship.",
+        "site_name": "Example Cloud",
+        "position": 7
+      },
+      "fetch": {
+        "url": "https://jobs.example.com/software-engineer-intern-no-location",
+        "title": "Software Engineer Intern",
+        "markdown": "Software Engineer Intern\n\nBuild cloud systems during a 2026 internship. Apply now."
+      }
+    },
+    {
+      "id": "junk-salesforce-page-level-early-career",
+      "label": "junk",
+      "reason": "page-level Futureforce content synthesized into a generic role rather than a concrete posting",
+      "search": {
+        "title": "Salesforce Futureforce Internships",
+        "url": "https://www.salesforce.com/company/careers/university/internships",
+        "snippet": "Explore software engineering internships and early career programs at Salesforce.",
+        "site_name": "Salesforce",
+        "position": 8
+      },
+      "fetch": {
+        "url": "https://www.salesforce.com/company/careers/university/internships",
+        "title": "Salesforce Futureforce Internships",
+        "markdown": "Futureforce Internships\n\nSoftware engineering early career opportunities at Salesforce. Learn about university recruiting, employee stories, and internship programs. Browse open jobs to find a specific role."
+      }
+    },
+    {
+      "id": "junk-hrt-intern-spotlight-content",
+      "label": "junk",
+      "reason": "intern spotlight content is not a currently open apply-able job posting",
+      "search": {
+        "title": "Intern Spotlight: Software Engineering Projects",
+        "url": "https://www.hudsonrivertrading.com/student-opportunities",
+        "snippet": "Read about software engineering intern projects and student opportunities.",
+        "site_name": "Hudson River Trading",
+        "position": 9
+      },
+      "fetch": {
+        "url": "https://www.hudsonrivertrading.com/student-opportunities",
+        "title": "Intern Spotlight: Software Engineering Projects",
+        "markdown": "Intern Spotlight: Software Engineering Projects\n\nStudents at HRT work on production systems during internships. Learn about student opportunities in New York, London, and Singapore. This page describes the program and does not list a specific open role or application deadline."
+      }
+    }
+  ]
+}
