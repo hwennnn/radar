@@ -1,8 +1,8 @@
 # Production cutover
 
 The initial standalone release intentionally preserves the existing Radar Lite
-schema. Production currently runs from `radar-full`; this repository becomes the
-deployment source only after standalone parity is proven.
+schema. This repository becomes the production deployment source only after
+standalone parity is proven.
 
 ## Preconditions
 

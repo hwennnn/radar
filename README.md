@@ -5,10 +5,6 @@ company-owned career sources, discovers and verifies new ATS boards, filters for
 technical internships and new-grad roles, deduplicates openings in Postgres,
 publishes durable notifications, and serves a read-only dashboard.
 
-This repository contains the standalone Radar Lite product extracted from the
-private `hwennnn/radar-full` monorepo at source commit
-`4c308ba3d9e01d3d06ccd16d0bf820890add4ace`.
-
 ## Run locally
 
 Copy `.env.example` to `.env`, configure a dedicated Postgres database, then run:

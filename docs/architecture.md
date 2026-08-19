@@ -23,8 +23,7 @@ one complete cycle. `audit` validates the static catalog without a database.
 ## Persistence
 
 Radar owns its schema from `internal/lite/postgres.go`. Migrations are embedded
-in the application and remain compatible with the database originally created
-by Radar Lite in the `radar-full` monorepo.
+in the application and remain compatible with the existing production database.
 
 Postgres stores canonical jobs, identity aliases, source observations, source
 health, discovery candidates, promoted routes, delivery decisions, and durable
