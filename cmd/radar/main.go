@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hwennnn/radar/internal/database"
 	"github.com/hwennnn/radar/internal/delivery"
 	"github.com/hwennnn/radar/internal/pipeline"
+	"github.com/hwennnn/radar/internal/postgres"
 	"github.com/hwennnn/radar/internal/source/scraper"
 	"github.com/hwennnn/radar/internal/source/scraper/tinyfishextractor"
 	"github.com/hwennnn/radar/internal/source/tinyfish"
@@ -779,14 +779,14 @@ func runServe(ctx context.Context, cfg config, logger *slog.Logger) error {
 }
 
 func openStore(ctx context.Context, cfg config, ensureSchema bool) (*pipeline.PostgresStore, func(), error) {
-	database, err := database.OpenPostgres(ctx, cfg.databaseURL, database.Options{
+	db, err := postgres.OpenPostgres(ctx, cfg.databaseURL, postgres.Options{
 		MaxOpenConns: 4, MaxIdleConns: 1, ConnMaxLifetime: 30 * time.Minute,
 	})
 	if err != nil {
 		return nil, func() {}, errors.New("connect to Radar Postgres: database configuration or connectivity check failed")
 	}
-	closeStore := func() { _ = database.Close() }
-	store, err := pipeline.NewPostgresStore(database, pipeline.PostgresOptions{Schema: cfg.schema})
+	closeStore := func() { _ = db.Close() }
+	store, err := pipeline.NewPostgresStore(db, pipeline.PostgresOptions{Schema: cfg.schema})
 	if err != nil {
 		closeStore()
 		return nil, func() {}, errors.New("initialize Radar Postgres store: configuration is invalid")
