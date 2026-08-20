@@ -379,9 +379,10 @@ snapshot behavior with fixtures.
 
 ### Change identity or persistence
 
-Read `internal/pipeline/AGENTS.md` and [Data model](data-model.md). Use additive,
-idempotent migrations and run the disposable Postgres suite. Identity changes
-require collision, merge, restart, and concurrency evidence.
+Read `internal/pipeline/AGENTS.md`, `internal/postgres/AGENTS.md`, and
+[Data model](data-model.md). Use additive, idempotent migrations and run the
+disposable Postgres suite. Identity changes require collision, merge, restart,
+and concurrency evidence.
 
 ### Change the dashboard or API
 

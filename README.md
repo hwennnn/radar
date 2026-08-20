@@ -50,15 +50,18 @@ feed:
 Repository layout:
 
 ```text
-cmd/radar/          thin process entrypoint
-internal/app/       modes, lifecycle, and process wiring
-internal/dashboard/ read-only HTTP API and embedded dashboard
-internal/pipeline/  source lifecycle, filtering, identity, and orchestration
-internal/postgres/  migrations, durable state, leases, and outbox storage
-internal/source/    discovery clients, extractors, and provider adapters
-internal/delivery/  delivery transports and retry behavior
-config/             verified source catalog and discovery research seed
-docs/               architecture, data model, operations, API, development
+.
+├── cmd/radar/           thin executable entrypoint
+├── internal/
+│   ├── app/             runtime modes, lifecycle, and dependency wiring
+│   ├── dashboard/       read-only HTTP API and embedded frontend
+│   ├── pipeline/        discovery, filtering, identity, and orchestration
+│   ├── postgres/        migrations, durable state, leases, and outbox
+│   ├── source/          provider adapters, scrapers, and discovery clients
+│   └── delivery/        log, webhook, and Telegram transports
+├── config/              verified sources and discovery research inputs
+├── docs/                architecture and operational reference
+└── scripts/             local preview and repository checks
 ```
 
 ## How
