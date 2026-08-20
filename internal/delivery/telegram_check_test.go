@@ -1,12 +1,10 @@
-package main
+package delivery
 
 import (
 	"context"
 	"errors"
 	"strings"
 	"testing"
-
-	"github.com/hwennnn/radar/internal/delivery"
 )
 
 type fakeTelegramAPI struct {
@@ -29,10 +27,10 @@ func (api fakeTelegramAPI) GetChatMember(context.Context, string, int64) (chatMe
 }
 
 type recordingOutbox struct {
-	messages []delivery.Message
+	messages []Message
 }
 
-func (outbox *recordingOutbox) Enqueue(_ context.Context, message delivery.Message) error {
+func (outbox *recordingOutbox) Enqueue(_ context.Context, message Message) error {
 	outbox.messages = append(outbox.messages, message)
 	return nil
 }

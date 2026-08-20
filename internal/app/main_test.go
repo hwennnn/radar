@@ -504,6 +504,13 @@ func TestDiscoverIgnoresTelegramEnvironment(t *testing.T) {
 	}
 }
 
+func TestRunRoutesTelegramCheckWithoutDatabaseConfiguration(t *testing.T) {
+	err := run(context.Background(), []string{"telegram-check"}, mapLookup(nil), &strings.Builder{}, slog.Default())
+	if err == nil || !strings.Contains(err.Error(), "TELEGRAM_BOT_TOKEN is required") {
+		t.Fatalf("run() error = %v, want Telegram check configuration error", err)
+	}
+}
+
 type fakeOutbox struct {
 	calls   int
 	message delivery.Message

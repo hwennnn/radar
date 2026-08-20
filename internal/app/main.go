@@ -71,6 +71,12 @@ func Run(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logg
 }
 
 func run(ctx context.Context, args []string, getenv lookupEnv, stdout io.Writer, logger *slog.Logger) error {
+	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "telegram-check") {
+		return delivery.RunTelegramCheck(ctx, func(key string) string {
+			value, _ := getenv(key)
+			return value
+		}, args[1:], stdout)
+	}
 	cfg, err := loadConfig(args, getenv)
 	if err != nil {
 		return err

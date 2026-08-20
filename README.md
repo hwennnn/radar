@@ -130,6 +130,7 @@ compatibility.
 | `drain` | Drain the durable delivery outbox | Yes |
 | `discover` | Print catalog coverage and gaps | No database |
 | `audit` | Enforce the static catalog contract | No database |
+| `telegram-check` | Verify configured delivery identity and permissions; `--send` remains explicitly guarded | No |
 
 ### Verify changes
 

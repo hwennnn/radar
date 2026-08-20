@@ -34,6 +34,7 @@ docker compose up --build
 | `radar audit` | no | no | no | Enforce static catalog coverage |
 | `radar reconcile` | required | yes | yes | Process bounded discovery candidates only |
 | `radar drain` | required | delivery only | yes | Drain the durable delivery outbox |
+| `radar telegram-check` | no | Telegram only | no by default | Verify bot, channel, and posting permission |
 
 Aliases exist for compatibility, but documentation and automation should use
 the canonical names above.

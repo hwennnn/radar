@@ -30,8 +30,8 @@ docker-build:
 
 telegram-check:
 	test -f .env || (echo ".env is required" >&2; exit 2)
-	set -a; . ./.env; set +a; GOCACHE="$${GOCACHE:-/tmp/radar-go-cache}" go run ./cmd/telegram-smoke
+	set -a; . ./.env; set +a; GOCACHE="$${GOCACHE:-/tmp/radar-go-cache}" go run ./cmd/radar telegram-check
 
 telegram-smoke:
 	test -f .env || (echo ".env is required" >&2; exit 2)
-	set -a; . ./.env; set +a; GOCACHE="$${GOCACHE:-/tmp/radar-go-cache}" RADAR_LITE_PUBLISHING_ENABLED=true go run ./cmd/telegram-smoke --send --confirm-channel "$${RADAR_LITE_TELEGRAM_CHAT_ID}"
+	set -a; . ./.env; set +a; GOCACHE="$${GOCACHE:-/tmp/radar-go-cache}" RADAR_LITE_PUBLISHING_ENABLED=true go run ./cmd/radar telegram-check --send --confirm-channel "$${RADAR_LITE_TELEGRAM_CHAT_ID}"

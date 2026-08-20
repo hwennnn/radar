@@ -1,4 +1,4 @@
-package main
+package delivery
 
 import (
 	"context"
@@ -9,12 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/hwennnn/radar/internal/delivery"
 )
 
 const telegramAPIBase = "https://api.telegram.org"
@@ -63,22 +60,21 @@ type apiResponse[T any] struct {
 	Result      T      `json:"result"`
 }
 
-func main() {
-	cfg, err := loadConfig(os.Getenv, os.Args[1:])
+// RunTelegramCheck verifies the configured bot, destination, and posting
+// permission. Sending remains guarded by both the publishing gate and an exact
+// channel confirmation.
+func RunTelegramCheck(ctx context.Context, getenv func(string) string, args []string, output io.Writer) error {
+	cfg, err := loadConfig(getenv, args)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "telegram smoke configuration:", err)
-		os.Exit(2)
+		return fmt.Errorf("telegram check configuration: %w", err)
 	}
 
-	client := delivery.NewWebhookHTTPClient(10 * time.Second)
+	client := NewWebhookHTTPClient(10 * time.Second)
 	api := &telegramBotAPI{baseURL: telegramAPIBase, token: cfg.token, client: client}
-	outbox := delivery.NewTelegramOutbox(cfg.token, cfg.chatID, client)
-	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	outbox := NewTelegramOutbox(cfg.token, cfg.chatID, client)
+	checkCtx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
-	if err := run(ctx, cfg, api, outbox, os.Stdout); err != nil {
-		fmt.Fprintln(os.Stderr, "telegram smoke failed:", err)
-		os.Exit(1)
-	}
+	return run(checkCtx, cfg, api, outbox, output)
 }
 
 func loadConfig(getenv func(string) string, args []string) (config, error) {
@@ -121,7 +117,7 @@ func loadConfig(getenv func(string) string, args []string) (config, error) {
 	return cfg, nil
 }
 
-func run(ctx context.Context, cfg config, api telegramAPI, outbox delivery.Outbox, output io.Writer) error {
+func run(ctx context.Context, cfg config, api telegramAPI, outbox Outbox, output io.Writer) error {
 	bot, err := api.GetMe(ctx)
 	if err != nil {
 		return fmt.Errorf("verify bot identity: %w", err)
@@ -170,7 +166,7 @@ func run(ctx context.Context, cfg config, api telegramAPI, outbox delivery.Outbo
 	return nil
 }
 
-func smokeMessages(recipient string) []delivery.Message {
+func smokeMessages(recipient string) []Message {
 	roles := []struct {
 		title    string
 		company  string
@@ -180,9 +176,9 @@ func smokeMessages(recipient string) []delivery.Message {
 		{title: "[TEST] New Grad Software Engineer", company: "Radar", location: "San Francisco, CA"},
 		{title: "[TEST] Quant Engineering Intern", company: "Radar", location: "Chicago, IL"},
 	}
-	messages := make([]delivery.Message, 0, len(roles))
+	messages := make([]Message, 0, len(roles))
 	for index, role := range roles {
-		messages = append(messages, delivery.Message{
+		messages = append(messages, Message{
 			ID:        fmt.Sprintf("radar-lite-smoke-%d", index+1),
 			Channel:   "telegram",
 			Recipient: recipient,
