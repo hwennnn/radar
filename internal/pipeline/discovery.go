@@ -32,6 +32,12 @@ const (
 	maxDiscoverySourceProbes         = 3
 )
 
+const (
+	DefaultDiscoveryBatch            = defaultDiscoveryBatch
+	DefaultDiscoveryRetry            = defaultDiscoveryRetry
+	DefaultDiscoveryFailureThreshold = defaultDiscoveryFailureThreshold
+)
+
 var (
 	discoveryURLPattern = regexp.MustCompile(`https?://[^\s<>\[\](){}"']+`)
 	languagePathPattern = regexp.MustCompile(`^[a-z]{2}(?:-[A-Z]{2})?$`)
@@ -184,7 +190,7 @@ func (r DiscoveryRunner) Run(ctx context.Context) (DiscoveryReport, error) {
 				return report, fmt.Errorf("record discovery search failure: %w", err)
 			}
 			r.logEvent(ctx, slog.LevelWarn, "candidate_resolution_failed", "TinyFish could not resolve a structured source",
-				"candidate_id", candidate.ID, "company", candidate.Name, "error", compactDiscoveryError(resolveErr.Error()),
+				"candidate_id", candidate.ID, "company", candidate.Name, "error", CompactDiscoveryError(resolveErr.Error()),
 				"retry_class", retryClass, "retry_in_seconds", int(nextAttempt.Sub(attemptedAt).Seconds()), "next_attempt_at", nextAttempt)
 			continue
 		}
@@ -232,7 +238,7 @@ func (r DiscoveryRunner) Run(ctx context.Context) (DiscoveryReport, error) {
 				r.logEvent(ctx, slog.LevelWarn, "source_probe_failed", "discovered source failed production verification",
 					"candidate_id", candidate.ID, "company", candidate.Name, "source_id", resolved.Source.ID,
 					"provider", resolved.Source.Provider, "url", resolved.Source.URL,
-					"error", compactDiscoveryError(probeErr.Error()), "retry_class", retryClass,
+					"error", CompactDiscoveryError(probeErr.Error()), "retry_class", retryClass,
 					"retry_in_seconds", int(nextAttempt.Sub(probeAt).Seconds()), "next_attempt_at", nextAttempt)
 				continue
 			}
@@ -308,7 +314,7 @@ func (r DiscoveryRunner) Run(ctx context.Context) (DiscoveryReport, error) {
 func assessDiscoverySnapshotQuality(observations []Observation) discoverySnapshotQuality {
 	quality := discoverySnapshotQuality{SampleTitles: make([]string, 0, 3)}
 	for _, observation := range observations {
-		title := compactDiscoveryEvidence(observation.Title)
+		title := CompactDiscoveryEvidence(observation.Title)
 		if title != "" && len(quality.SampleTitles) < 3 {
 			quality.SampleTitles = append(quality.SampleTitles, title)
 		}
@@ -407,7 +413,7 @@ func (r DiscoveryRunner) resolveCandidate(ctx context.Context, candidate Discove
 // a complete, non-empty, technical snapshot before the source is promoted.
 func officialCareersFallback(candidate DiscoveryCandidate) []resolvedDiscoverySource {
 	raw := strings.TrimSpace(candidate.Website)
-	if raw == "" || blockedMarketCandidateWebsite(raw) {
+	if raw == "" || BlockedMarketCandidateWebsite(raw) {
 		return nil
 	}
 	parsed, err := url.Parse(raw)
@@ -447,7 +453,7 @@ func discoverySearchDiagnostics(candidate DiscoveryCandidate, results []tinyfish
 			continue
 		}
 		if len(rejected) < 3 && looksLikeStructuredDiscoveryRoute(result.URL) {
-			rejected = append(rejected, compactDiscoveryEvidence(result.URL))
+			rejected = append(rejected, CompactDiscoveryEvidence(result.URL))
 		}
 	}
 	return matched, rejected
@@ -557,7 +563,7 @@ func resolveSearchSources(candidate DiscoveryCandidate, results []tinyfish.Searc
 		if !discoverySearchResultMatches(candidate, result) {
 			continue
 		}
-		if source, ok := sourceFromDiscoveryURL(candidate, result.URL, 0.96, "tinyfish_search:"+compactDiscoveryEvidence(result.Title)); ok {
+		if source, ok := sourceFromDiscoveryURL(candidate, result.URL, 0.96, "tinyfish_search:"+CompactDiscoveryEvidence(result.Title)); ok {
 			sources = append(sources, source)
 		}
 	}
@@ -576,7 +582,7 @@ func resolveFetchedSources(candidate DiscoveryCandidate, results []tinyfish.Fetc
 			continue
 		}
 		for _, foundURL := range discoveryURLPattern.FindAllString(content, -1) {
-			if source, ok := sourceFromDiscoveryURL(candidate, foundURL, 0.92, "tinyfish_fetch:"+compactDiscoveryEvidence(result.URL)); ok {
+			if source, ok := sourceFromDiscoveryURL(candidate, foundURL, 0.92, "tinyfish_fetch:"+CompactDiscoveryEvidence(result.URL)); ok {
 				sources = append(sources, source)
 			}
 		}
@@ -679,7 +685,7 @@ func sourceFromDiscoveryURL(candidate DiscoveryCandidate, raw string, confidence
 	if _, supported := supportedProviders[provider]; !supported {
 		return resolvedDiscoverySource{}, false
 	}
-	if !discoveryRouteMatchesCandidate(candidate, provider, boardURL) {
+	if !DiscoveryRouteMatchesCandidate(candidate, provider, boardURL) {
 		return resolvedDiscoverySource{}, false
 	}
 	hash := sha256.Sum256([]byte(provider + "|" + boardURL))
@@ -691,11 +697,11 @@ func sourceFromDiscoveryURL(candidate DiscoveryCandidate, raw string, confidence
 	return resolvedDiscoverySource{
 		Source:     Source{ID: sourceID, Company: strings.TrimSpace(candidate.Name), Provider: provider, URL: boardURL},
 		Confidence: confidence,
-		Evidence:   compactDiscoveryEvidence(evidence),
+		Evidence:   CompactDiscoveryEvidence(evidence),
 	}, true
 }
 
-func discoveryRouteMatchesCandidate(candidate DiscoveryCandidate, provider, boardURL string) bool {
+func DiscoveryRouteMatchesCandidate(candidate DiscoveryCandidate, provider, boardURL string) bool {
 	parsed, err := url.Parse(strings.TrimSpace(boardURL))
 	if err != nil || parsed.Hostname() == "" {
 		return false
@@ -719,7 +725,7 @@ func discoveryRouteMatchesCandidate(candidate DiscoveryCandidate, provider, boar
 		return classified == provider && canonical != "" && sameDiscoverySite(candidate.Website, canonical)
 	}
 	if provider == "official_careers" {
-		return !blockedMarketCandidateWebsite(boardURL) && sameDiscoverySite(candidate.Website, boardURL)
+		return !BlockedMarketCandidateWebsite(boardURL) && sameDiscoverySite(candidate.Website, boardURL)
 	}
 	if _, usesSearch := searchDiscoveryProviders[provider]; usesSearch {
 		classified, canonical := officialDiscoveryRoute(parsed)
@@ -955,7 +961,7 @@ func sameDiscoverySite(left, right string) bool {
 func dedupeResolvedSources(input []resolvedDiscoverySource) []resolvedDiscoverySource {
 	byKey := make(map[string]resolvedDiscoverySource, len(input))
 	for _, source := range input {
-		key := marketSourceKey(source.Source)
+		key := MarketSourceKey(source.Source)
 		if current, exists := byKey[key]; !exists || source.Confidence > current.Confidence {
 			byKey[key] = source
 		}
@@ -978,7 +984,7 @@ func dedupeResolvedSources(input []resolvedDiscoverySource) []resolvedDiscoveryS
 func MergeRoutineSources(base, discovered []Source) []Source {
 	byKey := make(map[string]Source, len(base)+len(discovered))
 	for _, source := range append(append([]Source(nil), base...), discovered...) {
-		key := marketSourceKey(source)
+		key := MarketSourceKey(source)
 		if _, exists := byKey[key]; !exists {
 			byKey[key] = source
 		}
@@ -995,9 +1001,9 @@ func MergeRoutineSources(base, discovered []Source) []Source {
 	return merged
 }
 
-func compactDiscoveryEvidence(value string) string {
+func CompactDiscoveryEvidence(value string) string {
 	value = strings.Join(strings.Fields(strings.ToValidUTF8(strings.TrimSpace(value), "")), " ")
-	return truncateText(value, 500)
+	return TruncateText(value, 500)
 }
 
 func firstNonEmptyString(values ...string) string {

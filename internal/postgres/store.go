@@ -1,4 +1,4 @@
-package pipeline
+package postgres
 
 import (
 	"context"
@@ -13,7 +13,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hwennnn/radar/internal/pipeline"
 	"github.com/lib/pq"
+)
+
+type (
+	BootstrapState           = pipeline.BootstrapState
+	CycleResult              = pipeline.CycleResult
+	Delivery                 = pipeline.Delivery
+	DeliveryTarget           = pipeline.DeliveryTarget
+	DiscoveryCandidate       = pipeline.DiscoveryCandidate
+	DiscoveryCandidateRecord = pipeline.DiscoveryCandidateRecord
+	DiscoverySeed            = pipeline.DiscoverySeed
+	Observation              = pipeline.Observation
+	OperationalState         = pipeline.OperationalState
+	Posting                  = pipeline.Posting
+	RuntimeState             = pipeline.RuntimeState
+	Source                   = pipeline.Source
+	SourceStatus             = pipeline.SourceStatus
 )
 
 const (
@@ -333,7 +350,7 @@ WHERE key = 'routine' AND active_owner = $1`,
 		l.owner, status, l.started, finishedAt,
 		result.SourcesAttempted, result.SourcesSucceeded, result.SourcesFailed,
 		result.Observed, result.Created, result.EligibleCreated, result.Enqueued,
-		result.DeliveriesSent, result.DeliveryFailures, compactDiscoveryError(result.LastError),
+		result.DeliveriesSent, result.DeliveryFailures, pipeline.CompactDiscoveryError(result.LastError),
 	)
 	if updateErr == nil {
 		var affected int64
@@ -441,11 +458,11 @@ func (s *PostgresStore) observeAndEnqueue(ctx context.Context, observation Obser
 			return Posting{}, false, Delivery{}, false, errors.New("lite: delivery decision cannot be both staged and suppressed")
 		}
 	}
-	keys, err := identityKeys(observation)
+	keys, err := pipeline.IdentityKeys(observation)
 	if err != nil {
 		return Posting{}, false, Delivery{}, false, err
 	}
-	companyIdentity := canonicalText(observation.Company)
+	companyIdentity := pipeline.CanonicalText(observation.Company)
 	keys = addCompanyURLIdentity(keys, companyIdentity)
 	observedAt := observation.ObservedAt.UTC()
 	if observedAt.IsZero() {
@@ -479,11 +496,11 @@ func (s *PostgresStore) observeAndEnqueue(ctx context.Context, observation Obser
 	if errors.Is(err, sql.ErrNoRows) {
 		created = true
 		posting = Posting{
-			ID: stablePostingID(keys), Company: strings.TrimSpace(observation.Company),
+			ID: pipeline.StablePostingID(keys), Company: strings.TrimSpace(observation.Company),
 			Title: strings.TrimSpace(observation.Title), Location: strings.TrimSpace(observation.Location),
 			Country:        strings.TrimSpace(observation.Country),
 			EmploymentType: strings.TrimSpace(observation.EmploymentType), Level: strings.TrimSpace(observation.Level),
-			ApplyURL: CanonicalApplyURL(observation.ApplyURL), Description: strings.TrimSpace(observation.Description),
+			ApplyURL: pipeline.CanonicalApplyURL(observation.ApplyURL), Description: strings.TrimSpace(observation.Description),
 			PostedAt: postedAt, FirstSeenAt: observedAt, LastSeenAt: observedAt,
 		}
 		err = tx.QueryRowContext(ctx, `
@@ -509,7 +526,7 @@ UPDATE `+s.table("jobs")+` SET
 WHERE id = $1
 RETURNING id, company, title, location, country, employment_type, level, apply_url, description, posted_at, first_seen_at, last_seen_at`,
 			posting.ID, strings.TrimSpace(observation.Company), strings.TrimSpace(observation.Title), strings.TrimSpace(observation.Location),
-			strings.TrimSpace(observation.Country), strings.TrimSpace(observation.EmploymentType), strings.TrimSpace(observation.Level), CanonicalApplyURL(observation.ApplyURL), strings.TrimSpace(observation.Description), postedAt, observedAt,
+			strings.TrimSpace(observation.Country), strings.TrimSpace(observation.EmploymentType), strings.TrimSpace(observation.Level), pipeline.CanonicalApplyURL(observation.ApplyURL), strings.TrimSpace(observation.Description), postedAt, observedAt,
 		).Scan(&posting.ID, &posting.Company, &posting.Title, &posting.Location, &posting.Country, &posting.EmploymentType, &posting.Level, &posting.ApplyURL, &posting.Description, &posting.PostedAt, &posting.FirstSeenAt, &posting.LastSeenAt)
 	}
 	if err != nil {
@@ -614,7 +631,7 @@ FOR UPDATE OF j`, pq.Array(keys), pq.Array(urlKeys))
 			rows.Close()
 			return err
 		}
-		if !sameCompanyIdentity(ownerCompany, company) {
+		if !pipeline.SameCompanyIdentity(ownerCompany, company) {
 			continue
 		}
 		if _, exists := seen[id]; exists {
@@ -751,7 +768,7 @@ LIMIT 1`, pq.Array(keys[1:]), nativeParts[1]).Scan(
 				&posting.ID, &posting.Company, &posting.Title, &posting.Location, &posting.Country, &posting.EmploymentType, &posting.Level, &posting.ApplyURL,
 				&posting.Description, &posting.PostedAt, &posting.FirstSeenAt, &posting.LastSeenAt,
 			)
-			if err == nil && !sameCompanyIdentity(posting.Company, company) {
+			if err == nil && !pipeline.SameCompanyIdentity(posting.Company, company) {
 				return Posting{}, sql.ErrNoRows
 			}
 			return posting, err
@@ -760,7 +777,7 @@ LIMIT 1`, pq.Array(keys[1:]), nativeParts[1]).Scan(
 	if len(keys) > 1 && strings.HasPrefix(keys[0], "company-url:") && strings.HasPrefix(keys[1], "url:") {
 		posting, err := s.findPostingByIdentityKeys(ctx, tx, keys[:1])
 		if err == nil {
-			if !sameCompanyIdentity(posting.Company, company) {
+			if !pipeline.SameCompanyIdentity(posting.Company, company) {
 				return Posting{}, sql.ErrNoRows
 			}
 			return posting, nil
@@ -769,7 +786,7 @@ LIMIT 1`, pq.Array(keys[1:]), nativeParts[1]).Scan(
 			return posting, err
 		}
 		posting, err = s.findPostingByIdentityKeys(ctx, tx, keys[1:])
-		if err == nil && !sameCompanyIdentity(posting.Company, company) {
+		if err == nil && !pipeline.SameCompanyIdentity(posting.Company, company) {
 			return Posting{}, sql.ErrNoRows
 		}
 		return posting, err
@@ -777,7 +794,7 @@ LIMIT 1`, pq.Array(keys[1:]), nativeParts[1]).Scan(
 	posting, err := s.findPostingByIdentityKeys(ctx, tx, keys)
 	if err == nil {
 		for _, key := range keys {
-			if strings.HasPrefix(key, "url:") && !sameCompanyIdentity(posting.Company, company) {
+			if strings.HasPrefix(key, "url:") && !pipeline.SameCompanyIdentity(posting.Company, company) {
 				return Posting{}, sql.ErrNoRows
 			}
 		}
@@ -1008,7 +1025,7 @@ func (s *PostgresStore) MarkDeliveryFailed(ctx context.Context, id int64, owner,
 	if retryAt.IsZero() {
 		retryAt = s.now().UTC()
 	}
-	message = truncateText(message, 1000)
+	message = pipeline.TruncateText(message, 1000)
 	result, err := s.db.ExecContext(ctx, `
 UPDATE `+s.table("deliveries")+` SET
 	status = 'pending', attempts = attempts + 1, next_attempt_at = $3,
@@ -1059,7 +1076,7 @@ func (s *PostgresStore) RecordSourceFailure(ctx context.Context, sourceID string
 	if cause != nil {
 		message = cause.Error()
 	}
-	message = truncateText(message, 1000)
+	message = pipeline.TruncateText(message, 1000)
 	_, err := s.db.ExecContext(ctx, `
 INSERT INTO `+s.table("source_status")+` AS current (source_id, state, observed_count, last_attempt_at, last_failure_at, consecutive_failures, last_error)
 VALUES ($1, 'failure', 0, $2, $2, 1, $3)
@@ -1399,7 +1416,7 @@ func (s *PostgresStore) ListDueDiscoveryCandidates(ctx context.Context, at time.
 		at = s.now().UTC()
 	}
 	if limit <= 0 || limit > 100 {
-		limit = defaultDiscoveryBatch
+		limit = pipeline.DefaultDiscoveryBatch
 	}
 	rows, err := s.db.QueryContext(ctx, `
 WITH due AS (
@@ -1471,13 +1488,13 @@ func (s *PostgresStore) RecordDiscoveryFailure(ctx context.Context, candidate Di
 		checkedAt = s.now().UTC()
 	}
 	if nextAttemptAt.IsZero() || nextAttemptAt.Before(checkedAt) {
-		nextAttemptAt = checkedAt.Add(defaultDiscoveryRetry)
+		nextAttemptAt = checkedAt.Add(pipeline.DefaultDiscoveryRetry)
 	}
 	message := "unknown discovery failure"
 	if cause != nil {
 		message = cause.Error()
 	}
-	message = compactDiscoveryError(message)
+	message = pipeline.CompactDiscoveryError(message)
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1496,7 +1513,7 @@ WHERE id = $1`, candidate.ID, nextAttemptAt, checkedAt, message, candidate.Attem
 		return err
 	}
 	if source != nil {
-		if err := validateDiscoverySource(*source); err != nil {
+		if err := pipeline.ValidateDiscoverySource(*source); err != nil {
 			return err
 		}
 		if _, err := tx.ExecContext(ctx, `
@@ -1528,10 +1545,10 @@ func (s *PostgresStore) RecordDiscoverySuccess(ctx context.Context, candidate Di
 	if err := validDiscoveryCandidate(candidate.DiscoveryCandidate); err != nil {
 		return false, err
 	}
-	if err := validateDiscoverySource(source); err != nil {
+	if err := pipeline.ValidateDiscoverySource(source); err != nil {
 		return false, err
 	}
-	if !discoveryRouteMatchesCandidate(candidate.DiscoveryCandidate, source.Provider, source.URL) {
+	if !pipeline.DiscoveryRouteMatchesCandidate(candidate.DiscoveryCandidate, source.Provider, source.URL) {
 		return false, errors.New("lite: discovered source does not match candidate company identity")
 	}
 	if observedCount < 0 || confidence < 0 || confidence > 1 {
@@ -1541,9 +1558,9 @@ func (s *PostgresStore) RecordDiscoverySuccess(ctx context.Context, candidate Di
 		checkedAt = s.now().UTC()
 	}
 	if nextAttemptAt.IsZero() || nextAttemptAt.Before(checkedAt) {
-		nextAttemptAt = checkedAt.Add(defaultDiscoveryRetry)
+		nextAttemptAt = checkedAt.Add(pipeline.DefaultDiscoveryRetry)
 	}
-	evidence = compactDiscoveryEvidence(evidence)
+	evidence = pipeline.CompactDiscoveryEvidence(evidence)
 
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
@@ -1762,7 +1779,7 @@ ORDER BY CASE state WHEN 'promoted' THEN 0 WHEN 'candidate' THEN 1 ELSE 2 END,
 			rows.Close()
 			return 0, err
 		}
-		key := marketSourceKey(route.source)
+		key := pipeline.MarketSourceKey(route.source)
 		if _, exists := seen[key]; exists {
 			duplicates = append(duplicates, route)
 			continue
@@ -1804,7 +1821,7 @@ WHERE candidate.id = $1
 // company becomes due for source resolution again.
 func (s *PostgresStore) DemoteUnhealthyDiscoveredSources(ctx context.Context, failureThreshold int, at time.Time) (int, error) {
 	if failureThreshold <= 0 {
-		failureThreshold = defaultDiscoveryFailureThreshold
+		failureThreshold = pipeline.DefaultDiscoveryFailureThreshold
 	}
 	if at.IsZero() {
 		at = s.now().UTC()
@@ -1833,9 +1850,9 @@ ORDER BY id`)
 			aggregatorRows.Close()
 			return 0, err
 		}
-		if blockedMarketCandidateName(candidate.name) || blockedMarketCandidateWebsite(candidate.website) {
+		if pipeline.BlockedMarketCandidateName(candidate.name) || pipeline.BlockedMarketCandidateWebsite(candidate.website) {
 			blockedCandidates = append(blockedCandidates, candidate)
-		} else if canonicalName := compactMarketCompany(candidate.name); canonicalName != "" && canonicalName != candidate.name {
+		} else if canonicalName := pipeline.CompactMarketCompany(candidate.name); canonicalName != "" && canonicalName != candidate.name {
 			renamedCandidates = append(renamedCandidates, renamedCandidate{id: candidate.id, name: canonicalName})
 		}
 	}
@@ -1888,14 +1905,14 @@ ORDER BY discovered.id`)
 			return 0, err
 		}
 		switch {
-		case blockedCompany(source.Company), blockedCompany(candidate.Name),
-			blockedMarketCandidateName(source.Company), blockedMarketCandidateName(candidate.Name),
-			blockedMarketCandidateWebsite(candidate.Website):
+		case pipeline.BlockedCompany(source.Company), pipeline.BlockedCompany(candidate.Name),
+			pipeline.BlockedMarketCandidateName(source.Company), pipeline.BlockedMarketCandidateName(candidate.Name),
+			pipeline.BlockedMarketCandidateWebsite(candidate.Website):
 			invalidRoutes = append(invalidRoutes, invalidRoute{
 				sourceID: source.ID, candidateID: candidate.ID,
 				reason: "company excluded by target policy", candidateState: "duplicate",
 			})
-		case !discoveryRouteMatchesCandidate(candidate, source.Provider, source.URL):
+		case !pipeline.DiscoveryRouteMatchesCandidate(candidate, source.Provider, source.URL):
 			invalidRoutes = append(invalidRoutes, invalidRoute{
 				sourceID: source.ID, candidateID: candidate.ID,
 				reason: "discovered board identity does not match candidate company", candidateState: "retry",
@@ -1979,28 +1996,6 @@ func validDiscoveryCandidate(candidate DiscoveryCandidate) error {
 		return fmt.Errorf("lite: invalid discovery candidate: %w", err)
 	}
 	return nil
-}
-
-func validateDiscoverySource(source Source) error {
-	if err := validCatalogID(strings.TrimSpace(source.ID)); err != nil {
-		return fmt.Errorf("lite: discovered source id: %w", err)
-	}
-	if strings.TrimSpace(source.Company) == "" {
-		return errors.New("lite: discovered source company is required")
-	}
-	provider := strings.TrimSpace(source.Provider)
-	if _, supported := supportedProviders[provider]; !supported {
-		return fmt.Errorf("lite: discovered provider %q is unsupported", provider)
-	}
-	if err := validHTTPURL(strings.TrimSpace(source.URL)); err != nil {
-		return fmt.Errorf("lite: discovered source URL: %w", err)
-	}
-	return nil
-}
-
-func compactDiscoveryError(message string) string {
-	message = strings.Join(strings.Fields(strings.ToValidUTF8(message, "")), " ")
-	return truncateText(message, 1000)
 }
 
 func (s *PostgresStore) SetBootstrapState(ctx context.Context, key string, value json.RawMessage) error {

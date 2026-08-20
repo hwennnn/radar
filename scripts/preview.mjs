@@ -6,7 +6,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const defaultWebRoot = path.join(repoRoot, 'cmd', 'radar', 'web');
+export const defaultWebRoot = path.join(repoRoot, 'internal', 'dashboard', 'web');
 const staticRoutes = new Map([
   ['/', 'index.html'],
   ['/index.html', 'index.html'],

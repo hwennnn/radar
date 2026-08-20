@@ -41,7 +41,7 @@ func TestCanonicalApplyURLConvergesGreenhouseBoardVariants(t *testing.T) {
 }
 
 func TestIdentityKeysPreferStrongNativeAndURLAliases(t *testing.T) {
-	got, err := identityKeys(Observation{
+	got, err := IdentityKeys(Observation{
 		SourceID: "Greenhouse", SourceNativeID: "ABC-42",
 		Company: " Example, Inc. ", Title: "Software Engineer — New Grad", Location: "New York, NY",
 		ApplyURL: "https://jobs.example/job/42?gh_src=feed",
@@ -54,16 +54,16 @@ func TestIdentityKeysPreferStrongNativeAndURLAliases(t *testing.T) {
 		"url:https://jobs.example/job/42",
 	}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("identityKeys() = %#v, want %#v", got, want)
+		t.Fatalf("IdentityKeys() = %#v, want %#v", got, want)
 	}
 }
 
 func TestIdentityKeysPreserveOpaqueNativeIDCasing(t *testing.T) {
-	upper, err := identityKeys(Observation{SourceID: "ATS", SourceNativeID: "Req-Aa", Company: "Acme", Title: "Engineer"})
+	upper, err := IdentityKeys(Observation{SourceID: "ATS", SourceNativeID: "Req-Aa", Company: "Acme", Title: "Engineer"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	lower, err := identityKeys(Observation{SourceID: "ATS", SourceNativeID: "req-aa", Company: "Acme", Title: "Engineer"})
+	lower, err := IdentityKeys(Observation{SourceID: "ATS", SourceNativeID: "req-aa", Company: "Acme", Title: "Engineer"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,14 +74,14 @@ func TestIdentityKeysPreserveOpaqueNativeIDCasing(t *testing.T) {
 
 func TestIdentityKeysShareCompanyScopedRequisitionUUIDAcrossDomains(t *testing.T) {
 	const uuid = "6cdb0f39-234a-4234-b1f1-cb48a1fa2795"
-	branded, err := identityKeys(Observation{
+	branded, err := IdentityKeys(Observation{
 		SourceID: "market", SourceNativeID: "branded", Company: "Airwallex", Title: "Software Engineer Intern",
 		ApplyURL: "https://careers.airwallex.com/job/" + uuid + "/software-engineer-intern",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	ats, err := identityKeys(Observation{
+	ats, err := IdentityKeys(Observation{
 		SourceID: "ashby", SourceNativeID: "ats", Company: "Airwallex", Title: "Software Engineer Intern",
 		ApplyURL: "https://jobs.ashbyhq.com/airwallex/" + uuid + "/application",
 	})
@@ -92,7 +92,7 @@ func TestIdentityKeysShareCompanyScopedRequisitionUUIDAcrossDomains(t *testing.T
 	if !containsString(branded, want) || !containsString(ats, want) {
 		t.Fatalf("shared requisition identity missing: branded=%#v ats=%#v", branded, ats)
 	}
-	other, err := identityKeys(Observation{
+	other, err := IdentityKeys(Observation{
 		SourceID: "ashby", SourceNativeID: "other", Company: "Different Company", Title: "Software Engineer Intern",
 		ApplyURL: "https://jobs.ashbyhq.com/different/" + uuid + "/application",
 	})
@@ -114,26 +114,26 @@ func containsString(values []string, target string) bool {
 }
 
 func TestIdentityKeysUseFingerprintOnlyWithoutStrongIdentity(t *testing.T) {
-	got, err := identityKeys(Observation{Company: "Example, Inc.", Title: "Software Engineer", Location: "Remote"})
+	got, err := IdentityKeys(Observation{Company: "Example, Inc.", Title: "Software Engineer", Location: "Remote"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := []string{"posting:example inc|software engineer|remote"}
 	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("identityKeys() = %#v, want %#v", got, want)
+		t.Fatalf("IdentityKeys() = %#v, want %#v", got, want)
 	}
 }
 
 func TestIdentityKeysRequireCompanyAndTitle(t *testing.T) {
-	if _, err := identityKeys(Observation{Company: "Example"}); err == nil {
+	if _, err := IdentityKeys(Observation{Company: "Example"}); err == nil {
 		t.Fatal("expected missing title to fail")
 	}
 }
 
 func TestStablePostingIDUsesCanonicalURLWhenItIsOnlyStrongIdentity(t *testing.T) {
-	one, _ := identityKeys(Observation{Company: "Acme", Title: "Engineer", Location: "Remote", ApplyURL: "https://jobs.acme.test/42?utm_source=one"})
-	two, _ := identityKeys(Observation{Company: "ACME", Title: "Engineer", Location: "remote", ApplyURL: "https://jobs.acme.test/42?source=two"})
-	if stablePostingID(one) != stablePostingID(two) {
+	one, _ := IdentityKeys(Observation{Company: "Acme", Title: "Engineer", Location: "Remote", ApplyURL: "https://jobs.acme.test/42?utm_source=one"})
+	two, _ := IdentityKeys(Observation{Company: "ACME", Title: "Engineer", Location: "remote", ApplyURL: "https://jobs.acme.test/42?source=two"})
+	if StablePostingID(one) != StablePostingID(two) {
 		t.Fatal("tracking variants of the same apply URL should produce the same posting ID")
 	}
 }

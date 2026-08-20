@@ -1,4 +1,4 @@
-package pipeline
+package postgres
 
 import (
 	"bufio"
@@ -15,8 +15,23 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hwennnn/radar/internal/pipeline"
 	"github.com/lib/pq"
 )
+
+type DeliveryDrainer = pipeline.DeliveryDrainer
+
+type senderFunc func(context.Context, Delivery) error
+
+func (f senderFunc) Send(ctx context.Context, delivery Delivery) error {
+	return f(ctx, delivery)
+}
+
+func deliveryRetryDelay(base time.Duration, attempts int) time.Duration {
+	return pipeline.DeliveryRetryDelay(base, attempts)
+}
+
+const maxDeliveryRetryDelay = pipeline.MaxDeliveryRetryDelay
 
 func TestNewPostgresStoreRejectsUnsafeSchema(t *testing.T) {
 	for _, schema := range []string{"radar-lite", "public; DROP SCHEMA public", "UPPER", "" + string(make([]byte, 64))} {

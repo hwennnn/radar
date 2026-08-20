@@ -105,7 +105,7 @@ func Eligible(posting Posting) bool {
 // EligibleAt keeps the publish boundary deterministic for evaluation while
 // allowing the production caller to reject explicitly stale seasonal roles.
 func EligibleAt(posting Posting, now time.Time) bool {
-	if blockedCompany(posting.Company) {
+	if BlockedCompany(posting.Company) {
 		return false
 	}
 	title := normalizedText(posting.Title)
@@ -185,7 +185,7 @@ func editorialApplyURL(raw string) bool {
 	return false
 }
 
-func blockedCompany(company string) bool {
+func BlockedCompany(company string) bool {
 	return hasAnyPhrase(normalizedText(company), blockedCompanies)
 }
 

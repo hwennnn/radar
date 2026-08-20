@@ -1,8 +1,8 @@
-# Core Agent Instructions
+# Pipeline Agent Instructions
 
 This package owns Radar's highest-risk invariants: discovery scheduling,
-eligibility, job identity and provenance, Postgres persistence, bootstrap
-suppression, the delivery outbox, and the cycle lease.
+eligibility, job identity and provenance, bootstrap policy, and delivery
+orchestration. PostgreSQL implementation lives in `internal/postgres`.
 
 - Never deduplicate solely on title and company. Preserve native IDs, canonical
   apply URLs, requisition aliases, and conservative fallback identity.

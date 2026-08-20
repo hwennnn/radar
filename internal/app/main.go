@@ -100,7 +100,7 @@ func run(ctx context.Context, args []string, getenv lookupEnv, stdout io.Writer,
 func loadConfig(args []string, getenv lookupEnv) (config, error) {
 	cfg := config{
 		mode:          "routine",
-		schema:        envOr(getenv, "RADAR_LITE_SCHEMA", pipeline.DefaultSchema),
+		schema:        envOr(getenv, "RADAR_LITE_SCHEMA", postgres.DefaultSchema),
 		catalogPath:   envOr(getenv, "RADAR_LITE_CATALOG", defaultCatalogPath),
 		seedPath:      envOr(getenv, "RADAR_LITE_DISCOVERY_SEED", defaultSeedPath),
 		deliveryMode:  strings.ToLower(envOr(getenv, "RADAR_LITE_DELIVERY_MODE", "log")),
@@ -642,7 +642,7 @@ func runReconcile(ctx context.Context, cfg config, output io.Writer, logger *slo
 	}{Report: report, PromotedSources: promoted})
 }
 
-func newDiscoveryRunner(cfg config, candidates []pipeline.DiscoveryCandidate, extractor pipeline.Extractor, store *pipeline.PostgresStore, logger *slog.Logger) *pipeline.DiscoveryRunner {
+func newDiscoveryRunner(cfg config, candidates []pipeline.DiscoveryCandidate, extractor pipeline.Extractor, store *postgres.PostgresStore, logger *slog.Logger) *pipeline.DiscoveryRunner {
 	client := pipeline.NewRetryingTinyFishDiscoveryClient(tinyfish.Client{
 		APIKey: cfg.tinyFishAPIKey, SearchBaseURL: cfg.tinyFishSearchBaseURL,
 		FetchBaseURL: cfg.tinyFishFetchBaseURL,
@@ -779,7 +779,7 @@ func runServe(ctx context.Context, cfg config, logger *slog.Logger) error {
 	}
 }
 
-func openStore(ctx context.Context, cfg config, ensureSchema bool) (*pipeline.PostgresStore, func(), error) {
+func openStore(ctx context.Context, cfg config, ensureSchema bool) (*postgres.PostgresStore, func(), error) {
 	db, err := postgres.OpenPostgres(ctx, cfg.databaseURL, postgres.Options{
 		MaxOpenConns: 4, MaxIdleConns: 1, ConnMaxLifetime: 30 * time.Minute,
 	})
@@ -787,7 +787,7 @@ func openStore(ctx context.Context, cfg config, ensureSchema bool) (*pipeline.Po
 		return nil, func() {}, errors.New("connect to Radar Postgres: database configuration or connectivity check failed")
 	}
 	closeStore := func() { _ = db.Close() }
-	store, err := pipeline.NewPostgresStore(db, pipeline.PostgresOptions{Schema: cfg.schema})
+	store, err := postgres.NewPostgresStore(db, postgres.PostgresOptions{Schema: cfg.schema})
 	if err != nil {
 		closeStore()
 		return nil, func() {}, errors.New("initialize Radar Postgres store: configuration is invalid")

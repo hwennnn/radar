@@ -70,13 +70,14 @@ durable record and the coordination boundary.
 | Application | `internal/app` | Modes, configuration, lifecycle, health, and dependency wiring |
 | Dashboard | `internal/dashboard` | JSON APIs, presentation, and embedded UI |
 | Process entrypoint | `cmd/radar` | Signals, logging, argument forwarding, and exit behavior |
-| Domain and state | `internal/pipeline` | Discovery, filtering, identity, provenance, persistence, leases, outbox |
+| Pipeline | `internal/pipeline` | Discovery, filtering, identity, provenance, and delivery orchestration |
+| Persistence | `internal/postgres` | Connections, migrations, durable state, leases, and outbox storage |
 | Source adapters | `internal/source` | Discovery clients, ATS providers, page parsing, and bounded extraction |
 | Delivery transports | `internal/delivery` | Log, webhook, and Telegram senders |
 | Trusted inputs | `config` | Verified source floor and discovery research queue |
 
 The package boundaries point inward: transports and providers satisfy small
-core interfaces; domain logic does not depend on the dashboard or a specific
+pipeline interfaces; domain logic does not depend on the dashboard or a specific
 delivery client.
 
 ## Runtime modes and ownership
@@ -226,7 +227,7 @@ after several sources collapse into one canonical job.
 
 ## Persistence model
 
-`internal/pipeline/postgres.go` owns additive, idempotent migrations. The default
+`internal/postgres/store.go` owns additive, idempotent migrations. The default
 schema is `radar_lite` for compatibility with existing deployments.
 
 | Durable object | Purpose |

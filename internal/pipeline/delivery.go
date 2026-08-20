@@ -43,18 +43,18 @@ type DeliveryReport struct {
 }
 
 const deliveryFinalizationTimeout = 5 * time.Second
-const maxDeliveryRetryDelay = 6 * time.Hour
+const MaxDeliveryRetryDelay = 6 * time.Hour
 
-func deliveryRetryDelay(base time.Duration, attempts int) time.Duration {
+func DeliveryRetryDelay(base time.Duration, attempts int) time.Duration {
 	if base <= 0 {
 		base = time.Minute
 	}
-	if base >= maxDeliveryRetryDelay {
-		return maxDeliveryRetryDelay
+	if base >= MaxDeliveryRetryDelay {
+		return MaxDeliveryRetryDelay
 	}
 	for range attempts {
-		if base >= maxDeliveryRetryDelay/2 {
-			return maxDeliveryRetryDelay
+		if base >= MaxDeliveryRetryDelay/2 {
+			return MaxDeliveryRetryDelay
 		}
 		base *= 2
 	}
@@ -131,7 +131,7 @@ func (d DeliveryDrainer) Drain(ctx context.Context) (DeliveryReport, error) {
 		if sendErr := d.Sender.Send(ctx, delivery); sendErr != nil {
 			report.Failed++
 			finalizeCtx, cancel := d.finalizationContext(ctx)
-			retryAt := now().UTC().Add(deliveryRetryDelay(d.RetryDelay, delivery.Attempts))
+			retryAt := now().UTC().Add(DeliveryRetryDelay(d.RetryDelay, delivery.Attempts))
 			markErr := d.Store.MarkDeliveryFailed(finalizeCtx, delivery.ID, d.Owner, sendErr.Error(), retryAt)
 			cancel()
 			if markErr != nil {

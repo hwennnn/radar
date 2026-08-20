@@ -78,7 +78,7 @@ func RunTelegramCheck(ctx context.Context, getenv func(string) string, args []st
 }
 
 func loadConfig(getenv func(string) string, args []string) (config, error) {
-	flags := flag.NewFlagSet("radar-telegram-smoke", flag.ContinueOnError)
+	flags := flag.NewFlagSet("radar-telegram-check", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	var send bool
 	var confirmedChannel string

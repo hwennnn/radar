@@ -189,16 +189,16 @@ func (p MarketSourcePromoter) Run(ctx context.Context, observations []Observatio
 	knownSourceKeys := make(map[string]struct{}, len(p.KnownSources))
 	knownCompanyNames := make(map[string]struct{}, len(p.KnownSources))
 	for _, source := range p.KnownSources {
-		knownSourceKeys[marketSourceKey(source)] = struct{}{}
+		knownSourceKeys[MarketSourceKey(source)] = struct{}{}
 		knownCompanyNames[normalizedText(source.Company)] = struct{}{}
 	}
 	registeredSourceKeys := make(map[string]struct{}, len(registeredSources))
 	for _, source := range registeredSources {
-		registeredSourceKeys[marketSourceKey(source)] = struct{}{}
+		registeredSourceKeys[MarketSourceKey(source)] = struct{}{}
 	}
 	knownCandidateIDs := make(map[string]struct{})
 	for _, item := range sources {
-		key := marketSourceKey(item.resolved.Source)
+		key := MarketSourceKey(item.resolved.Source)
 		_, known := knownSourceKeys[key]
 		_, registered := registeredSourceKeys[key]
 		if known || registered {
@@ -217,7 +217,7 @@ func (p MarketSourcePromoter) Run(ctx context.Context, observations []Observatio
 	candidates = filteredCandidates
 	filteredSources := sources[:0]
 	for _, item := range sources {
-		key := marketSourceKey(item.resolved.Source)
+		key := MarketSourceKey(item.resolved.Source)
 		_, known := knownSourceKeys[key]
 		_, registered := registeredSourceKeys[key]
 		if known || registered {
@@ -278,7 +278,7 @@ func (p MarketSourcePromoter) Run(ctx context.Context, observations []Observatio
 			p.log(ctx, slog.LevelWarn, "source_probe_failed", "market-derived source failed production verification",
 				"candidate_id", item.candidate.ID, "company", item.candidate.Name,
 				"provider", item.resolved.Source.Provider, "url", item.resolved.Source.URL,
-				"error", compactDiscoveryError(extractErr.Error()), "retry_class", retryClass,
+				"error", CompactDiscoveryError(extractErr.Error()), "retry_class", retryClass,
 				"retry_in_seconds", int(nextAttempt.Sub(checkedAt).Seconds()), "next_attempt_at", nextAttempt)
 			continue
 		}
@@ -334,7 +334,7 @@ func (p MarketSourcePromoter) Run(ctx context.Context, observations []Observatio
 	return report, nil
 }
 
-func marketSourceKey(source Source) string {
+func MarketSourceKey(source Source) string {
 	provider := strings.ToLower(strings.TrimSpace(source.Provider))
 	rawURL := strings.TrimRight(strings.TrimSpace(source.URL), "/")
 	parsed, err := url.Parse(rawURL)
@@ -365,11 +365,11 @@ func deriveMarketCandidates(observations []Observation) ([]DiscoveryCandidate, [
 	candidatesByID := make(map[string]DiscoveryCandidate)
 	sourcesByKey := make(map[string]marketSourceCandidate)
 	for _, observation := range observations {
-		if blockedMarketCandidateWebsite(observation.ApplyURL) {
+		if BlockedMarketCandidateWebsite(observation.ApplyURL) {
 			continue
 		}
-		company := compactMarketCompany(observation.Company)
-		if company == "" || blockedCompany(company) {
+		company := CompactMarketCompany(observation.Company)
+		if company == "" || BlockedCompany(company) {
 			continue
 		}
 		website := marketCandidateWebsite(observation.ApplyURL)
@@ -405,7 +405,7 @@ func deriveMarketCandidates(observations []Observation) ([]DiscoveryCandidate, [
 	return candidates, sources
 }
 
-func blockedMarketCandidateWebsite(raw string) bool {
+func BlockedMarketCandidateWebsite(raw string) bool {
 	parsed, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil {
 		return true
@@ -428,13 +428,13 @@ func blockedMarketCandidateWebsite(raw string) bool {
 	return false
 }
 
-func compactMarketCompany(company string) string {
+func CompactMarketCompany(company string) string {
 	company = strings.Join(strings.Fields(strings.ToValidUTF8(strings.TrimSpace(company), "")), " ")
 	if len(company) < 2 || len(company) > 100 {
 		return ""
 	}
 	normalized := normalizedText(company)
-	if blockedMarketCandidateName(company) {
+	if BlockedMarketCandidateName(company) {
 		return ""
 	}
 	if normalized == "" || hasAnyPhrase(normalized, []string{
@@ -452,7 +452,7 @@ func compactMarketCompany(company string) string {
 	return company
 }
 
-func blockedMarketCandidateName(company string) bool {
+func BlockedMarketCandidateName(company string) bool {
 	_, blocked := map[string]struct{}{
 		"base": {}, "builtin sf": {}, "builtinsf": {}, "campusjobs": {},
 		"deepfinresearch": {}, "efinancialcareers": {}, "extern": {},

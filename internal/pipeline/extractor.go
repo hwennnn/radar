@@ -208,7 +208,7 @@ func explicitRoleLevelDescription(description string) bool {
 		return false
 	}
 	roleStatement := normalized[roleStart:]
-	roleStatement = truncateText(roleStatement, 320)
+	roleStatement = TruncateText(roleStatement, 320)
 	return hasAnyPhrase(roleStatement, []string{
 		"is an entry level individual contributor role", "is an entry level role", "is a new graduate role",
 	})

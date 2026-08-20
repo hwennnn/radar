@@ -47,7 +47,7 @@ func (s DiscoverySeed) Validate() error {
 			return fmt.Errorf("%s.name is required", where)
 		}
 		if candidate.Website != "" {
-			if err := validHTTPURL(candidate.Website); err != nil {
+			if err := ValidHTTPURL(candidate.Website); err != nil {
 				return fmt.Errorf("%s.website: %w", where, err)
 			}
 		}

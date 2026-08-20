@@ -205,7 +205,7 @@ func TestOfficialCareersFallbackUsesOnlyResearchedCompanyDomain(t *testing.T) {
 	if got.Source.Provider != "official_careers" || got.Source.URL != "https://jobs.aumovio.com" || got.Source.Company != "Aumovio" {
 		t.Fatalf("official fallback source = %#v", got.Source)
 	}
-	if !discoveryRouteMatchesCandidate(candidate, got.Source.Provider, got.Source.URL) {
+	if !DiscoveryRouteMatchesCandidate(candidate, got.Source.Provider, got.Source.URL) {
 		t.Fatal("same-site official fallback failed ownership validation")
 	}
 	for _, blocked := range []DiscoveryCandidate{

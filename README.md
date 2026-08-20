@@ -56,7 +56,8 @@ Repository layout:
 cmd/radar/          thin process entrypoint
 internal/app/       modes, lifecycle, and process wiring
 internal/dashboard/ read-only HTTP API and embedded dashboard
-internal/pipeline/      source lifecycle, identity, persistence, leases, outbox
+internal/pipeline/  source lifecycle, filtering, identity, and orchestration
+internal/postgres/  migrations, durable state, leases, and outbox storage
 internal/source/    discovery clients, extractors, and provider adapters
 internal/delivery/  delivery transports and retry behavior
 config/             verified source catalog and discovery research seed

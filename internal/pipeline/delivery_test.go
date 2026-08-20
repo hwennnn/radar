@@ -72,15 +72,15 @@ func TestDeliveryRetryDelayIsExponentialAndCapped(t *testing.T) {
 		{attempts: 0, want: time.Minute},
 		{attempts: 1, want: 2 * time.Minute},
 		{attempts: 5, want: 32 * time.Minute},
-		{attempts: 20, want: maxDeliveryRetryDelay},
-		{attempts: 1000, want: maxDeliveryRetryDelay},
+		{attempts: 20, want: MaxDeliveryRetryDelay},
+		{attempts: 1000, want: MaxDeliveryRetryDelay},
 	} {
-		if got := deliveryRetryDelay(time.Minute, test.attempts); got != test.want {
+		if got := DeliveryRetryDelay(time.Minute, test.attempts); got != test.want {
 			t.Fatalf("attempts=%d delay=%s, want %s", test.attempts, got, test.want)
 		}
 	}
-	if got := deliveryRetryDelay(12*time.Hour, 0); got != maxDeliveryRetryDelay {
-		t.Fatalf("oversized base delay=%s, want %s", got, maxDeliveryRetryDelay)
+	if got := DeliveryRetryDelay(12*time.Hour, 0); got != MaxDeliveryRetryDelay {
+		t.Fatalf("oversized base delay=%s, want %s", got, MaxDeliveryRetryDelay)
 	}
 }
 
@@ -95,7 +95,7 @@ func TestDeliveryDrainerUsesExistingAttemptsForCappedBackoff(t *testing.T) {
 	if report, err := drainer.Drain(context.Background()); err != nil || report.Failed != 1 {
 		t.Fatalf("Drain report=%#v error=%v", report, err)
 	}
-	if want := now.Add(maxDeliveryRetryDelay); len(store.retryAts) != 1 || !store.retryAts[0].Equal(want) {
+	if want := now.Add(MaxDeliveryRetryDelay); len(store.retryAts) != 1 || !store.retryAts[0].Equal(want) {
 		t.Fatalf("retry times=%v, want [%s]", store.retryAts, want)
 	}
 }

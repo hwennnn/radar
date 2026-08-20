@@ -127,7 +127,7 @@ func (c Catalog) Validate() error {
 			if _, supported := supportedProviders[source.Provider]; !supported {
 				return fmt.Errorf("%s.provider %q is not supported for routine crawling", sourceWhere, source.Provider)
 			}
-			if err := validHTTPURL(source.URL); err != nil {
+			if err := ValidHTTPURL(source.URL); err != nil {
 				return fmt.Errorf("%s.url: %w", sourceWhere, err)
 			}
 		}
@@ -175,10 +175,29 @@ func validCatalogID(id string) error {
 	return nil
 }
 
-func validHTTPURL(raw string) error {
+func ValidHTTPURL(raw string) error {
 	parsed, err := url.ParseRequestURI(raw)
 	if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && parsed.Scheme != "http") {
 		return fmt.Errorf("must be an absolute http(s) URL")
+	}
+	return nil
+}
+
+// ValidateDiscoverySource applies the same catalog boundary to a dynamically
+// promoted source before persistence.
+func ValidateDiscoverySource(source Source) error {
+	if err := validCatalogID(strings.TrimSpace(source.ID)); err != nil {
+		return fmt.Errorf("lite: discovered source id: %w", err)
+	}
+	if strings.TrimSpace(source.Company) == "" {
+		return fmt.Errorf("lite: discovered source company is required")
+	}
+	provider := strings.TrimSpace(source.Provider)
+	if _, supported := supportedProviders[provider]; !supported {
+		return fmt.Errorf("lite: discovered provider %q is unsupported", provider)
+	}
+	if err := ValidHTTPURL(strings.TrimSpace(source.URL)); err != nil {
+		return fmt.Errorf("lite: discovered source URL: %w", err)
 	}
 	return nil
 }

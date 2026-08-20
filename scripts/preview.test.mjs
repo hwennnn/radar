@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
+import { access } from 'node:fs/promises';
 import test from 'node:test';
 
-import { isPreviewProxyPath, resolvePreviewAsset } from './preview.mjs';
+import { defaultWebRoot, isPreviewProxyPath, resolvePreviewAsset } from './preview.mjs';
+
+test('serves assets from the dashboard package', async () => {
+  await access(`${defaultWebRoot}/index.html`);
+  await access(`${defaultWebRoot}/app.js`);
+  await access(`${defaultWebRoot}/styles.css`);
+});
 
 test('maps only the dashboard assets and document routes', () => {
   assert.equal(resolvePreviewAsset('/'), 'index.html');

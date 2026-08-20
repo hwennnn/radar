@@ -2,10 +2,15 @@ package pipeline
 
 import "strings"
 
-// truncateText returns a valid UTF-8 prefix no larger than maxBytes. External
+func CompactDiscoveryError(message string) string {
+	message = strings.Join(strings.Fields(strings.ToValidUTF8(message, "")), " ")
+	return TruncateText(message, 1000)
+}
+
+// TruncateText returns a valid UTF-8 prefix no larger than maxBytes. External
 // providers can put arbitrary text in errors and evidence; preserving the
 // database write is more important than retaining a partial final rune.
-func truncateText(value string, maxBytes int) string {
+func TruncateText(value string, maxBytes int) string {
 	if maxBytes <= 0 {
 		return ""
 	}

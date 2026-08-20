@@ -21,7 +21,7 @@ const (
 )
 
 // RunnerStore is the complete persistence boundary for a one-shot routine run.
-// PostgresStore implements it directly; tests use an in-memory fake.
+// postgres.PostgresStore implements it directly; tests use an in-memory fake.
 type RunnerStore interface {
 	ObserveAndEnqueue(context.Context, Observation, *DeliveryTarget) (Posting, bool, Delivery, bool, error)
 	FinalizeSourceSnapshot(context.Context, string, []string) error

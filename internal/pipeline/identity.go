@@ -19,18 +19,18 @@ var trackingQueryKeys = map[string]struct{}{
 
 var requisitionUUIDPattern = regexp.MustCompile(`(?i)[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
 
-func canonicalText(value string) string {
+func CanonicalText(value string) string {
 	return strings.Join(strings.FieldsFunc(strings.ToLower(strings.TrimSpace(value)), func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsNumber(r)
 	}), " ")
 }
 
-// sameCompanyIdentity tolerates presentation-only spacing differences emitted
+// SameCompanyIdentity tolerates presentation-only spacing differences emitted
 // by discovery providers (for example "Citadel Securities" versus
 // "Citadelsecurities") without weakening the cross-company URL guard.
-func sameCompanyIdentity(left, right string) bool {
+func SameCompanyIdentity(left, right string) bool {
 	compact := func(value string) string {
-		return strings.ReplaceAll(canonicalText(value), " ", "")
+		return strings.ReplaceAll(CanonicalText(value), " ", "")
 	}
 	left, right = compact(left), compact(right)
 	return left != "" && left == right
@@ -120,16 +120,16 @@ func uppercasePercentEscapes(value string) string {
 	return string(bytes)
 }
 
-func identityKeys(observation Observation) ([]string, error) {
-	company := canonicalText(observation.Company)
-	title := canonicalText(observation.Title)
-	location := canonicalText(observation.Location)
+func IdentityKeys(observation Observation) ([]string, error) {
+	company := CanonicalText(observation.Company)
+	title := CanonicalText(observation.Title)
+	location := CanonicalText(observation.Location)
 	if company == "" || title == "" {
 		return nil, errors.New("lite: company and title are required")
 	}
 
 	keys := make([]string, 0, 3)
-	if sourceID, nativeID := canonicalText(observation.SourceID), strings.TrimSpace(observation.SourceNativeID); sourceID != "" && nativeID != "" {
+	if sourceID, nativeID := CanonicalText(observation.SourceID), strings.TrimSpace(observation.SourceNativeID); sourceID != "" && nativeID != "" {
 		keys = append(keys, "native:"+sourceID+":"+nativeID)
 	}
 	if applyURL := CanonicalApplyURL(observation.ApplyURL); applyURL != "" {
@@ -148,7 +148,7 @@ func identityKeys(observation Observation) ([]string, error) {
 	return keys, nil
 }
 
-func stablePostingID(keys []string) string {
+func StablePostingID(keys []string) string {
 	seed := keys[0]
 	sum := sha256.Sum256([]byte(seed))
 	return hex.EncodeToString(sum[:16])
