@@ -12,6 +12,9 @@ new-grad roles, removes duplicates, and delivers each new opening once.
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 ![Delivery](https://img.shields.io/badge/delivery-durable-087F75)
 
+[![Open Radar](https://img.shields.io/badge/Open_live_dashboard-111A17?logo=safari&logoColor=white)](https://radar.hwendev.com)
+[![Join Telegram](https://img.shields.io/badge/Telegram-Join_%40earlycareerradar-26A5E4?logo=telegram&logoColor=white)](https://t.me/earlycareerradar)
+
 [Live dashboard](https://radar.hwendev.com) ·
 [Telegram alerts](https://t.me/earlycareerradar) ·
 [How it works](https://radar.hwendev.com/docs) ·
@@ -32,6 +35,21 @@ new-grad roles, removes duplicates, and delivers each new opening once.
     <td align="center"><strong>Operational truth</strong><br />Discovery, dedupe, delivery, and runtime state in one view.</td>
   </tr>
 </table>
+
+## Use the live service
+
+| Path | Destination | Best for |
+| --- | --- | --- |
+| **Browse** | [radar.hwendev.com](https://radar.hwendev.com) | Search, filters, company visibility, and canonical apply links |
+| **Subscribe** | [@earlycareerradar on Telegram](https://t.me/earlycareerradar) | New-job alerts without repeatedly checking the dashboard |
+| **Inspect** | [System pulse](https://radar.hwendev.com/system) | Source health, discovery, dedupe, delivery, and runtime state |
+| **Understand** | [How Radar works](https://radar.hwendev.com/docs) | The public explanation of verification, identity, and delivery |
+
+> [!TIP]
+> Want the feed without running the service? Join
+> [**@earlycareerradar**](https://t.me/earlycareerradar). The dashboard and
+> channel are public; self-hosting is only necessary if you want to operate
+> your own source catalog or delivery destination.
 
 ## Why Radar exists
 
@@ -77,6 +95,22 @@ Radar is a single Go service with an embedded web application and Postgres as
 its durable coordination layer. The full reasoning, transaction boundaries,
 failure model, and deployment topology live in the
 [architecture deep dive](docs/architecture.md).
+
+## Live alerts on Telegram
+
+[![Follow Radar on Telegram](https://img.shields.io/badge/Follow_live_job_alerts-@earlycareerradar-26A5E4?logo=telegram&logoColor=white)](https://t.me/earlycareerradar)
+
+Once a complete source snapshot validates a genuinely new opening, Radar can
+deliver it without waiting for the next crawl cycle. Each channel post keeps
+the job title as the direct application link and includes the company, career
+track, role family, and normalized location—compact enough to scan quickly,
+without a separate “apply” button or copied job description.
+
+The public channel is [t.me/earlycareerradar](https://t.me/earlycareerradar).
+Self-hosted deployments start in `log` mode. Enabling a different Telegram
+destination requires credentials, the explicit publishing gate, and deliberate
+operator authorization; restoring a database does not replay its historical
+baseline as new jobs.
 
 ## Quick start
 
