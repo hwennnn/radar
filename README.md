@@ -1,227 +1,161 @@
-<div align="center">
-
 # Radar
 
-### Early-career engineering jobs, discovered at the source.
-
-Radar continuously verifies company-owned career pages, finds internships and
-new-grad roles, removes duplicates, and delivers each new opening once.
+Radar is a Go service for discovering and verifying early-career engineering
+jobs from company-owned career sites. It maintains source health, canonical job
+identity, provenance, and durable delivery state in PostgreSQL, and exposes the
+result through a read-only dashboard and HTTP API.
 
 [![CI](https://github.com/hwennnn/radar/actions/workflows/ci.yml/badge.svg)](https://github.com/hwennnn/radar/actions/workflows/ci.yml)
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-![Delivery](https://img.shields.io/badge/delivery-durable-087F75)
-
-[![Open Radar](https://img.shields.io/badge/Open_live_dashboard-111A17?logo=safari&logoColor=white)](https://radar.hwendev.com)
-[![Join Telegram](https://img.shields.io/badge/Telegram-Join_%40earlycareerradar-26A5E4?logo=telegram&logoColor=white)](https://t.me/earlycareerradar)
 
 [Live dashboard](https://radar.hwendev.com) ·
-[Telegram alerts](https://t.me/earlycareerradar) ·
-[How it works](https://radar.hwendev.com/docs) ·
 [Architecture](docs/architecture.md) ·
-[Documentation](docs/README.md)
+[Documentation](docs/README.md) ·
+[Telegram](https://t.me/earlycareerradar)
 
-</div>
+![Radar dashboard showing search, filters, live counts, and verified jobs](docs/assets/radar-jobs.png)
 
-![Radar job feed showing search, filters, live counts, and early-career engineering roles](docs/assets/radar-jobs.png)
+## Why
 
-<table>
-  <tr>
-    <td width="50%"><img src="docs/assets/radar-companies.png" alt="Radar monitored-company source roster" /></td>
-    <td width="50%"><img src="docs/assets/radar-system.png" alt="Radar operational system pulse" /></td>
-  </tr>
-  <tr>
-    <td align="center"><strong>Source coverage</strong><br />Every monitored route has visible health and provenance.</td>
-    <td align="center"><strong>Operational truth</strong><br />Discovery, dedupe, delivery, and runtime state in one view.</td>
-  </tr>
-</table>
+Job listings copied through aggregators lose useful guarantees: the employer may
+not own the source, openings may be stale, and the same role may appear under
+several URLs. Radar treats discovery as untrusted input. A source is promoted
+only after a production extractor verifies that it is company-owned and returns
+a valid technical-job snapshot.
 
-## Use the live service
+The pipeline is intentionally conservative:
 
-| Path | Destination | Best for |
-| --- | --- | --- |
-| **Browse** | [radar.hwendev.com](https://radar.hwendev.com) | Search, filters, company visibility, and canonical apply links |
-| **Subscribe** | [@earlycareerradar on Telegram](https://t.me/earlycareerradar) | New-job alerts without repeatedly checking the dashboard |
-| **Inspect** | [System pulse](https://radar.hwendev.com/system) | Source health, discovery, dedupe, delivery, and runtime state |
-| **Understand** | [How Radar works](https://radar.hwendev.com/docs) | The public explanation of verification, identity, and delivery |
+- failed or incomplete source reads do not close previously observed jobs;
+- source failures are isolated, so healthy routes continue processing;
+- job identity uses native IDs, canonical apply URLs, requisitions, and fallback
+  fingerprints instead of title and company alone;
+- initial snapshots and recovery baselines do not emit historical jobs;
+- persistence and delivery creation occur in one transaction;
+- a PostgreSQL lease permits only one crawler and delivery writer at a time.
 
-> [!TIP]
-> Want the feed without running the service? Join
-> [**@earlycareerradar**](https://t.me/earlycareerradar). The dashboard and
-> channel are public; self-hosting is only necessary if you want to operate
-> your own source catalog or delivery destination.
+## What
 
-## Why Radar exists
+Radar covers the complete path from source research to a public, deduplicated
+feed:
 
-Job aggregators are fast, but their data is often copied, stale, duplicated, or
-detached from the employer that published it. Radar takes the slower and more
-defensible path: it treats discovery as a lead, verifies a company-owned source
-with a production extractor, and publishes only jobs that survive the same
-rules on every cycle.
-
-The result is a focused feed for software, ML, data, infrastructure, security,
-and quantitative internships and new-grad roles in the U.S. and Singapore.
-
-## What makes it trustworthy
-
-| Property | How Radar enforces it |
+| Component | Responsibility |
 | --- | --- |
-| Official sources | A discovered URL cannot publish jobs until a company-owned route passes the production extractor. |
-| Conservative identity | Native IDs and canonical apply URLs outrank requisitions and fallback fingerprints. Title and company alone are never enough. |
-| Complete snapshots | A source closes missing jobs only after a complete successful crawl. Failed or partial reads retain the last healthy state. |
-| One durable alert | Job persistence, identity aliases, provenance, and the delivery decision commit in one Postgres transaction. |
-| Failure isolation | A broken source degrades independently while healthy sources continue. |
-| Safe recovery | Initial snapshots and recovery baselines suppress historical jobs instead of flooding the delivery channel. |
-| Single writer | A Postgres advisory lease allows only one process to own crawling and delivery draining at a time. |
+| Discovery | Research candidate employers and career routes with bounded retries. |
+| Verification | Require ownership evidence and a successful production extraction before promotion. |
+| Extraction | Read supported ATS providers and normalized company career pages. |
+| Filtering | Retain technical internships and new-grad roles in configured markets. |
+| Identity | Resolve aliases, canonical jobs, cross-source observations, and provenance. |
+| Persistence | Store snapshots, health, leases, jobs, and the delivery outbox in PostgreSQL. |
+| HTTP | Serve incremental job reads, source status, health endpoints, and the embedded dashboard. |
+| Delivery | Drain an idempotent outbox to a configured transport; external publishing is off by default. |
 
-## How the system fits together
+Repository layout:
+
+```text
+cmd/radar/          process modes, HTTP API, embedded dashboard
+internal/core/      source lifecycle, identity, persistence, leases, outbox
+internal/provider/  structured ATS adapters
+internal/scraper/   extraction and page normalization
+internal/delivery/  delivery transports and retry behavior
+config/             verified source catalog and discovery research seed
+docs/               architecture, data model, operations, API, development
+```
+
+## How
 
 ```mermaid
 flowchart LR
-    Seeds[Discovery seed] --> Discover[Bounded discovery]
-    Catalog[Verified source catalog] --> Extract[Production extractors]
-    Discover --> Verify{Company-owned and extractable?}
-    Verify -->|yes| Extract
-    Verify -->|no| Backoff[Candidate backoff]
-    Extract --> Filter[Early-career relevance]
+    Seed[Discovery candidates] --> Verify{Owned and extractable?}
+    Catalog[Verified catalog] --> Extract[Production extractors]
+    Verify -->|yes| Catalog
+    Verify -->|no| Retry[Backoff]
+    Extract --> Filter[Early-career filter]
     Filter --> Identity[Identity and provenance]
-    Identity --> DB[(Postgres)]
-    DB --> Web[Read-only dashboard and API]
-    DB --> Outbox[Durable delivery outbox]
-    Outbox --> Telegram[Telegram]
+    Identity --> DB[(PostgreSQL)]
+    DB --> API[Dashboard and API]
+    DB --> Outbox[Delivery outbox]
+    Outbox --> Transport[Configured transport]
 ```
 
-Radar is a single Go service with an embedded web application and Postgres as
-its durable coordination layer. The full reasoning, transaction boundaries,
-failure model, and deployment topology live in the
-[architecture deep dive](docs/architecture.md).
+Radar runs as one binary with several explicit modes. PostgreSQL is both the
+durable state store and the coordination boundary. See the
+[architecture document](docs/architecture.md) for transaction boundaries,
+identity precedence, snapshot semantics, failure isolation, and deployment
+topology.
 
-## Live alerts on Telegram
+### Run locally
 
-[![Follow Radar on Telegram](https://img.shields.io/badge/Follow_live_job_alerts-@earlycareerradar-26A5E4?logo=telegram&logoColor=white)](https://t.me/earlycareerradar)
+Requirements: Go 1.26, PostgreSQL 16, and Node.js 24 for dashboard tests.
 
-Once a complete source snapshot validates a genuinely new opening, Radar can
-deliver it without waiting for the next crawl cycle. Each channel post keeps
-the job title as the direct application link and includes the company, career
-track, and normalized location—compact enough to scan quickly,
-without a separate “apply” button or copied job description.
+```sh
+cp .env.example .env
+# Set a disposable or dedicated database and TINYFISH_API_KEY in .env.
+set -a; . ./.env; set +a
 
-The public channel is [t.me/earlycareerradar](https://t.me/earlycareerradar).
-Self-hosted deployments start in `log` mode. Enabling a different Telegram
-destination requires credentials, the explicit publishing gate, and deliberate
-operator authorization; restoring a database does not replay its historical
-baseline as new jobs.
+go run ./cmd/radar once   # initialize state and run one writer cycle
+go run ./cmd/radar serve  # serve the read-only dashboard and API
+```
 
-## Quick start
-
-### Preview the dashboard
+For a dashboard-only preview:
 
 ```sh
 make preview
 ```
 
-Open [http://localhost:8789](http://localhost:8789). The preview is read-only
-and proxies the configured Radar API; it does not crawl or deliver jobs.
+Open [http://localhost:8789](http://localhost:8789). Preview mode does not crawl
+sources or deliver jobs.
 
-### Run the complete service
-
-Requirements: Go 1.26, PostgreSQL 16, and Node.js 24 for preview tests.
-
-```sh
-cp .env.example .env
-# Configure a dedicated Postgres database and TINYFISH_API_KEY in .env
-set -a; . ./.env; set +a
-
-go run ./cmd/radar once   # initialize and run one complete cycle
-go run ./cmd/radar serve  # serve the read-only dashboard and API
-```
-
-The `RADAR_LITE_*` environment prefix and default `radar_lite` schema are
-retained for deployment and database compatibility; the product name is Radar.
-
-### Docker Compose
-
-The production-oriented Compose stack runs Radar and Postgres with a persistent
-named volume. Set `SERVICE_PASSWORD_64_POSTGRES` and `TINYFISH_API_KEY`, then:
+The production-oriented Compose stack runs Radar with PostgreSQL and a named
+data volume:
 
 ```sh
 docker compose up --build
 ```
 
-The application listens on container port `8080`; publish it through your
-reverse proxy or add a local port mapping for direct host access. Delivery
-defaults to `log`, so the stack cannot publish Telegram messages accidentally.
+Set `SERVICE_PASSWORD_64_POSTGRES` and `TINYFISH_API_KEY` before starting it.
+The application listens on container port `8080`. The legacy `RADAR_LITE_*`
+configuration prefix and `radar_lite` schema remain for deployment and database
+compatibility.
 
-## Runtime modes
+### Runtime modes
 
-| Mode | What it does | Writes state? |
+| Mode | Behavior | Writes state |
 | --- | --- | --- |
-| `routine` | Continuously discovers, crawls, drains delivery, and serves HTTP | Yes |
-| `once` | Runs one complete writer cycle and exits | Yes |
-| `serve` | Serves the dashboard and read-only API without crawling or migrations | No |
-| `market-once` | Runs one bounded market-discovery pass | Yes |
-| `reconcile` | Processes due discovery candidates | Yes |
-| `drain` | Drains the durable delivery outbox | Yes |
-| `discover` | Prints catalog coverage and gaps | No database |
-| `audit` | Enforces the static catalog contract | No database |
+| `routine` | Continuously discover, crawl, drain delivery, and serve HTTP | Yes |
+| `once` | Run one complete writer cycle and exit | Yes |
+| `serve` | Serve the dashboard and API without crawling or migrations | No |
+| `market-once` | Run one bounded market-discovery pass | Yes |
+| `reconcile` | Process due discovery candidates | Yes |
+| `drain` | Drain the durable delivery outbox | Yes |
+| `discover` | Print catalog coverage and gaps | No database |
+| `audit` | Enforce the static catalog contract | No database |
 
-## Repository map
-
-```text
-cmd/radar/          process modes, HTTP API, embedded dashboard
-cmd/telegram-smoke/ guarded Telegram verification utility
-internal/core/      source lifecycle, identity, persistence, leases, outbox
-internal/provider/  structured ATS adapters
-internal/scraper/   extraction and page normalization
-internal/delivery/  log, webhook, and Telegram delivery transports
-config/             verified source catalog and discovery research seed
-docs/               architecture, data model, operations, API, development
-```
-
-The repository is designed for both humans and coding agents. Start at
-[`docs/README.md`](docs/README.md); scoped `AGENTS.md` files define invariants
-and verification requirements near the code they govern.
-
-## Verification
+### Verify changes
 
 ```sh
-# Catalog audit, race-enabled unit suite, dashboard preview tests, and vet
+# Catalog audit, race-enabled unit tests, dashboard tests, and vet.
 make gate
 
-# Persistence, identity, outbox, restart, and lease integration tests
+# Persistence, identity, outbox, restart, and lease integration tests.
 RADAR_TEST_DATABASE_URL='postgres://radar:radar@127.0.0.1:5432/radar_test?sslmode=disable' make test-db
 
-# Deployment shape
+# Deployment shape.
 docker compose config --quiet
 make docker-build
 ```
 
-Never point integration tests at production. Database tests require a
-disposable database or schema, and tests/previews must omit Telegram
-credentials.
+Never run integration tests against production. External delivery requires
+explicit configuration and authorization; tests and previews must use log
+delivery without transport credentials.
 
-## Delivery safety
+## Further reading
 
-External Telegram publishing is deliberately difficult to enable. It requires
-Telegram delivery mode, valid bot and channel credentials, the explicit
-publishing gate, and user authorization. `make telegram-check` validates the
-configuration without sending; `make telegram-smoke` is a real external side
-effect and must be used only with explicit approval.
-
-## Documentation
-
-- [Architecture](docs/architecture.md) — end-to-end design and invariants
-- [Data model](docs/data-model.md) — tables, identity, provenance, and outbox
-- [Source lifecycle](docs/source-lifecycle.md) — research through promotion
+- [Architecture](docs/architecture.md) — components, data flow, and invariants
+- [Data model](docs/data-model.md) — identity, provenance, snapshots, and outbox
+- [Source lifecycle](docs/source-lifecycle.md) — discovery through promotion
 - [HTTP API](docs/http-api.md) — feed, status, health, and incremental reads
 - [Operations](docs/operations.md) — deployment, observability, and cutover
 - [Configuration](docs/configuration.md) — environment contract
 - [Development](docs/development.md) — modes and verification levels
-- [Contributing](CONTRIBUTING.md) — change workflow and completion evidence
-
-## Contributing
-
-Focused issues and pull requests are welcome. Preserve the product invariants,
-keep commits reviewable, run the narrow test while iterating, and finish with
-the verification required by the affected subsystem. See
-[`CONTRIBUTING.md`](CONTRIBUTING.md) before changing runtime behavior.
+- [Contributing](CONTRIBUTING.md) — change workflow and required evidence
