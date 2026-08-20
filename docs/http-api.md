@@ -19,10 +19,14 @@ Query parameters:
 | `role` | `all`, `software`, `ai_ml`, `data`, `infra_security`, `quant` | Role category filter |
 | `sort` | `recent`, `company` | Defaults to newest first |
 | `limit` | positive integer | Defaults to 50 and is capped at 500 |
+| `since` | RFC3339 timestamp | Returns jobs first seen at or after the timestamp plus ordered `active_ids` for safe cache reconciliation |
 
 The response contains `jobs`, an untruncated `total`, `showing`, `limit`, and a
 summary with eligible openings, grouped roles, companies, recency, and source
-health. A database failure returns an `{ "error": "..." }` body with status 500.
+health. Incremental responses also set `incremental` and return the current
+ordered `active_ids`, allowing clients to add new jobs and remove expired jobs
+without downloading unchanged job bodies. A database failure returns an
+`{ "error": "..." }` body with status 500.
 
 ## `GET /api/status`
 

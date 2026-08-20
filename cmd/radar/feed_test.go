@@ -154,6 +154,40 @@ func TestFeedHandlerFiltersSanitizesAndCapsResults(t *testing.T) {
 	}
 }
 
+func TestFeedHandlerReturnsIncrementalUpdatesAndActiveIDs(t *testing.T) {
+	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
+	store := fakeFeedStore{postings: []core.Posting{
+		feedTestPosting("old", "Example Systems", "Graduate Software Engineer", "New York, NY", "US", "Full-time", "New Grad", "https://example.com/old", now.Add(-2*time.Hour)),
+		feedTestPosting("new", "Example AI", "Machine Learning Engineer Intern", "Singapore", "SG", "Internship", "Internship", "https://example.com/new", now.Add(-30*time.Minute)),
+	}}
+	request := httptest.NewRequest(http.MethodGet, "/api/jobs?limit=500&since="+now.Add(-time.Hour).Format(time.RFC3339), nil)
+	response := httptest.NewRecorder()
+	(feedServer{store: store, totalSources: 2, now: func() time.Time { return now }}).handler(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("unexpected status: %d %s", response.Code, response.Body.String())
+	}
+	var body feedResponse
+	if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if !body.Incremental || body.Total != 2 || body.Showing != 2 || len(body.ActiveIDs) != 2 {
+		t.Fatalf("incremental response is missing reconciliation state: %+v", body)
+	}
+	if len(body.Jobs) != 1 || body.Jobs[0].Company != "Example AI" {
+		t.Fatalf("incremental response did not isolate new jobs: %+v", body.Jobs)
+	}
+}
+
+func TestFeedHandlerRejectsInvalidIncrementalTimestamp(t *testing.T) {
+	response := httptest.NewRecorder()
+	(feedServer{store: fakeFeedStore{}}).handler(response, httptest.NewRequest(http.MethodGet, "/api/jobs?since=not-a-time", nil))
+
+	if response.Code != http.StatusBadRequest || !strings.Contains(response.Body.String(), "RFC3339") {
+		t.Fatalf("unexpected invalid-since response: %d %s", response.Code, response.Body.String())
+	}
+}
+
 func TestFeedHandlerIncludesRegistryLogoDomain(t *testing.T) {
 	now := time.Date(2026, 8, 19, 3, 0, 0, 0, time.UTC)
 	store := fakeFeedStore{postings: []core.Posting{
@@ -219,6 +253,15 @@ func TestEmbeddedUIAndFeedShareOneServer(t *testing.T) {
 		if !strings.Contains(policy, "https://*.gstatic.com") {
 			t.Fatalf("company logo redirect host missing from content security policy for %s: %q", path, policy)
 		}
+		if contentType == "text/html" {
+			body := response.Body.String()
+			if strings.Contains(strings.ToLower(body), "radar lite") {
+				t.Fatalf("legacy product branding remains on %s: %s", path, body)
+			}
+			if !strings.Contains(body, `aria-label="Radar home"`) || !strings.Contains(body, `<span>Radar</span>`) {
+				t.Fatalf("Radar product branding is missing on %s: %s", path, body)
+			}
+		}
 		if path == "/docs" && !strings.Contains(response.Body.String(), "Job identity and deduplication") {
 			t.Fatalf("docs route did not serve engineering note: %s", response.Body.String())
 		}
@@ -257,9 +300,25 @@ func TestEmbeddedUIAndFeedShareOneServer(t *testing.T) {
 			if !strings.Contains(body, `href="/system" data-view-link="system"`) {
 				t.Fatalf("system route is missing: %s", body)
 			}
+			for _, expected := range []string{`id="job-pagination"`, `id="previous-page"`, `id="pagination-pages"`, `id="next-page"`} {
+				if !strings.Contains(body, expected) {
+					t.Fatalf("job pagination is missing %q: %s", expected, body)
+				}
+			}
+			if strings.Contains(body, `id="load-more"`) {
+				t.Fatalf("legacy load-more control is still present: %s", body)
+			}
 			if !strings.Contains(body, `class="select-shell"`) ||
 				!strings.Contains(body, `id="track-filter-label" for="track-filter"`) {
 				t.Fatalf("filter selects are missing accessible enhancement hooks: %s", body)
+			}
+			for _, expected := range []string{`<details class="attention-panel" id="source-attention" hidden>`, `<summary class="attention-summary">`, `id="attention-count"`} {
+				if !strings.Contains(body, expected) {
+					t.Fatalf("system attention disclosure is missing %q: %s", expected, body)
+				}
+			}
+			if strings.Contains(body, `<details class="attention-panel" id="source-attention" open`) {
+				t.Fatalf("system attention disclosure must be collapsed by default: %s", body)
 			}
 		}
 		if path == "/app.js" {
@@ -277,6 +336,8 @@ func TestEmbeddedUIAndFeedShareOneServer(t *testing.T) {
 				`window.history.pushState`,
 				`window.addEventListener("popstate"`,
 				`readRequestCache(state.feedCache`,
+				`readPersistentFeedCache(requestKey)`,
+				`writePersistentFeedCache(requestKey, data)`,
 				`loadFeed({ force: true })`,
 			} {
 				if !strings.Contains(body, expected) {

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// UniverseCoverage is the machine-readable release contract for Radar Lite's
+// UniverseCoverage is the machine-readable release contract for Radar's
 // company discovery breadth. It deliberately measures the inert research
 // queue as well as verified sources: a company can be covered before its board
 // is healthy enough to enter routine crawling.

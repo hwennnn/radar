@@ -176,9 +176,9 @@ func smokeMessages(recipient string) []delivery.Message {
 		company  string
 		location string
 	}{
-		{title: "[TEST] Software Engineering Intern", company: "Radar Lite", location: "New York, NY / Remote"},
-		{title: "[TEST] New Grad Software Engineer", company: "Radar Lite", location: "San Francisco, CA"},
-		{title: "[TEST] Quant Engineering Intern", company: "Radar Lite", location: "Chicago, IL"},
+		{title: "[TEST] Software Engineering Intern", company: "Radar", location: "New York, NY / Remote"},
+		{title: "[TEST] New Grad Software Engineer", company: "Radar", location: "San Francisco, CA"},
+		{title: "[TEST] Quant Engineering Intern", company: "Radar", location: "Chicago, IL"},
 	}
 	messages := make([]delivery.Message, 0, len(roles))
 	for index, role := range roles {

@@ -1079,7 +1079,7 @@ func (s *PostgresStore) GetSourceStatus(ctx context.Context, sourceID string) (S
 	return status, err
 }
 
-// ListPostings returns the compact durable fields needed by Radar Lite's
+// ListPostings returns the compact durable fields needed by Radar's
 // read-only feed. Eligibility remains a deterministic product rule applied by
 // the caller, so changing the rule never requires rewriting stored jobs.
 func (s *PostgresStore) ListPostings(ctx context.Context) ([]Posting, error) {

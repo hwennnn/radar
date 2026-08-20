@@ -71,7 +71,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	if err := run(ctx, os.Args[1:], os.LookupEnv, os.Stdout, logger); err != nil {
-		logger.Error("radar lite stopped", "error", err)
+		logger.Error("radar stopped", "error", err)
 		os.Exit(1)
 	}
 }
@@ -226,7 +226,7 @@ func runDiscovery(cfg config, output io.Writer, enforceCoverage bool) error {
 			return err
 		}
 		if !coverage.Pass {
-			return fmt.Errorf("radar lite universe coverage audit failed: %s", strings.Join(coverage.Errors, "; "))
+			return fmt.Errorf("radar universe coverage audit failed: %s", strings.Join(coverage.Errors, "; "))
 		}
 		return nil
 	}
@@ -374,7 +374,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 	realtimeDrainer := drainer
 	realtimeDrainer.Limit = realtimeDeliveryBatch
 
-	logger.Info("radar lite ready", "sources", len(runner.Sources), "schema", store.Schema(), "delivery_mode", cfg.deliveryMode)
+	logger.Info("radar ready", "sources", len(runner.Sources), "schema", store.Schema(), "delivery_mode", cfg.deliveryMode)
 	for {
 		cycleStartedAt := time.Now().UTC()
 		leaseCtx, leaseCancel := context.WithTimeout(ctx, 5*time.Second)
@@ -729,17 +729,17 @@ func runServe(ctx context.Context, cfg config, logger *slog.Logger) error {
 	}
 	defer closeStore()
 	if _, err := store.ListPostings(startupCtx); err != nil {
-		return errors.New("open Radar Lite job feed: database query failed")
+		return errors.New("open Radar job feed: database query failed")
 	}
 	if _, err := store.ListSourceStatuses(startupCtx); err != nil {
-		return errors.New("open Radar Lite source health: database query failed")
+		return errors.New("open Radar source health: database query failed")
 	}
 
 	health := &healthState{}
 	health.setRuntimeReader(store, true)
 	operational, err := store.ReadOperationalState(startupCtx)
 	if err != nil {
-		return errors.New("open Radar Lite operational state: database query failed")
+		return errors.New("open Radar operational state: database query failed")
 	}
 	health.recordReadOnly(operational.Runtime)
 	// Market-search controls are durable source-status rows even though a
@@ -769,7 +769,7 @@ func runServe(ctx context.Context, cfg config, logger *slog.Logger) error {
 		_ = server.Shutdown(shutdownCtx)
 	}()
 
-	logger.Info("radar lite UI ready", "address", cfg.healthAddress, "schema", store.Schema())
+	logger.Info("radar UI ready", "address", cfg.healthAddress, "schema", store.Schema())
 	select {
 	case <-ctx.Done():
 		return nil
@@ -783,18 +783,18 @@ func openStore(ctx context.Context, cfg config, ensureSchema bool) (*core.Postgr
 		MaxOpenConns: 4, MaxIdleConns: 1, ConnMaxLifetime: 30 * time.Minute,
 	})
 	if err != nil {
-		return nil, func() {}, errors.New("connect to Radar Lite Postgres: database configuration or connectivity check failed")
+		return nil, func() {}, errors.New("connect to Radar Postgres: database configuration or connectivity check failed")
 	}
 	closeStore := func() { _ = database.Close() }
 	store, err := core.NewPostgresStore(database, core.PostgresOptions{Schema: cfg.schema})
 	if err != nil {
 		closeStore()
-		return nil, func() {}, errors.New("initialize Radar Lite Postgres store: configuration is invalid")
+		return nil, func() {}, errors.New("initialize Radar Postgres store: configuration is invalid")
 	}
 	if ensureSchema {
 		if err := store.EnsureSchema(ctx); err != nil {
 			closeStore()
-			return nil, func() {}, errors.New("initialize Radar Lite Postgres schema: migration failed")
+			return nil, func() {}, errors.New("initialize Radar Postgres schema: migration failed")
 		}
 	}
 	return store, closeStore, nil
@@ -1072,7 +1072,7 @@ func startWebServer(address string, state *healthState, store dashboardStore, cf
 		ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 5 * time.Second, WriteTimeout: 5 * time.Second,
 	}
 	go func() {
-		logger.Info("radar lite web server listening", "address", address)
+		logger.Info("radar web server listening", "address", address)
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errorsChannel <- fmt.Errorf("web server: %w", err)
 		}

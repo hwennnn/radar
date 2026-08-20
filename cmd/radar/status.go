@@ -150,7 +150,7 @@ func (s statusServer) handler(w http.ResponseWriter, request *http.Request) {
 		if logger == nil {
 			logger = slog.Default()
 		}
-		logger.Error("read Radar Lite operational state", "error", err)
+		logger.Error("read Radar operational state", "error", err)
 		writeFeedError(w, http.StatusInternalServerError, "could not load operational state")
 		return
 	}

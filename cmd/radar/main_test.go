@@ -203,7 +203,7 @@ func TestRunRoutineSanitizesMalformedDatabaseURL(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected malformed database URL to fail")
 	}
-	logger.Error("radar lite stopped", "error", err)
+	logger.Error("radar stopped", "error", err)
 	loggable := err.Error() + "\n" + logs.String()
 	for _, secret := range []string{databaseURL, "dummy-user", "dummy-secret-marker"} {
 		if strings.Contains(loggable, secret) {

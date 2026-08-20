@@ -16,8 +16,11 @@ const elements = {
   list: document.querySelector("#job-list"),
   retry: document.querySelector("#retry-button"),
   clear: document.querySelector("#clear-button"),
-  loadMore: document.querySelector("#load-more"),
-  loadMoreWrap: document.querySelector("#load-more-wrap"),
+  pagination: document.querySelector("#job-pagination"),
+  paginationPages: document.querySelector("#pagination-pages"),
+  previousPage: document.querySelector("#previous-page"),
+  nextPage: document.querySelector("#next-page"),
+  jobsPanel: document.querySelector("#jobs-panel"),
   emptyTitle: document.querySelector("#empty-title"),
   emptyCopy: document.querySelector("#empty-copy"),
   companyPicker: document.querySelector("#company-picker"),
@@ -34,6 +37,7 @@ const elements = {
   telegramState: document.querySelector("#telegram-state"),
   telegramCaption: document.querySelector("#telegram-caption"),
   sourceAttention: document.querySelector("#source-attention"),
+  attentionCount: document.querySelector("#attention-count"),
   failureList: document.querySelector("#failure-list"),
   sourceSearch: document.querySelector("#source-search"),
   sourceRosterSummary: document.querySelector("#source-roster-summary"),
@@ -57,7 +61,8 @@ const elements = {
 };
 
 const state = {
-  limit: 50,
+  page: 1,
+  pageSize: 50,
   feedController: null,
   statusController: null,
   debounce: null,
@@ -76,6 +81,9 @@ const relativeTime = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
 const dashboardViews = new Set(["jobs", "companies", "system"]);
 const requestCacheTTL = 30_000;
 const requestCacheLimit = 20;
+const persistentFeedCacheKey = "radar-lite:feed-cache:v1";
+const persistentFeedCacheTTL = 12 * 60 * 60 * 1000;
+const persistentFeedCacheLimit = 4;
 const enhancedSelects = new Map();
 let openSelectControl = null;
 
@@ -136,6 +144,53 @@ function writeRequestCache(cache, key, data) {
   while (cache.size > requestCacheLimit) {
     cache.delete(cache.keys().next().value);
   }
+}
+
+function validFeedData(data) {
+  return data && Array.isArray(data.jobs) && data.summary && Number.isFinite(data.total);
+}
+
+function readPersistentFeedCache(key) {
+  try {
+    const cache = JSON.parse(window.localStorage.getItem(persistentFeedCacheKey) || "null");
+    if (!cache || !Array.isArray(cache.entries)) return null;
+    const entry = cache.entries.find((candidate) => candidate.key === key);
+    if (!entry || Date.now() - entry.storedAt >= persistentFeedCacheTTL || !validFeedData(entry.data)) return null;
+    return entry.data;
+  } catch {
+    return null;
+  }
+}
+
+function writePersistentFeedCache(key, data) {
+  if (!validFeedData(data)) return;
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(persistentFeedCacheKey) || "null");
+    const entries = stored && Array.isArray(stored.entries) ? stored.entries : [];
+    const nextEntries = entries.filter((entry) => entry.key !== key && Date.now() - entry.storedAt < persistentFeedCacheTTL);
+    nextEntries.unshift({ key, storedAt: Date.now(), data });
+    window.localStorage.setItem(persistentFeedCacheKey, JSON.stringify({ entries: nextEntries.slice(0, persistentFeedCacheLimit) }));
+  } catch {
+    // Storage can be unavailable or full. The in-memory cache remains active.
+  }
+}
+
+function newestFeedTimestamp(data) {
+  let newest = 0;
+  data.jobs.forEach((job) => {
+    const timestamp = new Date(job.first_seen_at).getTime();
+    if (Number.isFinite(timestamp) && timestamp > newest) newest = timestamp;
+  });
+  return newest > 0 ? new Date(newest).toISOString() : "";
+}
+
+function reconcileIncrementalFeed(cached, update) {
+  if (!update.incremental || !Array.isArray(update.active_ids)) return update;
+  const jobsByID = new Map(cached.jobs.map((job) => [job.id, job]));
+  update.jobs.forEach((job) => jobsByID.set(job.id, job));
+  const jobs = update.active_ids.map((id) => jobsByID.get(id)).filter(Boolean);
+  if (jobs.length !== update.active_ids.length) return null;
+  return { ...update, jobs, showing: jobs.length, incremental: false, active_ids: undefined };
 }
 
 function node(tag, className, text) {
@@ -322,6 +377,7 @@ function setCompanyVisible(company, visible) {
   if (visible) state.hiddenCompanies.delete(key);
   else state.hiddenCompanies.set(key, String(company).trim());
   persistHiddenCompanies();
+  state.page = 1;
   renderCurrentFeed();
 }
 
@@ -515,18 +571,53 @@ function renderCompanyPicker(data) {
   }
 }
 
+function paginationSequence(current, total) {
+  if (total <= 7) return Array.from({ length: total }, (_, index) => index + 1);
+  if (current <= 4) return [1, 2, 3, 4, 5, null, total];
+  if (current >= total - 3) return [1, null, total - 4, total - 3, total - 2, total - 1, total];
+  return [1, null, current - 1, current, current + 1, null, total];
+}
+
+function goToPage(page) {
+  if (!state.feedData) return;
+  state.page = Math.max(1, page);
+  renderCurrentFeed();
+  elements.jobsPanel.scrollIntoView({ block: "start", behavior: "auto" });
+}
+
+function renderPagination(totalPages) {
+  elements.previousPage.disabled = state.page <= 1;
+  elements.nextPage.disabled = state.page >= totalPages;
+  elements.paginationPages.replaceChildren(...paginationSequence(state.page, totalPages).map((page) => {
+    if (page === null) {
+      const ellipsis = node("span", "pagination-ellipsis", "…");
+      ellipsis.setAttribute("aria-hidden", "true");
+      return ellipsis;
+    }
+    const button = node("button", "pagination-page", numberFormat.format(page));
+    button.type = "button";
+    button.setAttribute("aria-label", `Go to page ${page}`);
+    if (page === state.page) button.setAttribute("aria-current", "page");
+    button.addEventListener("click", () => goToPage(page));
+    return button;
+  }));
+}
+
 function renderCurrentFeed() {
   if (!state.feedData) return;
   const data = state.feedData;
   const visibleJobs = data.jobs.filter((job) => !isCompanyHidden(job.company) && !isJobHidden(job));
-  const renderedJobs = visibleJobs.slice(0, state.limit);
+  const totalPages = Math.max(1, Math.ceil(visibleJobs.length / state.pageSize));
+  state.page = Math.min(state.page, totalPages);
+  const pageStart = (state.page - 1) * state.pageSize;
+  const renderedJobs = visibleJobs.slice(pageStart, pageStart + state.pageSize);
   const hiddenInResult = data.jobs.length - visibleJobs.length;
   elements.list.replaceChildren(...renderedJobs.map(renderJob));
   renderSummary(data.summary);
   renderCompanyPicker(data);
   elements.showingCount.textContent = visibleJobs.length === 0
     ? "No matching roles"
-    : `${numberFormat.format(renderedJobs.length)} of ${numberFormat.format(visibleJobs.length)} visible${hiddenInResult ? ` · ${numberFormat.format(hiddenInResult)} hidden` : ""}`;
+    : `${numberFormat.format(pageStart + 1)}–${numberFormat.format(pageStart + renderedJobs.length)} of ${numberFormat.format(visibleJobs.length)} visible${hiddenInResult ? ` · ${numberFormat.format(hiddenInResult)} hidden` : ""}`;
   elements.emptyTitle.textContent = data.total > 0 && visibleJobs.length === 0
     ? "Every matching role is hidden."
     : "No roles match these filters.";
@@ -534,7 +625,8 @@ function renderCurrentFeed() {
     ? "Reload to restore dismissed listings, or show a hidden company from Companies."
     : "Clear the search or widen one filter to see more openings.";
   elements.empty.hidden = visibleJobs.length !== 0;
-  elements.loadMoreWrap.hidden = renderedJobs.length >= visibleJobs.length;
+  elements.pagination.hidden = visibleJobs.length <= state.pageSize;
+  renderPagination(totalPages);
   elements.loading.hidden = true;
   elements.error.hidden = true;
 }
@@ -705,6 +797,7 @@ function renderStatus(data) {
   elements.systemSummary.textContent = systemSummary;
   elements.sourceState.dataset.state = data.state;
   elements.sourceState.querySelector("span:last-child").textContent = stateLabel;
+  elements.attentionCount.textContent = `${numberFormat.format(failures.length)} ${failures.length === 1 ? "route" : "routes"}`;
   elements.failureList.replaceChildren(...failures.map(renderFailure));
   elements.sourceAttention.hidden = failures.length === 0;
   elements.statusError.hidden = true;
@@ -732,22 +825,50 @@ async function loadFeed({ force = false } = {}) {
     renderFeed(cached);
     return;
   }
+  const persisted = force ? null : readPersistentFeedCache(requestKey);
+  if (persisted) {
+    renderFeed(persisted);
+    elements.lastUpdated.textContent = "Showing saved roles · checking for updates";
+  }
   state.feedController = new AbortController();
   elements.error.hidden = true;
   elements.empty.hidden = true;
-  if (!elements.list.childElementCount) elements.loading.hidden = false;
+  if (!persisted && !elements.list.childElementCount) elements.loading.hidden = false;
 
   try {
-    const response = await fetch(`/api/jobs?${requestKey}`, {
+    const requestParams = new URLSearchParams(requestKey);
+    const since = persisted ? newestFeedTimestamp(persisted) : "";
+    if (since) requestParams.set("since", since);
+    let response = await fetch(`/api/jobs?${requestParams}`, {
       signal: state.feedController.signal,
       headers: { Accept: "application/json" },
     });
     if (!response.ok) throw new Error(`Feed request failed with ${response.status}`);
-    const data = await response.json();
+    let data = await response.json();
+    if (persisted && data.incremental) {
+      const reconciled = reconcileIncrementalFeed(persisted, data);
+      if (reconciled) {
+        data = reconciled;
+      } else {
+        response = await fetch(`/api/jobs?${requestKey}`, {
+          signal: state.feedController.signal,
+          headers: { Accept: "application/json" },
+        });
+        if (!response.ok) throw new Error(`Feed request failed with ${response.status}`);
+        data = await response.json();
+      }
+    }
     writeRequestCache(state.feedCache, requestKey, data);
+    writePersistentFeedCache(requestKey, data);
     renderFeed(data);
   } catch (error) {
     if (error.name === "AbortError") return;
+    if (persisted) {
+      elements.lastUpdated.textContent = "Showing saved roles · refresh unavailable";
+      elements.loading.hidden = true;
+      elements.error.hidden = true;
+      return;
+    }
     elements.loading.hidden = true;
     elements.empty.hidden = true;
     elements.error.hidden = false;
@@ -784,7 +905,7 @@ async function loadStatus({ force = false } = {}) {
 }
 
 function resetAndLoad() {
-  state.limit = 50;
+  state.page = 1;
   loadFeed();
 }
 
@@ -817,6 +938,7 @@ elements.companyFilterSearch.addEventListener("input", () => {
 });
 elements.showAllCompanies.addEventListener("click", () => {
   state.hiddenCompanies.clear();
+  state.page = 1;
   persistHiddenCompanies();
   renderCurrentFeed();
 });
@@ -834,10 +956,8 @@ document.addEventListener("click", (event) => {
     elements.companyPicker.open = false;
   }
 });
-elements.loadMore.addEventListener("click", () => {
-  state.limit = Math.min(state.limit + 50, 500);
-  renderCurrentFeed();
-});
+elements.previousPage.addEventListener("click", () => goToPage(state.page - 1));
+elements.nextPage.addEventListener("click", () => goToPage(state.page + 1));
 document.addEventListener("keydown", (event) => {
   const searchTarget = activeDashboardView() === "companies" ? elements.sourceSearch : elements.search;
   if (event.key === "/" && activeDashboardView() !== "system" && document.activeElement !== searchTarget) {

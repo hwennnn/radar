@@ -1176,17 +1176,45 @@ h1 {
 }
 
 .attention-panel {
-  display: grid;
-  grid-template-columns: minmax(210px, 0.7fr) minmax(0, 1.8fr);
-  gap: 30px;
   margin-bottom: 24px;
-  padding: 18px;
   border: 1px solid color-mix(in srgb, var(--danger) 38%, var(--line));
   border-radius: var(--radius-control);
   background: var(--danger-soft);
+  overflow: hidden;
 }
 
-.attention-panel h3,
+.attention-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 16px 18px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.attention-summary::-webkit-details-marker {
+  display: none;
+}
+
+.attention-summary:focus-visible {
+  outline: 2px solid var(--danger);
+  outline-offset: -3px;
+}
+
+.attention-summary-copy,
+.attention-title-row,
+.attention-description {
+  display: block;
+}
+
+.attention-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.attention-title-row strong,
 .state-ledger h3 {
   margin-bottom: 5px;
   font-size: 0.9rem;
@@ -1194,10 +1222,49 @@ h1 {
   letter-spacing: -0.012em;
 }
 
-.attention-panel p {
+.attention-title-row strong {
   margin-bottom: 0;
+}
+
+.attention-count {
+  padding: 3px 8px;
+  border: 1px solid color-mix(in srgb, var(--danger) 32%, var(--line));
+  border-radius: 999px;
+  color: var(--danger);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+.attention-description {
+  margin-top: 3px;
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.attention-toggle {
+  flex: 0 0 auto;
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+.attention-toggle-open {
+  display: none;
+}
+
+.attention-panel[open] .attention-toggle-closed {
+  display: none;
+}
+
+.attention-panel[open] .attention-toggle-open {
+  display: inline;
+}
+
+.attention-body {
+  padding: 16px 18px 18px;
+  border-top: 1px solid color-mix(in srgb, var(--danger) 24%, var(--line));
 }
 
 .source-roster {
@@ -2144,7 +2211,8 @@ a:focus-visible {
 
 .apply-link,
 .opening-toggle,
-.load-more,
+.pagination-button,
+.pagination-page,
 .message-state button,
 .status-message button {
   display: inline-flex;
@@ -2181,7 +2249,8 @@ a:focus-visible {
 }
 
 .opening-toggle:hover,
-.load-more:hover,
+.pagination-button:hover:not(:disabled),
+.pagination-page:hover,
 .message-state button:hover,
 .status-message button:hover {
   border-color: var(--accent);
@@ -2190,7 +2259,8 @@ a:focus-visible {
 
 .apply-link:active,
 .opening-toggle:active,
-.load-more:active,
+.pagination-button:active:not(:disabled),
+.pagination-page:active,
 .message-state button:active,
 .status-message button:active {
   transform: translateY(1px);
@@ -2264,7 +2334,8 @@ a:focus-visible {
 }
 
 .message-state button,
-.load-more,
+.pagination-button,
+.pagination-page,
 .status-message button {
   padding: 0 16px;
   border-color: var(--line-strong);
@@ -2272,10 +2343,41 @@ a:focus-visible {
   color: var(--text);
 }
 
-.load-more-wrap {
+.job-pagination {
   display: flex;
+  align-items: center;
   justify-content: center;
+  gap: 10px;
   padding-top: 24px;
+}
+
+.pagination-pages {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pagination-button,
+.pagination-page {
+  min-width: 42px;
+  padding: 0 12px;
+}
+
+.pagination-page[aria-current="page"] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.pagination-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.42;
+}
+
+.pagination-ellipsis {
+  min-width: 20px;
+  color: var(--muted);
+  text-align: center;
 }
 
 footer {
@@ -2636,10 +2738,29 @@ footer a:hover {
     padding: 18px;
   }
 
-  .attention-panel,
   .failure-row {
     grid-template-columns: 1fr;
     gap: 12px;
+  }
+
+  .attention-summary {
+    align-items: flex-start;
+    gap: 14px;
+    padding: 15px 16px;
+  }
+
+  .attention-title-row {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .attention-description {
+    max-width: 34ch;
+  }
+
+  .attention-body {
+    padding: 15px 16px 16px;
   }
 
   .state-ledger {
@@ -2735,6 +2856,22 @@ footer a:hover {
 
   .opening-links {
     grid-template-columns: 1fr;
+  }
+
+  .job-pagination {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .pagination-pages {
+    order: -1;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .pagination-button {
+    flex: 1;
+    max-width: 150px;
   }
 
   footer {

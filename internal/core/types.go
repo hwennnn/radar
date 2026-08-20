@@ -24,7 +24,7 @@ type Observation struct {
 	SnapshotPending bool
 }
 
-// Posting is Radar Lite's durable, source-independent representation of a job.
+// Posting is Radar's durable, source-independent representation of a job.
 type Posting struct {
 	ID             string
 	Company        string
@@ -123,7 +123,7 @@ type CycleResult struct {
 	FinishedAt       time.Time
 }
 
-// OperationalState is a transactionally consistent snapshot of Radar Lite's
+// OperationalState is a transactionally consistent snapshot of Radar's
 // durable pipeline state. It is intentionally transport-neutral so the local
 // dashboard, health checks, and future operators all read the same truth.
 type OperationalState struct {

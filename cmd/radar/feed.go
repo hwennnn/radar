@@ -34,11 +34,13 @@ type feedServer struct {
 }
 
 type feedResponse struct {
-	Jobs    []feedJob   `json:"jobs"`
-	Summary feedSummary `json:"summary"`
-	Total   int         `json:"total"`
-	Showing int         `json:"showing"`
-	Limit   int         `json:"limit"`
+	Jobs        []feedJob   `json:"jobs"`
+	Summary     feedSummary `json:"summary"`
+	Total       int         `json:"total"`
+	Showing     int         `json:"showing"`
+	Limit       int         `json:"limit"`
+	Incremental bool        `json:"incremental,omitempty"`
+	ActiveIDs   []string    `json:"active_ids,omitempty"`
 }
 
 type feedSummary struct {
@@ -89,6 +91,11 @@ func (s feedServer) handler(w http.ResponseWriter, request *http.Request) {
 		writeFeedError(w, http.StatusServiceUnavailable, "job feed is unavailable")
 		return
 	}
+	since, incremental, err := feedSince(request.URL.Query().Get("since"))
+	if err != nil {
+		writeFeedError(w, http.StatusBadRequest, "since must be an RFC3339 timestamp")
+		return
+	}
 
 	ctx, cancel := context.WithTimeout(request.Context(), 5*time.Second)
 	defer cancel()
@@ -120,12 +127,38 @@ func (s feedServer) handler(w http.ResponseWriter, request *http.Request) {
 	if len(jobs) > limit {
 		jobs = jobs[:limit]
 	}
+	showing := len(jobs)
+	var activeIDs []string
+	if incremental {
+		activeIDs = make([]string, 0, len(jobs))
+		updates := make([]feedJob, 0)
+		for _, job := range jobs {
+			activeIDs = append(activeIDs, job.ID)
+			if !job.FirstSeenAt.Before(since) {
+				updates = append(updates, job)
+			}
+		}
+		jobs = updates
+	}
 	if jobs == nil {
 		jobs = []feedJob{}
 	}
 	_ = json.NewEncoder(w).Encode(feedResponse{
-		Jobs: jobs, Summary: summary, Total: total, Showing: len(jobs), Limit: limit,
+		Jobs: jobs, Summary: summary, Total: total, Showing: showing, Limit: limit,
+		Incremental: incremental, ActiveIDs: activeIDs,
 	})
+}
+
+func feedSince(raw string) (time.Time, bool, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return time.Time{}, false, nil
+	}
+	value, err := time.Parse(time.RFC3339Nano, raw)
+	if err != nil {
+		return time.Time{}, false, err
+	}
+	return value.UTC(), true, nil
 }
 
 func (s feedServer) logError(message string, err error) {
