@@ -261,6 +261,15 @@ func TestEmbeddedUIAndFeedShareOneServer(t *testing.T) {
 			if !strings.Contains(body, `aria-label="Radar home"`) || !strings.Contains(body, `<span>Radar</span>`) {
 				t.Fatalf("Radar product branding is missing on %s: %s", path, body)
 			}
+			for _, expected := range []string{
+				`aria-label="Footer resources"`,
+				`href="https://github.com/hwennnn/radar"`,
+				`href="https://github.com/hwennnn/radar/issues"`,
+			} {
+				if !strings.Contains(body, expected) {
+					t.Fatalf("footer is missing public repository resource %q on %s: %s", expected, path, body)
+				}
+			}
 		}
 		if path == "/docs" && !strings.Contains(response.Body.String(), "Job identity and deduplication") {
 			t.Fatalf("docs route did not serve engineering note: %s", response.Body.String())
