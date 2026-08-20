@@ -15,6 +15,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hwennnn/radar/internal/dashboard"
 	"github.com/hwennnn/radar/internal/delivery"
 	"github.com/hwennnn/radar/internal/pipeline"
 	"github.com/hwennnn/radar/internal/postgres"
@@ -313,9 +314,9 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 
 	health := &healthState{}
 	health.setRuntimeReader(store, false)
-	server, serverErrors := startWebServer(cfg.healthAddress, health, store, dashboardConfig{
+	server, serverErrors := startWebServer(cfg.healthAddress, health, store, dashboard.Config{
 		BaseSources: dashboardSources, TotalSources: len(sources), RuntimeMode: cfg.mode,
-		LogoDomains:  loadCompanyLogoDomains(cfg.seedPath),
+		LogoDomains:  dashboard.LoadCompanyLogoDomains(cfg.seedPath),
 		CycleTimeout: cfg.cycleTimeout,
 		DeliveryMode: cfg.deliveryMode, TelegramTokenPresent: cfg.telegramToken != "",
 		TelegramChatPresent: cfg.telegramChat != "", PublishingEnabled: cfg.publishingEnabled,
@@ -753,9 +754,9 @@ func runServe(ctx context.Context, cfg config, logger *slog.Logger) error {
 	if observedSources := len(operational.RoutineSourceStatus); observedSources > totalSources {
 		totalSources = observedSources
 	}
-	server, serverErrors := startWebServer(cfg.healthAddress, health, store, dashboardConfig{
+	server, serverErrors := startWebServer(cfg.healthAddress, health, store, dashboard.Config{
 		BaseSources: baseSources, TotalSources: totalSources,
-		LogoDomains: loadCompanyLogoDomains(cfg.seedPath),
+		LogoDomains: dashboard.LoadCompanyLogoDomains(cfg.seedPath),
 		RuntimeMode: cfg.mode, CycleTimeout: cfg.cycleTimeout, DeliveryMode: cfg.deliveryMode,
 		TelegramTokenPresent: cfg.telegramToken != "", TelegramChatPresent: cfg.telegramChat != "",
 		PublishingEnabled: cfg.publishingEnabled,
@@ -845,7 +846,7 @@ func (s logSender) Send(ctx context.Context, delivery pipeline.Delivery) error {
 
 type outboxSender struct {
 	outbox        delivery.Outbox
-	presentations map[string]companyPresentation
+	presentations map[string]dashboard.CompanyPresentation
 }
 
 func (s outboxSender) Send(ctx context.Context, delivery pipeline.Delivery) error {
@@ -870,7 +871,7 @@ func newDeliverySender(cfg config, logger *slog.Logger) (pipeline.Sender, error)
 		client := delivery.NewWebhookHTTPClient(10 * time.Second)
 		return outboxSender{
 			outbox:        delivery.NewTelegramOutbox(cfg.telegramToken, cfg.telegramChat, client),
-			presentations: loadCompanyPresentations(cfg.seedPath),
+			presentations: dashboard.LoadCompanyPresentations(cfg.seedPath),
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported delivery mode %q", cfg.deliveryMode)
@@ -885,7 +886,7 @@ func decodePosting(item pipeline.Delivery) (pipeline.Posting, error) {
 	return posting, nil
 }
 
-func postingMessage(item pipeline.Delivery, posting pipeline.Posting, presentations map[string]companyPresentation) delivery.Message {
+func postingMessage(item pipeline.Delivery, posting pipeline.Posting, presentations map[string]dashboard.CompanyPresentation) delivery.Message {
 	location := strings.TrimSpace(posting.Location)
 	if location == "" {
 		location = "Location not stated"
@@ -899,12 +900,12 @@ func postingMessage(item pipeline.Delivery, posting pipeline.Posting, presentati
 		DedupeKey: item.JobID,
 		Metadata: map[string]string{
 			"company":         strings.TrimSpace(posting.Company),
-			"company_type":    companyPresentationLabel(posting.Company, presentations),
+			"company_type":    dashboard.CompanyPresentationLabel(posting.Company, presentations),
 			"title":           strings.TrimSpace(posting.Title),
-			"track":           postingTrackLabel(posting),
-			"category":        postingCategoryLabel(posting),
+			"track":           dashboard.PostingTrackLabel(posting),
+			"category":        dashboard.PostingCategoryLabel(posting),
 			"location":        location,
-			"location_marker": postingLocationMarker(posting.Country, posting.Location),
+			"location_marker": dashboard.PostingLocationMarker(posting.Country, posting.Location),
 			"apply_url":       strings.TrimSpace(posting.ApplyURL),
 		},
 		CreatedAt: posting.FirstSeenAt,
@@ -926,16 +927,6 @@ type healthState struct {
 
 type operationalStateReader interface {
 	ReadOperationalState(context.Context) (pipeline.OperationalState, error)
-}
-
-type runtimeSnapshot struct {
-	Ready            bool      `json:"ready"`
-	Degraded         bool      `json:"degraded"`
-	LastCycleAt      time.Time `json:"last_cycle_at"`
-	LastCycleError   bool      `json:"last_cycle_error"`
-	SourcesSucceeded int       `json:"sources_succeeded"`
-	SourcesFailed    int       `json:"sources_failed"`
-	DeliveryFailures int       `json:"delivery_failures"`
 }
 
 func (s *healthState) recordCycle(report pipeline.RunReport, discovery pipeline.DiscoveryReport, delivery pipeline.DeliveryReport, err error) {
@@ -1004,10 +995,10 @@ func (s *healthState) refreshRuntime(ctx context.Context) error {
 	return nil
 }
 
-func (s *healthState) snapshot() runtimeSnapshot {
+func (s *healthState) Snapshot() dashboard.HealthSnapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
-	return runtimeSnapshot{
+	return dashboard.HealthSnapshot{
 		Ready: s.ready, Degraded: s.degraded, LastCycleAt: s.lastCycleAt,
 		LastCycleError: s.lastCycleFail, SourcesSucceeded: s.sourcesSucceeded,
 		SourcesFailed: s.sourcesFailed, DeliveryFailures: s.deliveryFailures,
@@ -1036,7 +1027,7 @@ func (s *healthState) registerHealthRoutes(mux *http.ServeMux) {
 			})
 			return
 		}
-		current := s.snapshot()
+		current := s.Snapshot()
 		w.Header().Set("Content-Type", "application/json")
 		if !current.Ready {
 			w.WriteHeader(http.StatusServiceUnavailable)
@@ -1053,16 +1044,14 @@ func (s *healthState) registerHealthRoutes(mux *http.ServeMux) {
 	})
 }
 
-func newServerHandler(state *healthState, store dashboardStore, cfg dashboardConfig, logger *slog.Logger) http.Handler {
+func newServerHandler(state *healthState, store dashboard.Store, cfg dashboard.Config, logger *slog.Logger) http.Handler {
 	mux := http.NewServeMux()
 	state.registerHealthRoutes(mux)
-	mux.HandleFunc("GET /api/jobs", (feedServer{store: store, totalSources: cfg.TotalSources, logoDomains: cfg.LogoDomains, logger: logger}).handler)
-	mux.HandleFunc("GET /api/status", (statusServer{store: store, health: state, config: cfg, logger: logger}).handler)
-	registerUI(mux)
+	dashboard.Register(mux, store, cfg, state, logger)
 	return mux
 }
 
-func startWebServer(address string, state *healthState, store dashboardStore, cfg dashboardConfig, logger *slog.Logger) (*http.Server, <-chan error) {
+func startWebServer(address string, state *healthState, store dashboard.Store, cfg dashboard.Config, logger *slog.Logger) (*http.Server, <-chan error) {
 	errorsChannel := make(chan error, 1)
 	if strings.TrimSpace(address) == "" || strings.TrimSpace(address) == "-" {
 		return nil, errorsChannel

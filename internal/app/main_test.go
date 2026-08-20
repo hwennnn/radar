@@ -178,6 +178,21 @@ func TestLoadConfigDrainRequiresExplicitTelegramPublishing(t *testing.T) {
 	}
 }
 
+func TestServeConfigNeedsNoPublishingCredentialsOrCrawlerDurations(t *testing.T) {
+	cfg, err := loadConfig([]string{"serve"}, mapLookup(map[string]string{
+		"DATABASE_URL":                  "postgres://example",
+		"RADAR_LITE_DELIVERY_MODE":      "telegram",
+		"RADAR_LITE_PUBLISHING_ENABLED": "false",
+		"RADAR_LITE_INTERVAL":           "not-a-duration",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.mode != "serve" || cfg.databaseURL != "postgres://example" {
+		t.Fatalf("unexpected serve config: %+v", cfg)
+	}
+}
+
 func TestRunRoutineRequiresDatabaseBeforeCatalogOrProvider(t *testing.T) {
 	err := run(context.Background(), []string{"once"}, mapLookup(map[string]string{
 		"RADAR_LITE_CATALOG": "/path/that/must/not/be/opened.json",

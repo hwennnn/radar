@@ -1,4 +1,4 @@
-package app
+package dashboard
 
 import (
 	"net/url"
@@ -62,6 +62,10 @@ var verifiedCompanyLogoDomains = map[string]string{
 	"tower research capital": "tower-research.com",
 	"vercel":                 "vercel.com",
 	"virtu financial":        "virtu.com",
+}
+
+func LoadCompanyLogoDomains(seedPath string) map[string]string {
+	return loadCompanyLogoDomains(seedPath)
 }
 
 func loadCompanyLogoDomains(seedPath string) map[string]string {

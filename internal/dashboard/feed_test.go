@@ -1,4 +1,4 @@
-package app
+package dashboard
 
 import (
 	"context"
@@ -362,21 +362,6 @@ func TestEmbeddedUIAndFeedShareOneServer(t *testing.T) {
 	handler.ServeHTTP(missing, httptest.NewRequest(http.MethodGet, "/not-a-page", nil))
 	if missing.Code != http.StatusNotFound {
 		t.Fatalf("unexpected missing-page status: %d", missing.Code)
-	}
-}
-
-func TestServeConfigNeedsNoPublishingCredentialsOrCrawlerDurations(t *testing.T) {
-	cfg, err := loadConfig([]string{"serve"}, mapLookup(map[string]string{
-		"DATABASE_URL":                  "postgres://example",
-		"RADAR_LITE_DELIVERY_MODE":      "telegram",
-		"RADAR_LITE_PUBLISHING_ENABLED": "false",
-		"RADAR_LITE_INTERVAL":           "not-a-duration",
-	}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.mode != "serve" || cfg.databaseURL != "postgres://example" {
-		t.Fatalf("unexpected serve config: %+v", cfg)
 	}
 }
 

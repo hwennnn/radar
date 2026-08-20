@@ -54,7 +54,8 @@ Repository layout:
 
 ```text
 cmd/radar/          thin process entrypoint
-internal/app/       modes, process wiring, HTTP API, embedded dashboard
+internal/app/       modes, lifecycle, and process wiring
+internal/dashboard/ read-only HTTP API and embedded dashboard
 internal/pipeline/      source lifecycle, identity, persistence, leases, outbox
 internal/source/    discovery clients, extractors, and provider adapters
 internal/delivery/  delivery transports and retry behavior

@@ -9,7 +9,7 @@ references relevant to the task, plus the nearest `AGENTS.md`.
 | Run or verify locally | [Development](development.md) | Narrow test, then the applicable gate |
 | Change environment settings | [Configuration](configuration.md) | Config tests and a startup/config validation |
 | Operate or deploy the service | [Operations](operations.md) | Health, readiness, status, and publishing state |
-| Change HTTP or dashboard behavior | [HTTP API](http-api.md) and `internal/app/AGENTS.md` | Go tests, `make gate`, real browser pass |
+| Change HTTP or dashboard behavior | [HTTP API](http-api.md) and `internal/dashboard/AGENTS.md` | Go tests, `make gate`, real browser pass |
 | Change persistence, identity, leases, or delivery state | [Data model](data-model.md) and `internal/pipeline/AGENTS.md` | Disposable Postgres suite |
 | Add or modify a source | [Source lifecycle](source-lifecycle.md) | Catalog audit and extractor tests |
 | Prepare a contribution | [Contributing](../CONTRIBUTING.md) | Exact test and side-effect evidence |

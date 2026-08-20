@@ -1,4 +1,4 @@
-package app
+package dashboard
 
 import (
 	"sort"
@@ -10,6 +10,30 @@ import (
 type companyPresentation struct {
 	Label string
 	Rank  int
+}
+
+// CompanyPresentation describes the compact company label used by delivery
+// and dashboard views.
+type CompanyPresentation = companyPresentation
+
+func LoadCompanyPresentations(seedPath string) map[string]CompanyPresentation {
+	return loadCompanyPresentations(seedPath)
+}
+
+func CompanyPresentationLabel(company string, presentations map[string]CompanyPresentation) string {
+	return companyPresentationLabel(company, presentations)
+}
+
+func PostingTrackLabel(posting pipeline.Posting) string {
+	return postingTrackLabel(posting)
+}
+
+func PostingCategoryLabel(posting pipeline.Posting) string {
+	return postingCategoryLabel(posting)
+}
+
+func PostingLocationMarker(country, location string) string {
+	return postingLocationMarker(country, location)
 }
 
 var verifiedCompanyPresentations = map[string]companyPresentation{

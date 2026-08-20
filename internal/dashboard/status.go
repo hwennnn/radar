@@ -1,4 +1,4 @@
-package app
+package dashboard
 
 import (
 	"context"
@@ -12,12 +12,12 @@ import (
 	"github.com/hwennnn/radar/internal/pipeline"
 )
 
-type dashboardStore interface {
+type Store interface {
 	feedStore
 	ReadOperationalState(context.Context) (pipeline.OperationalState, error)
 }
 
-type dashboardConfig struct {
+type Config struct {
 	BaseSources          []pipeline.Source
 	TotalSources         int
 	LogoDomains          map[string]string
@@ -30,9 +30,9 @@ type dashboardConfig struct {
 }
 
 type statusServer struct {
-	store  dashboardStore
-	health *healthState
-	config dashboardConfig
+	store  Store
+	health HealthProvider
+	config Config
 	logger *slog.Logger
 }
 
@@ -158,7 +158,7 @@ func (s statusServer) handler(w http.ResponseWriter, request *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func buildStatusResponse(operational pipeline.OperationalState, cfg dashboardConfig, health *healthState) statusResponse {
+func buildStatusResponse(operational pipeline.OperationalState, cfg Config, health HealthProvider) statusResponse {
 	sourceMetadata := make(map[string]pipeline.Source, len(cfg.BaseSources))
 	for _, source := range cfg.BaseSources {
 		sourceMetadata[source.ID] = source
@@ -301,7 +301,7 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg dashboardCon
 		}
 	}
 	if health != nil {
-		current := health.snapshot()
+		current := health.Snapshot()
 		if current.Ready {
 			runtime.Ready = true
 		}
@@ -339,7 +339,7 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg dashboardCon
 	}
 }
 
-func buildTelegramStatus(cfg dashboardConfig) statusTelegram {
+func buildTelegramStatus(cfg Config) statusTelegram {
 	credentialsPresent := cfg.TelegramTokenPresent && cfg.TelegramChatPresent
 	status := statusTelegram{
 		State: "log_only", DeliveryMode: cfg.DeliveryMode, CredentialsPresent: credentialsPresent,
@@ -361,6 +361,27 @@ func buildTelegramStatus(cfg dashboardConfig) statusTelegram {
 	}
 	return status
 }
+
+// HealthSnapshot is the dashboard-facing projection of process readiness.
+type HealthSnapshot struct {
+	Ready            bool
+	Degraded         bool
+	LastCycleAt      time.Time
+	LastCycleError   bool
+	SourcesSucceeded int
+	SourcesFailed    int
+	DeliveryFailures int
+}
+
+// HealthProvider lets the dashboard consume runtime health without owning the
+// writer lifecycle.
+type HealthProvider interface {
+	Snapshot() HealthSnapshot
+}
+
+// Test-local aliases keep the response-focused tests concise.
+type dashboardConfig = Config
+type dashboardStore = Store
 
 func sumCounts(counts map[string]int) int {
 	total := 0
