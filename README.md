@@ -1,17 +1,11 @@
-# Radar
+# Radar 
+
+[![CI](https://github.com/hwennnn/radar/actions/workflows/ci.yml/badge.svg)](https://github.com/hwennnn/radar/actions/workflows/ci.yml)
 
 Radar is a Go service for discovering and verifying early-career engineering
 jobs from company-owned career sites. It maintains source health, canonical job
 identity, provenance, and durable delivery state in PostgreSQL, and exposes the
 result through a read-only dashboard and HTTP API.
-
-[![CI](https://github.com/hwennnn/radar/actions/workflows/ci.yml/badge.svg)](https://github.com/hwennnn/radar/actions/workflows/ci.yml)
-![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
-
-<sub>Resources: <a href="https://radar.hwendev.com">dashboard</a> · <a href="docs/README.md">documentation</a> · <a href="docs/architecture.md">architecture</a> · <a href="https://t.me/earlycareerradar">Telegram feed</a></sub>
-
-![Radar dashboard showing search, filters, live counts, and verified jobs](docs/assets/radar-jobs.png)
 
 ## Why
 
