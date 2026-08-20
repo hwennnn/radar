@@ -26,7 +26,7 @@ When changing either config file:
 
 ```sh
 make audit
-go test ./internal/core ./internal/scraper ./internal/provider -count=1
+go test ./internal/core ./internal/source/... -count=1
 ```
 
 Live verification should report candidates attempted, routes probed, healthy,

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hwennnn/radar/internal/tinyfish"
+	"github.com/hwennnn/radar/internal/source/tinyfish"
 )
 
 type temporaryExtractionError struct{}

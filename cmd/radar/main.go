@@ -20,9 +20,9 @@ import (
 	"github.com/hwennnn/radar/internal/core"
 	"github.com/hwennnn/radar/internal/database"
 	"github.com/hwennnn/radar/internal/delivery"
-	"github.com/hwennnn/radar/internal/scraper"
-	"github.com/hwennnn/radar/internal/scraper/tinyfishextractor"
-	"github.com/hwennnn/radar/internal/tinyfish"
+	"github.com/hwennnn/radar/internal/source/scraper"
+	"github.com/hwennnn/radar/internal/source/scraper/tinyfishextractor"
+	"github.com/hwennnn/radar/internal/source/tinyfish"
 )
 
 const (

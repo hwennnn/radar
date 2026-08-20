@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hwennnn/radar/internal/tinyfish"
+	"github.com/hwennnn/radar/internal/source/tinyfish"
 )
 
 const (

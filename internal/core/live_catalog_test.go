@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hwennnn/radar/internal/scraper"
+	"github.com/hwennnn/radar/internal/source/scraper"
 )
 
 // TestLiveRobloxGreenhouseSource is an opt-in conformance check for the

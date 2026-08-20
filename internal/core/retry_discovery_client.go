@@ -5,7 +5,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/hwennnn/radar/internal/tinyfish"
+	"github.com/hwennnn/radar/internal/source/tinyfish"
 )
 
 // DiscoveryClientRetryOptions controls bounded, in-process retries for the

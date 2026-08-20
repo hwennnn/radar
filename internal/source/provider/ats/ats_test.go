@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hwennnn/radar/internal/provider"
+	"github.com/hwennnn/radar/internal/source/provider"
 )
 
 func TestInferLevelUsesTimingWordBoundaries(t *testing.T) {

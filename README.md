@@ -55,8 +55,7 @@ Repository layout:
 ```text
 cmd/radar/          process modes, HTTP API, embedded dashboard
 internal/core/      source lifecycle, identity, persistence, leases, outbox
-internal/provider/  structured ATS adapters
-internal/scraper/   extraction and page normalization
+internal/source/    discovery clients, extractors, and provider adapters
 internal/delivery/  delivery transports and retry behavior
 config/             verified source catalog and discovery research seed
 docs/               architecture, data model, operations, API, development

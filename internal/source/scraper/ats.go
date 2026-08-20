@@ -16,9 +16,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hwennnn/radar/internal/provider"
-	atsprovider "github.com/hwennnn/radar/internal/provider/ats"
-	workdayprovider "github.com/hwennnn/radar/internal/provider/workday"
+	"github.com/hwennnn/radar/internal/source/provider"
+	atsprovider "github.com/hwennnn/radar/internal/source/provider/ats"
+	workdayprovider "github.com/hwennnn/radar/internal/source/provider/workday"
 )
 
 var (

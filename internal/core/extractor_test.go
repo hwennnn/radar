@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hwennnn/radar/internal/scraper"
+	"github.com/hwennnn/radar/internal/source/scraper"
 )
 
 type scraperExtractorFunc struct {

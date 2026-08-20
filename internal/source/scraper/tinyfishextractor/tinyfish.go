@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hwennnn/radar/internal/scraper"
-	"github.com/hwennnn/radar/internal/sourcekind"
-	"github.com/hwennnn/radar/internal/tinyfish"
+	"github.com/hwennnn/radar/internal/source/kind"
+	"github.com/hwennnn/radar/internal/source/scraper"
+	"github.com/hwennnn/radar/internal/source/tinyfish"
 )
 
 type Source = scraper.Source

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/hwennnn/radar/internal/scraper"
+	"github.com/hwennnn/radar/internal/source/scraper"
 )
 
 // Extractor is the deliberately small extraction boundary used by the lite

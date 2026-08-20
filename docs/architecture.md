@@ -69,10 +69,8 @@ durable record and the coordination boundary.
 | --- | --- | --- |
 | Process and HTTP | `cmd/radar` | Modes, configuration, lifecycle, health, JSON APIs, embedded UI |
 | Domain and state | `internal/core` | Discovery, filtering, identity, provenance, persistence, leases, outbox |
-| Structured providers | `internal/provider` | ATS-specific collection paths |
-| Page extraction | `internal/scraper` | Career-page parsing, normalization, bounded extraction |
+| Source adapters | `internal/source` | Discovery clients, ATS providers, page parsing, and bounded extraction |
 | Delivery transports | `internal/delivery` | Log, webhook, and Telegram senders |
-| Discovery client | `internal/tinyfish` | Bounded search/fetch client used to find candidate routes |
 | Trusted inputs | `config` | Verified source floor and discovery research queue |
 
 The package boundaries point inward: transports and providers satisfy small

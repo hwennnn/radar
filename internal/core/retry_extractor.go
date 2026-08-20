@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hwennnn/radar/internal/tinyfish"
+	"github.com/hwennnn/radar/internal/source/tinyfish"
 )
 
 var extractionHTTPStatusPattern = regexp.MustCompile(`(?i)(?:returned\s+http|http(?:\s+status)?\s*:|(?:fetch|post|request)\s+failed:)\s*(\d{3})\b`)
