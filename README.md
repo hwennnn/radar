@@ -9,10 +9,7 @@ result through a read-only dashboard and HTTP API.
 ![Go](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
 
-[Live dashboard](https://radar.hwendev.com) ·
-[Architecture](docs/architecture.md) ·
-[Documentation](docs/README.md) ·
-[Telegram](https://t.me/earlycareerradar)
+<sub>Resources: <a href="https://radar.hwendev.com">dashboard</a> · <a href="docs/README.md">documentation</a> · <a href="docs/architecture.md">architecture</a> · <a href="https://t.me/earlycareerradar">Telegram feed</a></sub>
 
 ![Radar dashboard showing search, filters, live counts, and verified jobs](docs/assets/radar-jobs.png)
 
