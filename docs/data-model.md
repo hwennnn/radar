@@ -1,6 +1,6 @@
 # Data model
 
-`internal/core/postgres.go` is the schema source of truth. The application uses
+`internal/pipeline/postgres.go` is the schema source of truth. The application uses
 an isolated Postgres schema, `radar_lite` by default, and applies idempotent
 migrations in writer modes.
 

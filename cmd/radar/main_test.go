@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hwennnn/radar/internal/core"
 	"github.com/hwennnn/radar/internal/delivery"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 func TestLoadConfigRoutineUsesLiteDatabaseBeforeFallback(t *testing.T) {
@@ -231,8 +231,8 @@ func TestDiscoverNeedsNoDatabaseAndOnlyPrintsMissingCandidates(t *testing.T) {
 		t.Fatal(err)
 	}
 	var result struct {
-		Missing []core.DiscoveryCandidate `json:"missing_candidates"`
-		Count   int                       `json:"count"`
+		Missing []pipeline.DiscoveryCandidate `json:"missing_candidates"`
+		Count   int                           `json:"count"`
 	}
 	if err := json.Unmarshal(output.Bytes(), &result); err != nil {
 		t.Fatal(err)
@@ -264,7 +264,7 @@ func TestAuditNeedsNoDatabaseAndFailsShallowUniverse(t *testing.T) {
 
 func TestHealthHandlerKeepsLivenessIndependentOfCycleFailure(t *testing.T) {
 	state := &healthState{}
-	state.recordCycle(core.RunReport{}, core.DiscoveryReport{}, core.DeliveryReport{}, errors.New("cycle failed"))
+	state.recordCycle(pipeline.RunReport{}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, errors.New("cycle failed"))
 	response := httptest.NewRecorder()
 	state.handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/healthz", nil))
 	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"status":"ok"`) {
@@ -276,12 +276,12 @@ func TestReadOnlyReadinessRefreshesDurableRuntimeOnEveryRequest(t *testing.T) {
 	oldFinished := time.Date(2026, 8, 17, 1, 0, 0, 0, time.UTC)
 	newFinished := oldFinished.Add(2 * time.Hour)
 	state := &healthState{}
-	state.recordReadOnly(&core.RuntimeState{
+	state.recordReadOnly(&pipeline.RuntimeState{
 		LastCycleState: "success", LastCycleFinished: &oldFinished,
 		SourcesSucceeded: 81,
 	})
-	state.setRuntimeReader(operationalReaderFunc(func(context.Context) (core.OperationalState, error) {
-		return core.OperationalState{Runtime: &core.RuntimeState{
+	state.setRuntimeReader(operationalReaderFunc(func(context.Context) (pipeline.OperationalState, error) {
+		return pipeline.OperationalState{Runtime: &pipeline.RuntimeState{
 			LastCycleState: "degraded", LastCycleFinished: &newFinished,
 			SourcesSucceeded: 92, SourcesFailed: 0,
 		}}, nil
@@ -308,8 +308,8 @@ func TestReadOnlyReadinessRefreshesDurableRuntimeOnEveryRequest(t *testing.T) {
 func TestReadinessFailsClosedWhenDurableRuntimeCannotBeRead(t *testing.T) {
 	state := &healthState{}
 	state.recordReadOnly(nil)
-	state.setRuntimeReader(operationalReaderFunc(func(context.Context) (core.OperationalState, error) {
-		return core.OperationalState{}, errors.New("database unavailable")
+	state.setRuntimeReader(operationalReaderFunc(func(context.Context) (pipeline.OperationalState, error) {
+		return pipeline.OperationalState{}, errors.New("database unavailable")
 	}), true)
 	response := httptest.NewRecorder()
 	state.handler().ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/readyz", nil))
@@ -321,8 +321,8 @@ func TestReadinessFailsClosedWhenDurableRuntimeCannotBeRead(t *testing.T) {
 func TestRoutineReadinessStaysUnavailableDuringFirstOwnedCycle(t *testing.T) {
 	started := time.Date(2026, 8, 18, 1, 0, 0, 0, time.UTC)
 	state := &healthState{}
-	state.setRuntimeReader(operationalReaderFunc(func(context.Context) (core.OperationalState, error) {
-		return core.OperationalState{Runtime: &core.RuntimeState{
+	state.setRuntimeReader(operationalReaderFunc(func(context.Context) (pipeline.OperationalState, error) {
+		return pipeline.OperationalState{Runtime: &pipeline.RuntimeState{
 			ActiveOwner: "worker-first-cycle", ActiveStartedAt: &started,
 			LastCycleState: "pending",
 		}}, nil
@@ -338,26 +338,26 @@ func TestRoutineReadinessStaysUnavailableDuringFirstOwnedCycle(t *testing.T) {
 	}
 }
 
-type operationalReaderFunc func(context.Context) (core.OperationalState, error)
+type operationalReaderFunc func(context.Context) (pipeline.OperationalState, error)
 
-func (f operationalReaderFunc) ReadOperationalState(ctx context.Context) (core.OperationalState, error) {
+func (f operationalReaderFunc) ReadOperationalState(ctx context.Context) (pipeline.OperationalState, error) {
 	return f(ctx)
 }
 
 func TestCycleResultStatusDistinguishesManagedDegradation(t *testing.T) {
-	if got := cycleResultStatus(core.RunReport{}, core.DiscoveryReport{}, core.DeliveryReport{}, errors.New("database failed")); got != "failure" {
+	if got := cycleResultStatus(pipeline.RunReport{}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, errors.New("database failed")); got != "failure" {
 		t.Fatalf("fatal cycle status = %q", got)
 	}
-	if got := cycleResultStatus(core.RunReport{SourcesFailed: 1}, core.DiscoveryReport{}, core.DeliveryReport{}, nil); got != "degraded" {
+	if got := cycleResultStatus(pipeline.RunReport{SourcesFailed: 1}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, nil); got != "degraded" {
 		t.Fatalf("partial source status = %q", got)
 	}
-	if got := cycleResultStatus(core.RunReport{}, core.DiscoveryReport{CandidatesFailed: 1}, core.DeliveryReport{}, nil); got != "degraded" {
+	if got := cycleResultStatus(pipeline.RunReport{}, pipeline.DiscoveryReport{CandidatesFailed: 1}, pipeline.DeliveryReport{}, nil); got != "degraded" {
 		t.Fatalf("discovery status = %q", got)
 	}
-	if got := cycleResultStatus(core.RunReport{}, core.DiscoveryReport{}, core.DeliveryReport{Failed: 1}, nil); got != "degraded" {
+	if got := cycleResultStatus(pipeline.RunReport{}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{Failed: 1}, nil); got != "degraded" {
 		t.Fatalf("delivery status = %q", got)
 	}
-	if got := cycleResultStatus(core.RunReport{SourcesSucceeded: 70}, core.DiscoveryReport{}, core.DeliveryReport{}, nil); got != "success" {
+	if got := cycleResultStatus(pipeline.RunReport{SourcesSucceeded: 70}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, nil); got != "success" {
 		t.Fatalf("healthy status = %q", got)
 	}
 }
@@ -366,13 +366,13 @@ func TestDeliveryPumpDrainsAgainWithoutWaitingForTheCrawlToFinish(t *testing.T) 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	calls := 0
-	report, err := runDeliveryPump(ctx, time.Millisecond, func(context.Context) (core.DeliveryReport, error) {
+	report, err := runDeliveryPump(ctx, time.Millisecond, func(context.Context) (pipeline.DeliveryReport, error) {
 		calls++
 		if calls == 1 {
-			return core.DeliveryReport{}, nil
+			return pipeline.DeliveryReport{}, nil
 		}
 		cancel()
-		return core.DeliveryReport{Claimed: 1, Sent: 1}, nil
+		return pipeline.DeliveryReport{Claimed: 1, Sent: 1}, nil
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -386,13 +386,13 @@ func TestDeliveryPumpKeepsPollingAfterDrainFailure(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	calls := 0
-	report, err := runDeliveryPump(ctx, time.Millisecond, func(context.Context) (core.DeliveryReport, error) {
+	report, err := runDeliveryPump(ctx, time.Millisecond, func(context.Context) (pipeline.DeliveryReport, error) {
 		calls++
 		if calls == 1 {
-			return core.DeliveryReport{Failed: 1}, errors.New("temporary database failure")
+			return pipeline.DeliveryReport{Failed: 1}, errors.New("temporary database failure")
 		}
 		cancel()
-		return core.DeliveryReport{Claimed: 1, Sent: 1}, nil
+		return pipeline.DeliveryReport{Claimed: 1, Sent: 1}, nil
 	})
 	if err == nil || !strings.Contains(err.Error(), "temporary database failure") {
 		t.Fatalf("pump error=%v, want retained temporary failure", err)
@@ -406,8 +406,8 @@ func TestDeliveryPumpRejectsInvalidConfiguration(t *testing.T) {
 	if _, err := runDeliveryPump(context.Background(), time.Second, nil); err == nil {
 		t.Fatal("nil drain function must fail")
 	}
-	if _, err := runDeliveryPump(context.Background(), 0, func(context.Context) (core.DeliveryReport, error) {
-		return core.DeliveryReport{}, nil
+	if _, err := runDeliveryPump(context.Background(), 0, func(context.Context) (pipeline.DeliveryReport, error) {
+		return pipeline.DeliveryReport{}, nil
 	}); err == nil {
 		t.Fatal("non-positive poll interval must fail")
 	}
@@ -417,19 +417,19 @@ func TestHealthHandlerReadinessTracksLastCompletedCycle(t *testing.T) {
 	state := &healthState{}
 	assertReadiness(t, state, http.StatusServiceUnavailable, readinessExpectation{})
 
-	state.recordCycle(core.RunReport{SourcesSucceeded: 48}, core.DiscoveryReport{}, core.DeliveryReport{}, nil)
+	state.recordCycle(pipeline.RunReport{SourcesSucceeded: 48}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, nil)
 	assertReadiness(t, state, http.StatusOK, readinessExpectation{ready: true, sourcesSucceeded: 48})
 
-	state.recordCycle(core.RunReport{SourcesSucceeded: 3}, core.DiscoveryReport{}, core.DeliveryReport{}, errors.New("database failed"))
+	state.recordCycle(pipeline.RunReport{SourcesSucceeded: 3}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, errors.New("database failed"))
 	assertReadiness(t, state, http.StatusServiceUnavailable, readinessExpectation{cycleError: true, sourcesSucceeded: 3})
 }
 
 func TestHealthHandlerReportsManagedFailuresAsDegradedAndReady(t *testing.T) {
 	state := &healthState{}
 	state.recordCycle(
-		core.RunReport{SourcesSucceeded: 45, SourcesFailed: 3},
-		core.DiscoveryReport{},
-		core.DeliveryReport{Failed: 2},
+		pipeline.RunReport{SourcesSucceeded: 45, SourcesFailed: 3},
+		pipeline.DiscoveryReport{},
+		pipeline.DeliveryReport{Failed: 2},
 		nil,
 	)
 	assertReadiness(t, state, http.StatusOK, readinessExpectation{
@@ -440,9 +440,9 @@ func TestHealthHandlerReportsManagedFailuresAsDegradedAndReady(t *testing.T) {
 func TestHealthHandlerReportsDiscoveryOnlyFailureAsDegradedAndReady(t *testing.T) {
 	state := &healthState{}
 	state.recordCycle(
-		core.RunReport{SourcesSucceeded: 70},
-		core.DiscoveryReport{CandidatesAttempted: 4, CandidatesFailed: 1},
-		core.DeliveryReport{},
+		pipeline.RunReport{SourcesSucceeded: 70},
+		pipeline.DiscoveryReport{CandidatesAttempted: 4, CandidatesFailed: 1},
+		pipeline.DeliveryReport{},
 		nil,
 	)
 	assertReadiness(t, state, http.StatusOK, readinessExpectation{
@@ -452,7 +452,7 @@ func TestHealthHandlerReportsDiscoveryOnlyFailureAsDegradedAndReady(t *testing.T
 
 func TestLogSenderRejectsInvalidPayload(t *testing.T) {
 	err := (logSender{logger: slog.New(slog.NewTextHandler(&bytes.Buffer{}, nil))}).Send(
-		context.Background(), core.Delivery{Payload: json.RawMessage(`{`)},
+		context.Background(), pipeline.Delivery{Payload: json.RawMessage(`{`)},
 	)
 	if err == nil {
 		t.Fatal("expected invalid payload error")
@@ -461,7 +461,7 @@ func TestLogSenderRejectsInvalidPayload(t *testing.T) {
 
 func TestOutboxSenderMapsPostingWithoutNetwork(t *testing.T) {
 	fake := &fakeOutbox{}
-	posting := core.Posting{
+	posting := pipeline.Posting{
 		Company: "Example AI", Title: "Software Engineer Intern", Location: "Singapore",
 		Country: "Singapore", EmploymentType: "Internship", ApplyURL: "https://example.com/apply",
 		FirstSeenAt: time.Date(2026, 8, 16, 12, 0, 0, 0, time.UTC),
@@ -470,7 +470,7 @@ func TestOutboxSenderMapsPostingWithoutNetwork(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	delivery := core.Delivery{ID: 7, JobID: "job-7", Channel: "telegram", Recipient: "chat-7", Payload: payload}
+	delivery := pipeline.Delivery{ID: 7, JobID: "job-7", Channel: "telegram", Recipient: "chat-7", Payload: payload}
 	if err := (outboxSender{outbox: fake}).Send(context.Background(), delivery); err != nil {
 		t.Fatal(err)
 	}

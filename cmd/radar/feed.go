@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 const (
@@ -21,8 +21,8 @@ const (
 )
 
 type feedStore interface {
-	ListPostings(context.Context) ([]core.Posting, error)
-	ListSourceStatuses(context.Context) ([]core.SourceStatus, error)
+	ListPostings(context.Context) ([]pipeline.Posting, error)
+	ListSourceStatuses(context.Context) ([]pipeline.SourceStatus, error)
 }
 
 type feedServer struct {
@@ -174,7 +174,7 @@ func writeFeedError(w http.ResponseWriter, status int, message string) {
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
-func buildFeed(postings []core.Posting, statuses []core.SourceStatus, totalSources int, now time.Time) ([]feedJob, feedSummary) {
+func buildFeed(postings []pipeline.Posting, statuses []pipeline.SourceStatus, totalSources int, now time.Time) ([]feedJob, feedSummary) {
 	type groupedJob struct {
 		job      feedJob
 		openings map[string]struct{}
@@ -201,7 +201,7 @@ func buildFeed(postings []core.Posting, statuses []core.SourceStatus, totalSourc
 	}
 
 	for _, posting := range postings {
-		if !core.EligibleAt(posting, now) {
+		if !pipeline.EligibleAt(posting, now) {
 			continue
 		}
 		companyIdentity := normalizeFeedCompany(posting.Company)
@@ -354,7 +354,7 @@ func feedLimit(raw string) int {
 	return limit
 }
 
-func feedTrack(posting core.Posting) string {
+func feedTrack(posting pipeline.Posting) string {
 	metadata := normalizeFeedText(strings.Join([]string{posting.Title, posting.EmploymentType, posting.Level}, " "))
 	for _, phrase := range []string{"intern", "internship", "co op", "working student"} {
 		if feedHasPhrase(metadata, phrase) {
@@ -415,5 +415,5 @@ func feedHasAnyPhrase(normalized string, phrases []string) bool {
 }
 
 func safeApplyURL(raw string) string {
-	return core.CanonicalApplyURL(raw)
+	return pipeline.CanonicalApplyURL(raw)
 }

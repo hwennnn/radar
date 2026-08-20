@@ -3,11 +3,11 @@ package main
 import (
 	"testing"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 func TestMergeCompanyLogoDomainsUsesOfficialSeedWebsites(t *testing.T) {
-	domains := mergeCompanyLogoDomains(nil, core.DiscoverySeed{Candidates: []core.DiscoveryCandidate{
+	domains := mergeCompanyLogoDomains(nil, pipeline.DiscoverySeed{Candidates: []pipeline.DiscoveryCandidate{
 		{Name: "Aquatic Capital Management", Website: "https://www.aquatic.com/careers"},
 		{Name: "D. E. Shaw", Website: "https://www.deshaw.com"},
 		{Name: "Missing Website"},

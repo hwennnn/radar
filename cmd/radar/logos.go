@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 // verifiedCompanyLogoDomains covers monitored companies whose public brand
@@ -76,7 +76,7 @@ func loadCompanyLogoDomains(seedPath string) map[string]string {
 	return mergeCompanyLogoDomains(domains, seed)
 }
 
-func mergeCompanyLogoDomains(domains map[string]string, seed core.DiscoverySeed) map[string]string {
+func mergeCompanyLogoDomains(domains map[string]string, seed pipeline.DiscoverySeed) map[string]string {
 	if domains == nil {
 		domains = make(map[string]string)
 	}

@@ -11,26 +11,26 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 func TestStatusHandlerReportsDurableStateAndLockedTelegram(t *testing.T) {
 	now := time.Date(2026, 8, 17, 10, 0, 0, 0, time.UTC)
-	store := fakeFeedStore{operational: core.OperationalState{
+	store := fakeFeedStore{operational: pipeline.OperationalState{
 		GeneratedAt: now, CanonicalJobs: 9000, IdentityAliases: 9100,
 		SourceObservations: 9250, MultiSourceJobs: 42,
 		DeliveryCounts:   map[string]int{"sent": 12, "suppressed": 210, "pending": 3, "staged": 1},
 		CandidateCounts:  map[string]int{"promoted": 21, "pending": 8, "retry": 2},
 		DiscoveredCounts: map[string]int{"promoted": 21, "candidate": 4, "unhealthy": 1},
-		PromotedSources:  []core.Source{{ID: "auto-ai", Company: "Auto AI", Provider: "ashby"}},
-		RoutineSourceStatus: []core.SourceStatus{
+		PromotedSources:  []pipeline.Source{{ID: "auto-ai", Company: "Auto AI", Provider: "ashby"}},
+		RoutineSourceStatus: []pipeline.SourceStatus{
 			{SourceID: "verified", State: "success", ObservedCount: 4, LastAttemptAt: now},
 			{SourceID: "auto-ai", State: "failure", ConsecutiveFailures: 2, LastAttemptAt: now, LastError: "request failed: https://user:secret@example.test returned 429"},
 		},
 	}}
 	response := httptest.NewRecorder()
 	(statusServer{store: store, health: &healthState{}, config: dashboardConfig{
-		BaseSources: []core.Source{{ID: "verified", Company: "Verified", Provider: "greenhouse"}},
+		BaseSources: []pipeline.Source{{ID: "verified", Company: "Verified", Provider: "greenhouse"}},
 		RuntimeMode: "serve", DeliveryMode: "log", TelegramTokenPresent: true, TelegramChatPresent: true,
 	}}).handler(response, httptest.NewRequest(http.MethodGet, "/api/status", nil))
 	if response.Code != http.StatusOK {
@@ -60,12 +60,12 @@ func TestStatusHandlerReportsDurableStateAndLockedTelegram(t *testing.T) {
 }
 
 func TestStatusRosterIncludesPendingVerifiedCompany(t *testing.T) {
-	response := buildStatusResponse(core.OperationalState{
+	response := buildStatusResponse(pipeline.OperationalState{
 		GeneratedAt: time.Now(),
-		RoutineSourceStatus: []core.SourceStatus{
+		RoutineSourceStatus: []pipeline.SourceStatus{
 			{SourceID: "stripe-greenhouse", State: "success", ObservedCount: 30},
 		},
-	}, dashboardConfig{BaseSources: []core.Source{
+	}, dashboardConfig{BaseSources: []pipeline.Source{
 		{ID: "stripe-greenhouse", Company: "Stripe", Provider: "greenhouse"},
 		{ID: "roblox-greenhouse", Company: "Roblox", Provider: "greenhouse"},
 	}, LogoDomains: map[string]string{normalizeFeedCompany("Roblox"): "roblox.com"}}, nil)
@@ -81,13 +81,13 @@ func TestStatusRosterIncludesPendingVerifiedCompany(t *testing.T) {
 }
 
 func TestStatusCountsMarketSearchWithoutListingItAsACompany(t *testing.T) {
-	response := buildStatusResponse(core.OperationalState{
+	response := buildStatusResponse(pipeline.OperationalState{
 		GeneratedAt: time.Now(),
-		RoutineSourceStatus: []core.SourceStatus{
+		RoutineSourceStatus: []pipeline.SourceStatus{
 			{SourceID: "stripe-greenhouse", State: "success", ObservedCount: 30},
 			{SourceID: "market-top-quant-2027", State: "success", ObservedCount: 0},
 		},
-	}, dashboardConfig{BaseSources: []core.Source{
+	}, dashboardConfig{BaseSources: []pipeline.Source{
 		{ID: "stripe-greenhouse", Company: "Stripe", Provider: "greenhouse"},
 		{ID: "market-top-quant-2027", Company: "Market discovery", Provider: "market_search"},
 	}}, nil)
@@ -101,12 +101,12 @@ func TestStatusCountsMarketSearchWithoutListingItAsACompany(t *testing.T) {
 }
 
 func TestStatusDegradesWhileDeliveryDecisionsAreStaged(t *testing.T) {
-	response := buildStatusResponse(core.OperationalState{
+	response := buildStatusResponse(pipeline.OperationalState{
 		GeneratedAt:         time.Now(),
 		DeliveryCounts:      map[string]int{"staged": 2},
 		DiscoveredCounts:    map[string]int{"promoted": 1},
-		RoutineSourceStatus: []core.SourceStatus{{SourceID: "verified", State: "success", ObservedCount: 1}},
-	}, dashboardConfig{BaseSources: []core.Source{{ID: "verified", Company: "Verified", Provider: "greenhouse"}}}, nil)
+		RoutineSourceStatus: []pipeline.SourceStatus{{SourceID: "verified", State: "success", ObservedCount: 1}},
+	}, dashboardConfig{BaseSources: []pipeline.Source{{ID: "verified", Company: "Verified", Provider: "greenhouse"}}}, nil)
 
 	if response.State != "degraded" || response.Deliveries.Staged != 2 || response.Deliveries.Total != 2 {
 		t.Fatalf("staged delivery health = %+v", response)
@@ -115,13 +115,13 @@ func TestStatusDegradesWhileDeliveryDecisionsAreStaged(t *testing.T) {
 
 func TestStatusHandlerEncodesHealthyFailuresAsEmptyArray(t *testing.T) {
 	response := httptest.NewRecorder()
-	(statusServer{store: fakeFeedStore{operational: core.OperationalState{
+	(statusServer{store: fakeFeedStore{operational: pipeline.OperationalState{
 		GeneratedAt: time.Now(),
-		RoutineSourceStatus: []core.SourceStatus{
+		RoutineSourceStatus: []pipeline.SourceStatus{
 			{SourceID: "verified", State: "success", ObservedCount: 4},
 		},
 	}}, config: dashboardConfig{
-		BaseSources: []core.Source{{ID: "verified", Company: "Verified", Provider: "greenhouse"}},
+		BaseSources: []pipeline.Source{{ID: "verified", Company: "Verified", Provider: "greenhouse"}},
 		RuntimeMode: "serve", DeliveryMode: "log",
 	}}).handler(response, httptest.NewRequest(http.MethodGet, "/api/status", nil))
 
@@ -131,12 +131,12 @@ func TestStatusHandlerEncodesHealthyFailuresAsEmptyArray(t *testing.T) {
 }
 
 func TestStatusHandlerKeepsQuarantinedDiscoveryOutOfActiveHealth(t *testing.T) {
-	statuses := make([]core.SourceStatus, 0, 70)
+	statuses := make([]pipeline.SourceStatus, 0, 70)
 	for i := 0; i < 70; i++ {
-		statuses = append(statuses, core.SourceStatus{SourceID: fmt.Sprintf("source-%d", i), State: "success", ObservedCount: 1})
+		statuses = append(statuses, pipeline.SourceStatus{SourceID: fmt.Sprintf("source-%d", i), State: "success", ObservedCount: 1})
 	}
 	response := httptest.NewRecorder()
-	(statusServer{store: fakeFeedStore{operational: core.OperationalState{
+	(statusServer{store: fakeFeedStore{operational: pipeline.OperationalState{
 		GeneratedAt:         time.Now(),
 		RoutineSourceStatus: statuses,
 		DiscoveredCounts:    map[string]int{"promoted": 22, "unhealthy": 5},
@@ -153,11 +153,11 @@ func TestStatusHandlerKeepsQuarantinedDiscoveryOutOfActiveHealth(t *testing.T) {
 }
 
 func TestStatusConfiguredCountIncludesPersistedMarketSources(t *testing.T) {
-	statuses := make([]core.SourceStatus, 0, 81)
+	statuses := make([]pipeline.SourceStatus, 0, 81)
 	for i := 0; i < 81; i++ {
-		statuses = append(statuses, core.SourceStatus{SourceID: fmt.Sprintf("source-%d", i), State: "success", ObservedCount: 1})
+		statuses = append(statuses, pipeline.SourceStatus{SourceID: fmt.Sprintf("source-%d", i), State: "success", ObservedCount: 1})
 	}
-	response := buildStatusResponse(core.OperationalState{
+	response := buildStatusResponse(pipeline.OperationalState{
 		GeneratedAt:         time.Now(),
 		RoutineSourceStatus: statuses,
 		DiscoveredCounts:    map[string]int{"promoted": 27},
@@ -172,10 +172,10 @@ func TestStatusHandlerReadsDurableCrawlerCycleFromSeparateUI(t *testing.T) {
 	finished := time.Date(2026, 8, 18, 1, 30, 0, 0, time.UTC)
 	started := finished.Add(-8 * time.Minute)
 	health := &healthState{}
-	health.recordReadOnly(&core.RuntimeState{LastCycleState: "success", LastCycleFinished: &finished})
-	response := buildStatusResponse(core.OperationalState{
+	health.recordReadOnly(&pipeline.RuntimeState{LastCycleState: "success", LastCycleFinished: &finished})
+	response := buildStatusResponse(pipeline.OperationalState{
 		GeneratedAt: time.Now(),
-		Runtime: &core.RuntimeState{
+		Runtime: &pipeline.RuntimeState{
 			LastCycleState: "success", LastCycleStarted: &started, LastCycleFinished: &finished,
 			SourcesAttempted: 70, SourcesSucceeded: 70, Observed: 9378, Created: 28,
 		},
@@ -191,9 +191,9 @@ func TestStatusHandlerReadsDurableCrawlerCycleFromSeparateUI(t *testing.T) {
 
 func TestStatusHandlerShowsCrossServiceCycleInProgress(t *testing.T) {
 	started := time.Date(2026, 8, 18, 2, 0, 0, 0, time.UTC)
-	response := buildStatusResponse(core.OperationalState{
+	response := buildStatusResponse(pipeline.OperationalState{
 		GeneratedAt: time.Now(),
-		Runtime:     &core.RuntimeState{ActiveOwner: "worker-one", ActiveStartedAt: &started, LastCycleState: "pending"},
+		Runtime:     &pipeline.RuntimeState{ActiveOwner: "worker-one", ActiveStartedAt: &started, LastCycleState: "pending"},
 	}, dashboardConfig{RuntimeMode: "serve", TotalSources: 70}, nil)
 	if !response.Runtime.CycleRunning || response.Runtime.ActiveSince == nil || !response.Runtime.ActiveSince.Equal(started) || !response.Runtime.Ready {
 		t.Fatalf("running runtime response = %#v", response.Runtime)
@@ -202,9 +202,9 @@ func TestStatusHandlerShowsCrossServiceCycleInProgress(t *testing.T) {
 
 func TestStatusHandlerFlagsStaleCrossServiceCycle(t *testing.T) {
 	started := time.Date(2026, 8, 18, 2, 0, 0, 0, time.UTC)
-	response := buildStatusResponse(core.OperationalState{
+	response := buildStatusResponse(pipeline.OperationalState{
 		GeneratedAt: started.Add(22 * time.Minute),
-		Runtime: &core.RuntimeState{
+		Runtime: &pipeline.RuntimeState{
 			ActiveOwner: "dead-worker", ActiveStartedAt: &started, LastCycleState: "success",
 		},
 	}, dashboardConfig{RuntimeMode: "serve", TotalSources: 70, CycleTimeout: 20 * time.Minute}, nil)
@@ -217,14 +217,14 @@ func TestStatusHandlerDoesNotOverwriteDurableDiscoveryDegradation(t *testing.T) 
 	finished := time.Now().UTC().Add(-time.Second)
 	health := &healthState{}
 	health.recordCycle(
-		core.RunReport{SourcesAttempted: 70, SourcesSucceeded: 70},
-		core.DiscoveryReport{CandidatesAttempted: 4, CandidatesFailed: 1},
-		core.DeliveryReport{},
+		pipeline.RunReport{SourcesAttempted: 70, SourcesSucceeded: 70},
+		pipeline.DiscoveryReport{CandidatesAttempted: 4, CandidatesFailed: 1},
+		pipeline.DeliveryReport{},
 		nil,
 	)
-	response := buildStatusResponse(core.OperationalState{
+	response := buildStatusResponse(pipeline.OperationalState{
 		GeneratedAt: time.Now().UTC(),
-		Runtime: &core.RuntimeState{
+		Runtime: &pipeline.RuntimeState{
 			LastCycleState: "degraded", LastCycleFinished: &finished,
 			SourcesAttempted: 70, SourcesSucceeded: 70,
 		},

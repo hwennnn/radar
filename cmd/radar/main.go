@@ -17,9 +17,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hwennnn/radar/internal/core"
 	"github.com/hwennnn/radar/internal/database"
 	"github.com/hwennnn/radar/internal/delivery"
+	"github.com/hwennnn/radar/internal/pipeline"
 	"github.com/hwennnn/radar/internal/source/scraper"
 	"github.com/hwennnn/radar/internal/source/scraper/tinyfishextractor"
 	"github.com/hwennnn/radar/internal/source/tinyfish"
@@ -62,7 +62,7 @@ type config struct {
 type lookupEnv func(string) (string, bool)
 
 type deliveryPumpResult struct {
-	report core.DeliveryReport
+	report pipeline.DeliveryReport
 	err    error
 }
 
@@ -99,7 +99,7 @@ func run(ctx context.Context, args []string, getenv lookupEnv, stdout io.Writer,
 func loadConfig(args []string, getenv lookupEnv) (config, error) {
 	cfg := config{
 		mode:          "routine",
-		schema:        envOr(getenv, "RADAR_LITE_SCHEMA", core.DefaultSchema),
+		schema:        envOr(getenv, "RADAR_LITE_SCHEMA", pipeline.DefaultSchema),
 		catalogPath:   envOr(getenv, "RADAR_LITE_CATALOG", defaultCatalogPath),
 		seedPath:      envOr(getenv, "RADAR_LITE_DISCOVERY_SEED", defaultSeedPath),
 		deliveryMode:  strings.ToLower(envOr(getenv, "RADAR_LITE_DELIVERY_MODE", "log")),
@@ -203,7 +203,7 @@ func runDiscovery(cfg config, output io.Writer, enforceCoverage bool) error {
 		return fmt.Errorf("open verified catalog: %w", err)
 	}
 	defer catalogFile.Close()
-	catalog, err := core.LoadCatalog(catalogFile)
+	catalog, err := pipeline.LoadCatalog(catalogFile)
 	if err != nil {
 		return err
 	}
@@ -212,13 +212,13 @@ func runDiscovery(cfg config, output io.Writer, enforceCoverage bool) error {
 		return fmt.Errorf("open discovery seed: %w", err)
 	}
 	defer seedFile.Close()
-	seed, err := core.LoadDiscoverySeed(seedFile)
+	seed, err := pipeline.LoadDiscoverySeed(seedFile)
 	if err != nil {
 		return err
 	}
 
-	missing := core.MissingDiscoveryCandidates(catalog, seed)
-	coverage := core.AuditUniverse(catalog, seed)
+	missing := pipeline.MissingDiscoveryCandidates(catalog, seed)
+	coverage := pipeline.AuditUniverse(catalog, seed)
 	encoder := json.NewEncoder(output)
 	encoder.SetIndent("", "  ")
 	if enforceCoverage {
@@ -231,9 +231,9 @@ func runDiscovery(cfg config, output io.Writer, enforceCoverage bool) error {
 		return nil
 	}
 	if err := encoder.Encode(struct {
-		Missing  []core.DiscoveryCandidate `json:"missing_candidates"`
-		Count    int                       `json:"count"`
-		Coverage core.UniverseCoverage     `json:"coverage"`
+		Missing  []pipeline.DiscoveryCandidate `json:"missing_candidates"`
+		Count    int                           `json:"count"`
+		Coverage pipeline.UniverseCoverage     `json:"coverage"`
 	}{Missing: missing, Count: len(missing), Coverage: coverage}); err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ func runDrain(ctx context.Context, cfg config, output io.Writer, logger *slog.Lo
 	if err != nil {
 		return err
 	}
-	drainer := core.DeliveryDrainer{
+	drainer := pipeline.DeliveryDrainer{
 		Store: store, Sender: sender, Owner: processOwner(),
 		Channel: cfg.deliveryMode, Recipient: cfg.recipient,
 		Limit: 300, Lease: 2 * time.Minute, RetryDelay: time.Minute,
@@ -304,12 +304,12 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 	if cfg.marketOnly {
 		promotedSources = nil
 	}
-	marketSources := []core.Source(nil)
+	marketSources := []pipeline.Source(nil)
 	if cfg.tinyFishAPIKey != "" {
-		marketSources = core.MarketSearchSources()
+		marketSources = pipeline.MarketSearchSources()
 	}
 	sources := runtimeSources(baseSources, promotedSources, marketSources, cfg.marketOnly)
-	dashboardSources := core.MergeRoutineSources(baseSources, marketSources)
+	dashboardSources := pipeline.MergeRoutineSources(baseSources, marketSources)
 
 	health := &healthState{}
 	health.setRuntimeReader(store, false)
@@ -329,15 +329,15 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 	}
 
 	productionExtractor := newLiteExtractor(cfg, logger)
-	marketObservations := core.NewMarketObservationExtractor(productionExtractor)
-	extractor := core.Extractor(marketObservations)
-	var discoveryRunner *core.DiscoveryRunner
+	marketObservations := pipeline.NewMarketObservationExtractor(productionExtractor)
+	extractor := pipeline.Extractor(marketObservations)
+	var discoveryRunner *pipeline.DiscoveryRunner
 	if cfg.tinyFishAPIKey != "" && !cfg.marketOnly {
 		seed, err := loadDiscoverySeedFile(cfg.seedPath)
 		if err != nil {
 			return err
 		}
-		candidates := core.MissingDiscoveryCandidates(catalog, seed)
+		candidates := pipeline.MissingDiscoveryCandidates(catalog, seed)
 		discoveryRunner = newDiscoveryRunner(cfg, candidates, extractor, store, logger)
 		logger.Info("autodiscovery enabled", "candidates", len(candidates), "batch", cfg.discoveryBatch)
 	} else if cfg.marketOnly {
@@ -350,7 +350,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		return err
 	}
 	owner := processOwner()
-	runner := core.Runner{
+	runner := pipeline.Runner{
 		Sources: sources, Extractor: extractor, Store: store,
 		Channel: cfg.deliveryMode, Recipient: cfg.recipient,
 		PublishBootstrap: cfg.deliveryMode == "telegram",
@@ -365,7 +365,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		deliveryTimeout = 6 * time.Minute
 		deliveryInterval = telegramDeliveryInterval
 	}
-	drainer := core.DeliveryDrainer{
+	drainer := pipeline.DeliveryDrainer{
 		Store: store, Sender: sender, Owner: owner,
 		Channel: cfg.deliveryMode, Recipient: cfg.recipient,
 		Limit: deliveryLimit, Lease: 2 * time.Minute, RetryDelay: time.Minute,
@@ -381,7 +381,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		cycleLease, acquired, leaseErr := store.TryAcquireCycle(leaseCtx, owner, cycleStartedAt)
 		leaseCancel()
 		if leaseErr != nil {
-			health.recordCycle(core.RunReport{}, core.DiscoveryReport{}, core.DeliveryReport{}, leaseErr)
+			health.recordCycle(pipeline.RunReport{}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, leaseErr)
 			logger.Error("routine cycle ownership failed", "error", leaseErr)
 			if cfg.once {
 				return leaseErr
@@ -397,7 +397,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		if !acquired {
 			operational, stateErr := store.ReadOperationalState(ctx)
 			if stateErr != nil {
-				health.recordCycle(core.RunReport{}, core.DiscoveryReport{}, core.DeliveryReport{}, stateErr)
+				health.recordCycle(pipeline.RunReport{}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, stateErr)
 				logger.Error("routine standby state unavailable", "error", stateErr)
 			} else {
 				health.recordStandby(operational.Runtime)
@@ -426,7 +426,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		}()
 
 		cycleCtx, cycleCancel := context.WithTimeout(ctx, cfg.cycleTimeout)
-		var discoveryReport core.DiscoveryReport
+		var discoveryReport pipeline.DiscoveryReport
 		var discoveryErr error
 		if cfg.marketOnly {
 			// Market-only is a bounded diagnostic pass: it does not spend
@@ -443,7 +443,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			runner.Sources = runtimeSources(baseSources, promoted, marketSources, cfg.marketOnly)
 		}
 		report, runErr := runner.Run(cycleCtx)
-		marketReport, marketErr := (core.MarketSourcePromoter{
+		marketReport, marketErr := (pipeline.MarketSourcePromoter{
 			Extractor: productionExtractor,
 			Store:     store,
 			// Discovery runs before market promotion. Include the refreshed
@@ -469,7 +469,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		deliveryReport := mergeDeliveryReports(pumpResult.report, finalDeliveryReport)
 		deliveryErr := errors.Join(pumpResult.err, finalDeliveryErr)
 		cycleErr := errors.Join(discoveryErr, runErr, marketErr, deliveryErr)
-		cycleResult := core.CycleResult{
+		cycleResult := pipeline.CycleResult{
 			Status:           cycleResultStatus(report, discoveryReport, deliveryReport, cycleErr),
 			SourcesAttempted: report.SourcesAttempted, SourcesSucceeded: report.SourcesSucceeded,
 			SourcesFailed: report.SourcesFailed, Observed: report.Observed, Created: report.Created,
@@ -530,10 +530,10 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 	}
 }
 
-type deliveryDrainFunc func(context.Context) (core.DeliveryReport, error)
+type deliveryDrainFunc func(context.Context) (pipeline.DeliveryReport, error)
 
-func runDeliveryPump(ctx context.Context, interval time.Duration, drain deliveryDrainFunc) (core.DeliveryReport, error) {
-	var total core.DeliveryReport
+func runDeliveryPump(ctx context.Context, interval time.Duration, drain deliveryDrainFunc) (pipeline.DeliveryReport, error) {
+	var total pipeline.DeliveryReport
 	if drain == nil {
 		return total, errors.New("delivery drain function is required")
 	}
@@ -562,7 +562,7 @@ func runDeliveryPump(ctx context.Context, interval time.Duration, drain delivery
 	}
 }
 
-func mergeDeliveryReports(left, right core.DeliveryReport) core.DeliveryReport {
+func mergeDeliveryReports(left, right pipeline.DeliveryReport) pipeline.DeliveryReport {
 	left.Claimed += right.Claimed
 	left.Sent += right.Sent
 	left.Failed += right.Failed
@@ -570,7 +570,7 @@ func mergeDeliveryReports(left, right core.DeliveryReport) core.DeliveryReport {
 	return left
 }
 
-func cycleResultStatus(report core.RunReport, discovery core.DiscoveryReport, delivery core.DeliveryReport, err error) string {
+func cycleResultStatus(report pipeline.RunReport, discovery pipeline.DiscoveryReport, delivery pipeline.DeliveryReport, err error) string {
 	if err != nil {
 		return "failure"
 	}
@@ -580,11 +580,11 @@ func cycleResultStatus(report core.RunReport, discovery core.DiscoveryReport, de
 	return "success"
 }
 
-func runtimeSources(base, promoted, market []core.Source, marketOnly bool) []core.Source {
+func runtimeSources(base, promoted, market []pipeline.Source, marketOnly bool) []pipeline.Source {
 	if marketOnly {
-		return core.MergeRoutineSources(nil, market)
+		return pipeline.MergeRoutineSources(nil, market)
 	}
-	return core.MergeRoutineSources(core.MergeRoutineSources(base, promoted), market)
+	return pipeline.MergeRoutineSources(pipeline.MergeRoutineSources(base, promoted), market)
 }
 
 func waitForNextCycle(ctx context.Context, serverErrors <-chan error, interval time.Duration) error {
@@ -623,7 +623,7 @@ func runReconcile(ctx context.Context, cfg config, output io.Writer, logger *slo
 		return fmt.Errorf("suppress duplicate discovered sources: %w", err)
 	}
 	extractor := newLiteExtractor(cfg, logger)
-	runner := newDiscoveryRunner(cfg, core.MissingDiscoveryCandidates(catalog, seed), extractor, store, logger)
+	runner := newDiscoveryRunner(cfg, pipeline.MissingDiscoveryCandidates(catalog, seed), extractor, store, logger)
 	report, err := runner.Run(ctx)
 	if err != nil {
 		return err
@@ -636,16 +636,16 @@ func runReconcile(ctx context.Context, cfg config, output io.Writer, logger *slo
 	encoder := json.NewEncoder(output)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(struct {
-		Report          core.DiscoveryReport `json:"report"`
-		PromotedSources []core.Source        `json:"promoted_sources"`
+		Report          pipeline.DiscoveryReport `json:"report"`
+		PromotedSources []pipeline.Source        `json:"promoted_sources"`
 	}{Report: report, PromotedSources: promoted})
 }
 
-func newDiscoveryRunner(cfg config, candidates []core.DiscoveryCandidate, extractor core.Extractor, store *core.PostgresStore, logger *slog.Logger) *core.DiscoveryRunner {
-	client := core.NewRetryingTinyFishDiscoveryClient(tinyfish.Client{
+func newDiscoveryRunner(cfg config, candidates []pipeline.DiscoveryCandidate, extractor pipeline.Extractor, store *pipeline.PostgresStore, logger *slog.Logger) *pipeline.DiscoveryRunner {
+	client := pipeline.NewRetryingTinyFishDiscoveryClient(tinyfish.Client{
 		APIKey: cfg.tinyFishAPIKey, SearchBaseURL: cfg.tinyFishSearchBaseURL,
 		FetchBaseURL: cfg.tinyFishFetchBaseURL,
-	}, core.DiscoveryClientRetryOptions{
+	}, pipeline.DiscoveryClientRetryOptions{
 		MaxAttempts: 3,
 		Delay:       time.Second,
 		MaxDelay:    5 * time.Second,
@@ -660,7 +660,7 @@ func newDiscoveryRunner(cfg config, candidates []core.DiscoveryCandidate, extrac
 			)
 		},
 	})
-	return &core.DiscoveryRunner{
+	return &pipeline.DiscoveryRunner{
 		Candidates: candidates,
 		Client:     client,
 		Extractor:  extractor, Store: store, Batch: cfg.discoveryBatch,
@@ -669,11 +669,11 @@ func newDiscoveryRunner(cfg config, candidates []core.DiscoveryCandidate, extrac
 	}
 }
 
-func newLiteExtractor(cfg config, logger *slog.Logger) core.Extractor {
+func newLiteExtractor(cfg config, logger *slog.Logger) pipeline.Extractor {
 	if logger == nil {
 		logger = slog.Default()
 	}
-	structured := core.NewATSExtractor(scraper.ATSOptions{
+	structured := pipeline.NewATSExtractor(scraper.ATSOptions{
 		Client:                       scraper.NewSafeHTTPClient(atsHTTPTimeout),
 		SmartRecruitersDetailMaxJobs: 8,
 		// Large Workday boards otherwise spend the entire per-company discovery
@@ -682,24 +682,24 @@ func newLiteExtractor(cfg config, logger *slog.Logger) core.Extractor {
 		WorkdayDetailMaxJobs: 8,
 		WorkdayDetailTimeout: 4 * time.Second,
 	})
-	var search core.Extractor
+	var search pipeline.Extractor
 	if cfg.tinyFishAPIKey != "" {
 		client := tinyfish.Client{
 			APIKey: cfg.tinyFishAPIKey, SearchBaseURL: cfg.tinyFishSearchBaseURL,
 			FetchBaseURL: cfg.tinyFishFetchBaseURL,
 		}
-		search = core.NewScraperExtractorAtTier(
+		search = pipeline.NewScraperExtractorAtTier(
 			tinyfishextractor.NewTinyFishSearchExtractor(client),
 			scraper.TierSearchDiscovery,
 		)
 	}
-	resilient := core.NewRetryingExtractor(
-		core.NewDiscoveryAwareExtractor(structured, search),
-		core.ExtractionRetryOptions{
+	resilient := pipeline.NewRetryingExtractor(
+		pipeline.NewDiscoveryAwareExtractor(structured, search),
+		pipeline.ExtractionRetryOptions{
 			MaxAttempts: 3,
 			Delay:       500 * time.Millisecond,
 			MaxDelay:    5 * time.Second,
-			OnRetry: func(source core.Source, nextAttempt int, err error) {
+			OnRetry: func(source pipeline.Source, nextAttempt int, err error) {
 				logger.Warn("transient source extraction failure; retrying",
 					"source_id", source.ID,
 					"company", source.Company,
@@ -745,7 +745,7 @@ func runServe(ctx context.Context, cfg config, logger *slog.Logger) error {
 	// Market-search controls are durable source-status rows even though a
 	// read-only process does not need a TinyFish key. Include their static
 	// metadata so status counts and labels stay consistent across topologies.
-	baseSources := core.MergeRoutineSources(catalog.RoutineSources(), core.MarketSearchSources())
+	baseSources := pipeline.MergeRoutineSources(catalog.RoutineSources(), pipeline.MarketSearchSources())
 	totalSources := len(baseSources) + operational.DiscoveredCounts["promoted"]
 	// A read-only web process intentionally has no TinyFish key, but it still
 	// represents the last routine owner's persisted market-search sources.
@@ -778,7 +778,7 @@ func runServe(ctx context.Context, cfg config, logger *slog.Logger) error {
 	}
 }
 
-func openStore(ctx context.Context, cfg config, ensureSchema bool) (*core.PostgresStore, func(), error) {
+func openStore(ctx context.Context, cfg config, ensureSchema bool) (*pipeline.PostgresStore, func(), error) {
 	database, err := database.OpenPostgres(ctx, cfg.databaseURL, database.Options{
 		MaxOpenConns: 4, MaxIdleConns: 1, ConnMaxLifetime: 30 * time.Minute,
 	})
@@ -786,7 +786,7 @@ func openStore(ctx context.Context, cfg config, ensureSchema bool) (*core.Postgr
 		return nil, func() {}, errors.New("connect to Radar Postgres: database configuration or connectivity check failed")
 	}
 	closeStore := func() { _ = database.Close() }
-	store, err := core.NewPostgresStore(database, core.PostgresOptions{Schema: cfg.schema})
+	store, err := pipeline.NewPostgresStore(database, pipeline.PostgresOptions{Schema: cfg.schema})
 	if err != nil {
 		closeStore()
 		return nil, func() {}, errors.New("initialize Radar Postgres store: configuration is invalid")
@@ -800,31 +800,31 @@ func openStore(ctx context.Context, cfg config, ensureSchema bool) (*core.Postgr
 	return store, closeStore, nil
 }
 
-func loadCatalogFile(path string) (core.Catalog, error) {
+func loadCatalogFile(path string) (pipeline.Catalog, error) {
 	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
-		return core.Catalog{}, fmt.Errorf("open verified catalog: %w", err)
+		return pipeline.Catalog{}, fmt.Errorf("open verified catalog: %w", err)
 	}
 	defer file.Close()
-	return core.LoadCatalog(file)
+	return pipeline.LoadCatalog(file)
 }
 
-func loadDiscoverySeedFile(path string) (core.DiscoverySeed, error) {
+func loadDiscoverySeedFile(path string) (pipeline.DiscoverySeed, error) {
 	file, err := os.Open(filepath.Clean(path))
 	if err != nil {
-		return core.DiscoverySeed{}, fmt.Errorf("open discovery seed: %w", err)
+		return pipeline.DiscoverySeed{}, fmt.Errorf("open discovery seed: %w", err)
 	}
 	defer file.Close()
-	return core.LoadDiscoverySeed(file)
+	return pipeline.LoadDiscoverySeed(file)
 }
 
 type logSender struct{ logger *slog.Logger }
 
-func (s logSender) Send(ctx context.Context, delivery core.Delivery) error {
+func (s logSender) Send(ctx context.Context, delivery pipeline.Delivery) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	var posting core.Posting
+	var posting pipeline.Posting
 	if err := json.Unmarshal(delivery.Payload, &posting); err != nil {
 		return fmt.Errorf("decode delivery payload: %w", err)
 	}
@@ -848,7 +848,7 @@ type outboxSender struct {
 	presentations map[string]companyPresentation
 }
 
-func (s outboxSender) Send(ctx context.Context, delivery core.Delivery) error {
+func (s outboxSender) Send(ctx context.Context, delivery pipeline.Delivery) error {
 	if s.outbox == nil {
 		return errors.New("notification outbox is required")
 	}
@@ -859,7 +859,7 @@ func (s outboxSender) Send(ctx context.Context, delivery core.Delivery) error {
 	return s.outbox.Enqueue(ctx, postingMessage(delivery, posting, s.presentations))
 }
 
-func newDeliverySender(cfg config, logger *slog.Logger) (core.Sender, error) {
+func newDeliverySender(cfg config, logger *slog.Logger) (pipeline.Sender, error) {
 	switch cfg.deliveryMode {
 	case "log":
 		return logSender{logger: logger}, nil
@@ -877,15 +877,15 @@ func newDeliverySender(cfg config, logger *slog.Logger) (core.Sender, error) {
 	}
 }
 
-func decodePosting(item core.Delivery) (core.Posting, error) {
-	var posting core.Posting
+func decodePosting(item pipeline.Delivery) (pipeline.Posting, error) {
+	var posting pipeline.Posting
 	if err := json.Unmarshal(item.Payload, &posting); err != nil {
-		return core.Posting{}, fmt.Errorf("decode delivery payload: %w", err)
+		return pipeline.Posting{}, fmt.Errorf("decode delivery payload: %w", err)
 	}
 	return posting, nil
 }
 
-func postingMessage(item core.Delivery, posting core.Posting, presentations map[string]companyPresentation) delivery.Message {
+func postingMessage(item pipeline.Delivery, posting pipeline.Posting, presentations map[string]companyPresentation) delivery.Message {
 	location := strings.TrimSpace(posting.Location)
 	if location == "" {
 		location = "Location not stated"
@@ -925,7 +925,7 @@ type healthState struct {
 }
 
 type operationalStateReader interface {
-	ReadOperationalState(context.Context) (core.OperationalState, error)
+	ReadOperationalState(context.Context) (pipeline.OperationalState, error)
 }
 
 type runtimeSnapshot struct {
@@ -938,7 +938,7 @@ type runtimeSnapshot struct {
 	DeliveryFailures int       `json:"delivery_failures"`
 }
 
-func (s *healthState) recordCycle(report core.RunReport, discovery core.DiscoveryReport, delivery core.DeliveryReport, err error) {
+func (s *healthState) recordCycle(report pipeline.RunReport, discovery pipeline.DiscoveryReport, delivery pipeline.DeliveryReport, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lastCycleAt = time.Now().UTC()
@@ -950,7 +950,7 @@ func (s *healthState) recordCycle(report core.RunReport, discovery core.Discover
 	s.deliveryFailures = delivery.Failed
 }
 
-func (s *healthState) recordStandby(runtime *core.RuntimeState) {
+func (s *healthState) recordStandby(runtime *pipeline.RuntimeState) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	// Ownership proves only that a worker is attempting a cycle. Readiness
@@ -971,7 +971,7 @@ func (s *healthState) recordStandby(runtime *core.RuntimeState) {
 	s.deliveryFailures = runtime.DeliveryFailures
 }
 
-func (s *healthState) recordReadOnly(runtime *core.RuntimeState) {
+func (s *healthState) recordReadOnly(runtime *pipeline.RuntimeState) {
 	s.recordStandby(runtime)
 	s.mu.Lock()
 	s.ready = true

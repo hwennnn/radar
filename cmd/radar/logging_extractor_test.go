@@ -9,12 +9,12 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
-type extractorFunc func(context.Context, core.Source) (core.ExtractionResult, error)
+type extractorFunc func(context.Context, pipeline.Source) (pipeline.ExtractionResult, error)
 
-func (f extractorFunc) Extract(ctx context.Context, source core.Source) (core.ExtractionResult, error) {
+func (f extractorFunc) Extract(ctx context.Context, source pipeline.Source) (pipeline.ExtractionResult, error) {
 	return f(ctx, source)
 }
 
@@ -33,12 +33,12 @@ func TestLoggingExtractorReportsSourceProgress(t *testing.T) {
 			nowIndex++
 			return value
 		},
-		inner: extractorFunc(func(context.Context, core.Source) (core.ExtractionResult, error) {
-			return core.ExtractionResult{Complete: true, Observations: []core.Observation{{Title: "Software Engineer Intern"}}}, nil
+		inner: extractorFunc(func(context.Context, pipeline.Source) (pipeline.ExtractionResult, error) {
+			return pipeline.ExtractionResult{Complete: true, Observations: []pipeline.Observation{{Title: "Software Engineer Intern"}}}, nil
 		}),
 	}
 
-	_, err := extractor.Extract(context.Background(), core.Source{ID: "example-ashby", Company: "Example", Provider: "ashby"})
+	_, err := extractor.Extract(context.Background(), pipeline.Source{ID: "example-ashby", Company: "Example", Provider: "ashby"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,12 +59,12 @@ func TestLoggingExtractorReportsFailure(t *testing.T) {
 	logger := slog.New(slog.NewJSONHandler(&output, nil))
 	extractor := loggingExtractor{
 		logger: logger,
-		inner: extractorFunc(func(context.Context, core.Source) (core.ExtractionResult, error) {
-			return core.ExtractionResult{}, errors.New("provider unavailable")
+		inner: extractorFunc(func(context.Context, pipeline.Source) (pipeline.ExtractionResult, error) {
+			return pipeline.ExtractionResult{}, errors.New("provider unavailable")
 		}),
 	}
 
-	_, err := extractor.Extract(context.Background(), core.Source{ID: "broken-source", Company: "Broken", Provider: "workday"})
+	_, err := extractor.Extract(context.Background(), pipeline.Source{ID: "broken-source", Company: "Broken", Provider: "workday"})
 	if err == nil {
 		t.Fatal("expected extraction failure")
 	}

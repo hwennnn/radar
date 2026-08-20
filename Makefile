@@ -20,7 +20,7 @@ gate: audit test-race test-preview
 
 test-db:
 	test -n "$${RADAR_TEST_DATABASE_URL}" || (echo "RADAR_TEST_DATABASE_URL is required" >&2; exit 2)
-	go test -race ./internal/core ./cmd/radar -count=1
+	go test -race ./internal/pipeline ./cmd/radar -count=1
 
 preview:
 	node scripts/preview.mjs

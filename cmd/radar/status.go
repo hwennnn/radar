@@ -9,16 +9,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 type dashboardStore interface {
 	feedStore
-	ReadOperationalState(context.Context) (core.OperationalState, error)
+	ReadOperationalState(context.Context) (pipeline.OperationalState, error)
 }
 
 type dashboardConfig struct {
-	BaseSources          []core.Source
+	BaseSources          []pipeline.Source
 	TotalSources         int
 	LogoDomains          map[string]string
 	RuntimeMode          string
@@ -158,8 +158,8 @@ func (s statusServer) handler(w http.ResponseWriter, request *http.Request) {
 	_ = json.NewEncoder(w).Encode(response)
 }
 
-func buildStatusResponse(operational core.OperationalState, cfg dashboardConfig, health *healthState) statusResponse {
-	sourceMetadata := make(map[string]core.Source, len(cfg.BaseSources))
+func buildStatusResponse(operational pipeline.OperationalState, cfg dashboardConfig, health *healthState) statusResponse {
+	sourceMetadata := make(map[string]pipeline.Source, len(cfg.BaseSources))
 	for _, source := range cfg.BaseSources {
 		sourceMetadata[source.ID] = source
 	}
@@ -174,7 +174,7 @@ func buildStatusResponse(operational core.OperationalState, cfg dashboardConfig,
 	if cfg.TotalSources > sources.Configured {
 		sources.Configured = cfg.TotalSources
 	}
-	statusByID := make(map[string]core.SourceStatus, len(operational.RoutineSourceStatus))
+	statusByID := make(map[string]pipeline.SourceStatus, len(operational.RoutineSourceStatus))
 	for _, current := range operational.RoutineSourceStatus {
 		statusByID[current.SourceID] = current
 		sources.Observed++

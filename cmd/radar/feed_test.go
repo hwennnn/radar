@@ -12,38 +12,38 @@ import (
 	"testing"
 	"time"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 type fakeFeedStore struct {
-	postings    []core.Posting
-	statuses    []core.SourceStatus
-	operational core.OperationalState
+	postings    []pipeline.Posting
+	statuses    []pipeline.SourceStatus
+	operational pipeline.OperationalState
 	err         error
 }
 
-func (s fakeFeedStore) ListPostings(context.Context) ([]core.Posting, error) {
+func (s fakeFeedStore) ListPostings(context.Context) ([]pipeline.Posting, error) {
 	return s.postings, s.err
 }
 
-func (s fakeFeedStore) ListSourceStatuses(context.Context) ([]core.SourceStatus, error) {
+func (s fakeFeedStore) ListSourceStatuses(context.Context) ([]pipeline.SourceStatus, error) {
 	return s.statuses, s.err
 }
 
-func (s fakeFeedStore) ReadOperationalState(context.Context) (core.OperationalState, error) {
+func (s fakeFeedStore) ReadOperationalState(context.Context) (pipeline.OperationalState, error) {
 	return s.operational, s.err
 }
 
 func TestBuildFeedFiltersAndGroupsPresentationDuplicates(t *testing.T) {
 	now := time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)
-	postings := []core.Posting{
+	postings := []pipeline.Posting{
 		feedTestPosting("job-a", "ByteDance", "Software Engineer Intern", "San Jose, CA", "US", "Internship", "Internship", "https://example.com/a", now.Add(-time.Hour)),
 		feedTestPosting("job-b", "ByteDance", "Software Engineer Intern", "San Jose, CA", "US", "Internship", "Internship", "https://example.com/b", now.Add(-2*time.Hour)),
 		feedTestPosting("job-c", "Jane Street", "Graduate Software Engineer", "New York, NY", "US", "Full-time", "New Grad", "https://example.com/c", now.Add(-25*time.Hour)),
 		feedTestPosting("job-d", "Rippling", "Customer Support Specialist Intern", "New York, NY", "US", "Internship", "Internship", "https://example.com/d", now),
 		feedTestPosting("job-e", "Tencent", "Software Engineer Intern", "Singapore", "SG", "Internship", "Internship", "https://example.com/e", now),
 	}
-	jobs, summary := buildFeed(postings, []core.SourceStatus{
+	jobs, summary := buildFeed(postings, []pipeline.SourceStatus{
 		{SourceID: "healthy", State: "success"},
 		{SourceID: "failed", State: "failure"},
 	}, 48, now)
@@ -71,7 +71,7 @@ func TestBuildFeedEvaluatesPostingAgeAtSnapshotTime(t *testing.T) {
 	)
 	posting.PostedAt = &postedAt
 
-	jobs, summary := buildFeed([]core.Posting{posting}, nil, 1, now)
+	jobs, summary := buildFeed([]pipeline.Posting{posting}, nil, 1, now)
 	if len(jobs) != 0 || summary.EligibleOpenings != 0 {
 		t.Fatalf("posting stale at snapshot time remained visible: jobs=%+v summary=%+v", jobs, summary)
 	}
@@ -80,7 +80,7 @@ func TestBuildFeedEvaluatesPostingAgeAtSnapshotTime(t *testing.T) {
 func TestBuildFeedCollapsesLegacyCompanySpacingDuplicateByApplyURL(t *testing.T) {
 	now := time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC)
 	applyURL := "https://www.citadelsecurities.com/careers/details/software-engineer-intern-us"
-	postings := []core.Posting{
+	postings := []pipeline.Posting{
 		feedTestPosting("canonical", "Citadel Securities", "Software Engineer - Intern (US)", "United States", "US", "Intern", "Internship", applyURL, now.Add(-time.Hour)),
 		feedTestPosting("legacy-spacing", "Citadelsecurities", "Software Engineer – Intern (US)", "United States", "US", "Intern", "Internship", applyURL, now.Add(-time.Minute)),
 	}
@@ -96,7 +96,7 @@ func TestBuildFeedCollapsesLegacyCompanySpacingDuplicateByApplyURL(t *testing.T)
 
 func TestBuildFeedCollapsesCanonicalApplyURLAcrossPresentationGroups(t *testing.T) {
 	now := time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC)
-	postings := []core.Posting{
+	postings := []pipeline.Posting{
 		feedTestPosting("new", "Example AI", "Software Engineer Intern", "New York, NY", "US", "Internship", "Internship", "https://jobs.example.com/roles/42/?utm_source=radar&lever-source=board#apply", now),
 		feedTestPosting("old", "Example AI", "Software Engineering Intern", "New York", "US", "Internship", "Internship", "https://JOBS.EXAMPLE.COM:443/roles/42?lever-via=feed", now.Add(-time.Hour)),
 	}
@@ -115,7 +115,7 @@ func TestBuildFeedCollapsesCanonicalApplyURLAcrossPresentationGroups(t *testing.
 
 func TestBuildFeedKeepsDistinctRequisitionURLs(t *testing.T) {
 	now := time.Date(2026, 8, 19, 1, 0, 0, 0, time.UTC)
-	postings := []core.Posting{
+	postings := []pipeline.Posting{
 		feedTestPosting("req-a", "Jane Street", "Software Engineer", "New York, NY", "US", "Full-time", "New Grad", "https://www.janestreet.com/join-jane-street/position/8594541002", now),
 		feedTestPosting("req-b", "Jane Street", "Software Engineer", "New York, NY", "US", "Full-time", "New Grad", "https://www.janestreet.com/join-jane-street/position/8599644002", now.Add(-time.Hour)),
 	}
@@ -131,7 +131,7 @@ func TestBuildFeedKeepsDistinctRequisitionURLs(t *testing.T) {
 
 func TestFeedHandlerFiltersSanitizesAndCapsResults(t *testing.T) {
 	now := time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)
-	store := fakeFeedStore{postings: []core.Posting{
+	store := fakeFeedStore{postings: []pipeline.Posting{
 		feedTestPosting("sg", "Example AI", "Machine Learning Engineer Intern", "Singapore", "SG", "Internship", "Internship", "javascript:alert(1)", now),
 		feedTestPosting("us", "Example Systems", "New Grad Platform Engineer", "Seattle, WA", "US", "Full-time", "New Grad", "https://example.com/us", now.Add(-time.Hour)),
 	}}
@@ -156,7 +156,7 @@ func TestFeedHandlerFiltersSanitizesAndCapsResults(t *testing.T) {
 
 func TestFeedHandlerReturnsIncrementalUpdatesAndActiveIDs(t *testing.T) {
 	now := time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)
-	store := fakeFeedStore{postings: []core.Posting{
+	store := fakeFeedStore{postings: []pipeline.Posting{
 		feedTestPosting("old", "Example Systems", "Graduate Software Engineer", "New York, NY", "US", "Full-time", "New Grad", "https://example.com/old", now.Add(-2*time.Hour)),
 		feedTestPosting("new", "Example AI", "Machine Learning Engineer Intern", "Singapore", "SG", "Internship", "Internship", "https://example.com/new", now.Add(-30*time.Minute)),
 	}}
@@ -190,7 +190,7 @@ func TestFeedHandlerRejectsInvalidIncrementalTimestamp(t *testing.T) {
 
 func TestFeedHandlerIncludesRegistryLogoDomain(t *testing.T) {
 	now := time.Date(2026, 8, 19, 3, 0, 0, 0, time.UTC)
-	store := fakeFeedStore{postings: []core.Posting{
+	store := fakeFeedStore{postings: []pipeline.Posting{
 		feedTestPosting("aqr", "AQR", "Software Engineer Intern", "New York, NY", "US", "Internship", "Internship", "https://example.com/aqr", now),
 	}}
 	response := httptest.NewRecorder()
@@ -380,8 +380,8 @@ func TestServeConfigNeedsNoPublishingCredentialsOrCrawlerDurations(t *testing.T)
 	}
 }
 
-func feedTestPosting(id, company, title, location, country, employment, level, applyURL string, firstSeen time.Time) core.Posting {
-	return core.Posting{
+func feedTestPosting(id, company, title, location, country, employment, level, applyURL string, firstSeen time.Time) pipeline.Posting {
+	return pipeline.Posting{
 		ID: id, Company: company, Title: title, Location: location, Country: country,
 		EmploymentType: employment, Level: level, ApplyURL: applyURL,
 		FirstSeenAt: firstSeen, LastSeenAt: firstSeen.Add(10 * time.Minute),

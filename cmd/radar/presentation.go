@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 type companyPresentation struct {
@@ -112,14 +112,14 @@ func companyPresentationLabel(company string, presentations map[string]companyPr
 	return "💻 Tech"
 }
 
-func postingTrackLabel(posting core.Posting) string {
+func postingTrackLabel(posting pipeline.Posting) string {
 	if feedTrack(posting) == "internship" {
 		return "Internship"
 	}
 	return "New grad"
 }
 
-func postingCategoryLabel(posting core.Posting) string {
+func postingCategoryLabel(posting pipeline.Posting) string {
 	switch feedCategory(posting.Title) {
 	case "quant":
 		return "Quant"

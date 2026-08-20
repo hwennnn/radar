@@ -5,18 +5,18 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 // loggingExtractor makes long multi-source cycles self-explanatory without
 // coupling the durable lite runner to a concrete logging implementation.
 type loggingExtractor struct {
-	inner  core.Extractor
+	inner  pipeline.Extractor
 	logger *slog.Logger
 	now    func() time.Time
 }
 
-func (e loggingExtractor) Extract(ctx context.Context, source core.Source) (core.ExtractionResult, error) {
+func (e loggingExtractor) Extract(ctx context.Context, source pipeline.Source) (pipeline.ExtractionResult, error) {
 	logger := e.logger
 	if logger == nil {
 		logger = slog.Default()

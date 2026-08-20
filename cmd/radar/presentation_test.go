@@ -3,7 +3,7 @@ package main
 import (
 	"testing"
 
-	"github.com/hwennnn/radar/internal/core"
+	"github.com/hwennnn/radar/internal/pipeline"
 )
 
 func TestCompanyPresentationsUseSeedTagsAndVerifiedFallbacks(t *testing.T) {
@@ -44,7 +44,7 @@ func TestPostingLocationMarker(t *testing.T) {
 }
 
 func TestPostingPresentationLabels(t *testing.T) {
-	posting := core.Posting{
+	posting := pipeline.Posting{
 		Title:          "Machine Learning Platform Engineer Intern",
 		EmploymentType: "Internship",
 	}

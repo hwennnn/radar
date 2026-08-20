@@ -10,7 +10,7 @@ references relevant to the task, plus the nearest `AGENTS.md`.
 | Change environment settings | [Configuration](configuration.md) | Config tests and a startup/config validation |
 | Operate or deploy the service | [Operations](operations.md) | Health, readiness, status, and publishing state |
 | Change HTTP or dashboard behavior | [HTTP API](http-api.md) and `cmd/radar/AGENTS.md` | Go tests, `make gate`, real browser pass |
-| Change persistence, identity, leases, or delivery state | [Data model](data-model.md) and `internal/core/AGENTS.md` | Disposable Postgres suite |
+| Change persistence, identity, leases, or delivery state | [Data model](data-model.md) and `internal/pipeline/AGENTS.md` | Disposable Postgres suite |
 | Add or modify a source | [Source lifecycle](source-lifecycle.md) | Catalog audit and extractor tests |
 | Prepare a contribution | [Contributing](../CONTRIBUTING.md) | Exact test and side-effect evidence |
 
@@ -18,7 +18,7 @@ references relevant to the task, plus the nearest `AGENTS.md`.
 
 - Runtime configuration and modes: `cmd/radar/main.go`
 - HTTP response contracts: `cmd/radar/feed.go` and `cmd/radar/status.go`
-- Database schema and migrations: `internal/core/postgres.go`
+- Database schema and migrations: `internal/pipeline/postgres.go`
 - Verified source floor: `config/sources.json`
 - Discovery research queue: `config/discovery-seed.json`
 - Deterministic verification: `Makefile` and `.github/workflows/ci.yml`

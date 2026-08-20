@@ -68,7 +68,7 @@ durable record and the coordination boundary.
 | Area | Owner | Responsibility |
 | --- | --- | --- |
 | Process and HTTP | `cmd/radar` | Modes, configuration, lifecycle, health, JSON APIs, embedded UI |
-| Domain and state | `internal/core` | Discovery, filtering, identity, provenance, persistence, leases, outbox |
+| Domain and state | `internal/pipeline` | Discovery, filtering, identity, provenance, persistence, leases, outbox |
 | Source adapters | `internal/source` | Discovery clients, ATS providers, page parsing, and bounded extraction |
 | Delivery transports | `internal/delivery` | Log, webhook, and Telegram senders |
 | Trusted inputs | `config` | Verified source floor and discovery research queue |
@@ -224,7 +224,7 @@ after several sources collapse into one canonical job.
 
 ## Persistence model
 
-`internal/core/postgres.go` owns additive, idempotent migrations. The default
+`internal/pipeline/postgres.go` owns additive, idempotent migrations. The default
 schema is `radar_lite` for compatibility with existing deployments.
 
 | Durable object | Purpose |
@@ -376,7 +376,7 @@ snapshot behavior with fixtures.
 
 ### Change identity or persistence
 
-Read `internal/core/AGENTS.md` and [Data model](data-model.md). Use additive,
+Read `internal/pipeline/AGENTS.md` and [Data model](data-model.md). Use additive,
 idempotent migrations and run the disposable Postgres suite. Identity changes
 require collision, merge, restart, and concurrency evidence.
 
