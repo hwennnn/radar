@@ -53,7 +53,8 @@ feed:
 Repository layout:
 
 ```text
-cmd/radar/          process modes, HTTP API, embedded dashboard
+cmd/radar/          thin process entrypoint
+internal/app/       modes, process wiring, HTTP API, embedded dashboard
 internal/pipeline/      source lifecycle, identity, persistence, leases, outbox
 internal/source/    discovery clients, extractors, and provider adapters
 internal/delivery/  delivery transports and retry behavior

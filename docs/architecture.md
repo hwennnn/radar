@@ -67,7 +67,8 @@ durable record and the coordination boundary.
 
 | Area | Owner | Responsibility |
 | --- | --- | --- |
-| Process and HTTP | `cmd/radar` | Modes, configuration, lifecycle, health, JSON APIs, embedded UI |
+| Application and HTTP | `internal/app` | Modes, configuration, lifecycle, health, JSON APIs, embedded UI |
+| Process entrypoint | `cmd/radar` | Signals, logging, argument forwarding, and exit behavior |
 | Domain and state | `internal/pipeline` | Discovery, filtering, identity, provenance, persistence, leases, outbox |
 | Source adapters | `internal/source` | Discovery clients, ATS providers, page parsing, and bounded extraction |
 | Delivery transports | `internal/delivery` | Log, webhook, and Telegram senders |
@@ -382,6 +383,6 @@ require collision, merge, restart, and concurrency evidence.
 
 ### Change the dashboard or API
 
-Read `cmd/radar/AGENTS.md` and [HTTP API](http-api.md). Preserve read-only
+Read `internal/app/AGENTS.md` and [HTTP API](http-api.md). Preserve read-only
 serving, bounded responses, safe error bodies, accessible loading and failure
 states, and complete the real-browser verification pass.
