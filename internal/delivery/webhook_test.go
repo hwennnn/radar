@@ -88,7 +88,7 @@ func TestTelegramOutboxSendsMessage(t *testing.T) {
 		t.Fatalf("chat_id = %#v, want chat-123", payload["chat_id"])
 	}
 	text, _ := payload["text"].(string)
-	want := "✨ <b>New role</b>\n<b><a href=\"https://example.com\">Backend intern</a></b>\n🏢 <b>Stripe</b>\n⭐ <b>93/100</b> personal fit\n📍 New York, NY\n💡 you rated Stripe yes"
+	want := "✨ New role\n<b><a href=\"https://example.com\">Backend intern</a></b>\n\n<b>Stripe</b>\n📍 New York, NY\n\n⭐ <b>93/100 fit</b>\n💡 you rated Stripe yes"
 	if text != want {
 		t.Fatalf("text = %q, want %q", text, want)
 	}
@@ -129,7 +129,7 @@ func TestTelegramOutboxOmitsButtonForUnsafeApplyURL(t *testing.T) {
 	}
 }
 
-func TestTelegramOutboxRendersEnrichedLiteMessage(t *testing.T) {
+func TestTelegramOutboxRendersJobMessage(t *testing.T) {
 	var payload map[string]any
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -153,7 +153,7 @@ func TestTelegramOutboxRendersEnrichedLiteMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Enqueue() error = %v", err)
 	}
-	want := "🧑‍💻 <b>New internship</b>\n<b><a href=\"https://example.com/jobs/123\">Quantitative Researcher, Intern (Summer 2027)</a></b>\n🏢 <b>Aquatic Capital Management</b>\n📈 Quant / trading\n🌐 Chicago · London"
+	want := "💼 New internship\n<b><a href=\"https://example.com/jobs/123\">Quantitative Researcher, Intern (Summer 2027)</a></b>\n\n<b>Aquatic Capital Management</b>\n📍 Chicago · London"
 	if got := payload["text"]; got != want {
 		t.Fatalf("text = %q, want %q", got, want)
 	}
@@ -174,7 +174,7 @@ func TestTelegramOutboxRendersCompactNewGradMessage(t *testing.T) {
 		"apply_url":       "https://example.com/headlands/new-grad",
 	}}
 
-	want := "🎓 <b>New grad role</b>\n<b><a href=\"https://example.com/headlands/new-grad\">Quantitative Researcher - New Grad</a></b>\n🏢 <b>Headlands Technologies</b>\n📈 Quant / trading · Software\n🌍 Amsterdam · Chicago · London · New York"
+	want := "🎓 New grad\n<b><a href=\"https://example.com/headlands/new-grad\">Quantitative Researcher - New Grad</a></b>\n\n<b>Headlands Technologies</b>\n📍 Amsterdam · Chicago · London · New York"
 	if got := renderTelegramText(msg); got != want {
 		t.Fatalf("renderTelegramText() = %q, want %q", got, want)
 	}

@@ -103,7 +103,7 @@ failure model, and deployment topology live in the
 Once a complete source snapshot validates a genuinely new opening, Radar can
 deliver it without waiting for the next crawl cycle. Each channel post keeps
 the job title as the direct application link and includes the company, career
-track, role family, and normalized location—compact enough to scan quickly,
+track, and normalized location—compact enough to scan quickly,
 without a separate “apply” button or copied job description.
 
 The public channel is [t.me/earlycareerradar](https://t.me/earlycareerradar).

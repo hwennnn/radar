@@ -148,47 +148,26 @@ func renderStructuredTelegramHTML(msg Message, limit int) (string, bool) {
 	applyURL := strings.TrimSpace(meta["apply_url"])
 	reason := strings.TrimSpace(meta["reason"])
 	review := strings.TrimSpace(meta["review"])
-	companyType := strings.TrimSpace(meta["company_type"])
 	track := strings.TrimSpace(meta["track"])
-	category := strings.TrimSpace(meta["category"])
-	locationMarker := strings.TrimSpace(meta["location_marker"])
 
 	if title == "" || company == "" {
 		return "", false
 	}
 
-	var lines []string
-	if companyType != "" || track != "" || category != "" {
-		lines = []string{
-			telegramTrackHeadline(track),
-			telegramTitleLine(title, applyURL),
-			"🏢 <b>" + html.EscapeString(company) + "</b>",
-		}
-		context := make([]string, 0, 2)
-		if companyType != "" {
-			context = append(context, html.EscapeString(strings.TrimSpace(companyType)))
-		}
-		if category != "" && !strings.Contains(strings.ToLower(companyType), strings.ToLower(category)) {
-			context = append(context, html.EscapeString(strings.TrimSpace(category)))
-		}
-		if len(context) > 0 {
-			lines = append(lines, strings.Join(context, " · "))
-		}
-	} else {
-		lines = []string{
-			"✨ <b>New role</b>",
-			telegramTitleLine(title, applyURL),
-			"🏢 <b>" + html.EscapeString(company) + "</b>",
-		}
-	}
-	if score != "" {
-		lines = append(lines, "⭐ <b>"+html.EscapeString(score)+"/100</b> personal fit")
+	lines := []string{
+		telegramTrackHeadline(track),
+		telegramTitleLine(title, applyURL),
+		"",
+		"<b>" + html.EscapeString(company) + "</b>",
 	}
 	if location != "" {
-		if locationMarker == "" {
-			locationMarker = "📍"
-		}
-		lines = append(lines, locationMarker+" "+html.EscapeString(telegramInlineList(location)))
+		lines = append(lines, "📍 "+html.EscapeString(telegramInlineList(location)))
+	}
+	if score != "" || review != "" || reason != "" {
+		lines = append(lines, "")
+	}
+	if score != "" {
+		lines = append(lines, "⭐ <b>"+html.EscapeString(score)+"/100 fit</b>")
 	}
 	if review != "" {
 		lines = append(lines, "⚠️ <b>Check:</b> "+html.EscapeString(review))
@@ -208,11 +187,11 @@ func renderStructuredTelegramHTML(msg Message, limit int) (string, bool) {
 func telegramTrackHeadline(track string) string {
 	switch strings.ToLower(strings.TrimSpace(track)) {
 	case "intern", "internship":
-		return "🧑‍💻 <b>New internship</b>"
+		return "💼 New internship"
 	case "new grad", "new graduate", "graduate":
-		return "🎓 <b>New grad role</b>"
+		return "🎓 New grad"
 	default:
-		return "✨ <b>New role</b>"
+		return "✨ New role"
 	}
 }
 
