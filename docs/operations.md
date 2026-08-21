@@ -47,6 +47,12 @@ routes, and incomplete snapshots retain bounded retries. Every admission or
 rejection is appended to `discovery_events`; rejected market signals never
 enter the job feed.
 
+Company-quality rejection is also terminal. The runtime admits discovered
+companies only when current seed metadata contains `priority-1` and independent
+high-signal evidence. Previously promoted routes that lose this evidence move
+to `rejected`/`parked`, disappear from active provenance, and remain fully
+explainable through the audit ledger.
+
 ### Source intervention
 
 ```sh

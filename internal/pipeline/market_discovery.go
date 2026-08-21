@@ -164,9 +164,13 @@ type MarketSourcePromoter struct {
 	// KnownSources is the verified catalog. It prevents a search result from
 	// creating a second discovery company/source for a board Radar already owns.
 	KnownSources []Source
-	ProbeLimit   int
-	Now          func() time.Time
-	Logger       *slog.Logger
+	// TargetCandidates is the curated company-quality boundary. Broad search
+	// can discover a route for these companies, but cannot invent a new target
+	// company solely because an ATS board exists.
+	TargetCandidates []DiscoveryCandidate
+	ProbeLimit       int
+	Now              func() time.Time
+	Logger           *slog.Logger
 }
 
 type marketSourceCandidate struct {
@@ -185,13 +189,33 @@ func (p MarketSourcePromoter) Run(ctx context.Context, observations []Observatio
 	if p.Store == nil {
 		return report, errors.New("lite: market source promoter store is required")
 	}
+	targetCandidates := p.TargetCandidates
+	if targetCandidates != nil {
+		targetCandidates = append([]DiscoveryCandidate(nil), targetCandidates...)
+		for _, source := range p.KnownSources {
+			// Static catalog sources have already passed the human-reviewed trust
+			// boundary. Treat them as implicit targets so duplicate market evidence
+			// is ignored as known rather than mislabeled as a quality rejection.
+			targetCandidates = append(targetCandidates, DiscoveryCandidate{
+				ID: marketCandidateID(source.Company), Name: source.Company,
+				Tags: []string{"priority-1", "curated-2026"},
+			})
+		}
+	}
 	if recorder, ok := p.Store.(MarketSignalRecorder); ok {
 		recordedAt := time.Now().UTC()
 		if p.Now != nil {
 			recordedAt = p.Now().UTC()
 		}
 		for _, observation := range observations {
-			if _, _, rejectionCode, accepted := marketObservationCandidate(observation); !accepted {
+			var rejectionCode string
+			var accepted bool
+			if targetCandidates == nil {
+				_, _, rejectionCode, accepted = marketObservationCandidate(observation)
+			} else {
+				_, _, rejectionCode, accepted = marketObservationTargetCandidate(observation, targetCandidates)
+			}
+			if !accepted {
 				if err := recorder.RecordRejectedMarketSignal(ctx, observation, rejectionCode, recordedAt); err != nil {
 					return report, fmt.Errorf("retain rejected market signal: %w", err)
 				}
@@ -199,6 +223,9 @@ func (p MarketSourcePromoter) Run(ctx context.Context, observations []Observatio
 		}
 	}
 	candidates, sources := deriveMarketCandidates(observations)
+	if targetCandidates != nil {
+		candidates, sources = deriveMarketTargetCandidates(observations, targetCandidates)
+	}
 	registeredSources, err := p.Store.ListDiscoveredSources(ctx)
 	if err != nil {
 		return report, fmt.Errorf("list registered market-discovered sources: %w", err)
@@ -379,10 +406,21 @@ func (p MarketSourcePromoter) log(ctx context.Context, level slog.Level, event, 
 }
 
 func deriveMarketCandidates(observations []Observation) ([]DiscoveryCandidate, []marketSourceCandidate) {
+	return deriveMarketTargetCandidates(observations, nil)
+}
+
+func deriveMarketTargetCandidates(observations []Observation, targets []DiscoveryCandidate) ([]DiscoveryCandidate, []marketSourceCandidate) {
 	candidatesByID := make(map[string]DiscoveryCandidate)
 	sourcesByKey := make(map[string]marketSourceCandidate)
 	for _, observation := range observations {
-		candidate, resolved, _, accepted := marketObservationCandidate(observation)
+		var candidate DiscoveryCandidate
+		var resolved resolvedDiscoverySource
+		var accepted bool
+		if targets == nil {
+			candidate, resolved, _, accepted = marketObservationCandidate(observation)
+		} else {
+			candidate, resolved, _, accepted = marketObservationTargetCandidate(observation, targets)
+		}
 		if !accepted {
 			continue
 		}
@@ -408,6 +446,31 @@ func deriveMarketCandidates(observations []Observation) ([]DiscoveryCandidate, [
 		sources = append(sources, sourcesByKey[key])
 	}
 	return candidates, sources
+}
+
+func marketObservationTargetCandidate(observation Observation, targets []DiscoveryCandidate) (DiscoveryCandidate, resolvedDiscoverySource, string, bool) {
+	company := CompactMarketCompany(observation.Company)
+	if company == "" {
+		return DiscoveryCandidate{}, resolvedDiscoverySource{}, DiscoveryFailureAggregator, false
+	}
+	var target DiscoveryCandidate
+	for _, candidate := range targets {
+		if HighSignalDiscoveryCandidate(candidate) && SameCompanyIdentity(candidate.Name, company) {
+			target = candidate
+			break
+		}
+	}
+	if target.ID == "" {
+		return DiscoveryCandidate{}, resolvedDiscoverySource{}, DiscoveryFailureCompanyQuality, false
+	}
+	if BlockedMarketCandidateWebsite(observation.ApplyURL) || BlockedCompany(company) {
+		return DiscoveryCandidate{}, resolvedDiscoverySource{}, DiscoveryFailureAggregator, false
+	}
+	resolved, ok := sourceFromDiscoveryURL(target, observation.ApplyURL, 0.90, "market_search:"+observation.SourceID)
+	if !ok || !marketAdmissionProvider(resolved.Source.Provider) {
+		return target, resolvedDiscoverySource{}, DiscoveryFailureProviderMismatch, false
+	}
+	return target, resolved, "", true
 }
 
 func marketObservationCandidate(observation Observation) (DiscoveryCandidate, resolvedDiscoverySource, string, bool) {

@@ -43,3 +43,24 @@ func TestLoadDiscoverySeedRejectsExecutableSourcesAndInvalidCandidates(t *testin
 		})
 	}
 }
+
+func TestHighSignalDiscoveryCandidateRequiresPriorityAndIndependentEvidence(t *testing.T) {
+	tests := []struct {
+		name     string
+		tags     []string
+		admitted bool
+	}{
+		{"curated priority one", []string{"priority-1", "curated-2026", "ai"}, true},
+		{"recognized quant benchmark", []string{"priority-1", "quant", "quant-benchmark-2026"}, true},
+		{"job-list mention only", []string{"priority-1", "benchmark-speedyapply-2027", "ai"}, false},
+		{"lower priority ranking", []string{"priority-2", "forbes-ai50-2026", "ai"}, false},
+		{"broad market only", []string{"auto-market-search"}, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := HighSignalDiscoveryCandidate(DiscoveryCandidate{Tags: test.tags}); got != test.admitted {
+				t.Fatalf("HighSignalDiscoveryCandidate(%v)=%t, want %t", test.tags, got, test.admitted)
+			}
+		})
+	}
+}

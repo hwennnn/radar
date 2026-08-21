@@ -196,6 +196,39 @@ func TestMarketSourcePromoterProbesAndPromotesRelevantBoard(t *testing.T) {
 	}
 }
 
+func TestMarketSourcePromoterRequiresCuratedCompanyEvidence(t *testing.T) {
+	store := &discoveryRepositoryFake{promoteOnSuccess: true}
+	probes := 0
+	promoter := MarketSourcePromoter{
+		Store:        store,
+		KnownSources: []Source{{ID: "openai", Company: "OpenAI", Provider: "ashby", URL: "https://jobs.ashbyhq.com/openai"}},
+		TargetCandidates: []DiscoveryCandidate{{
+			ID: "perplexity", Name: "Perplexity", Tags: []string{"priority-1", "benchmark-hiremepls", "ai"},
+		}},
+		Extractor: extractorFunc(func(_ context.Context, source Source) (ExtractionResult, error) {
+			probes++
+			return completeExtraction(Observation{Company: source.Company, Title: "Software Engineer Intern", Location: "New York, NY"}), nil
+		}),
+	}
+	report, err := promoter.Run(context.Background(), []Observation{
+		{SourceID: "market-1", Company: "Random Startup", ApplyURL: "https://jobs.ashbyhq.com/randomstartup/1"},
+		{SourceID: "market-2", Company: "Perplexity", ApplyURL: "https://jobs.ashbyhq.com/perplexity/2"},
+		{SourceID: "market-3", Company: "OpenAI", ApplyURL: "https://jobs.ashbyhq.com/openai/3"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if probes != 1 || report.SourcesProbed != 1 || report.SourcesPromoted != 1 || report.SourcesMonitored != 1 {
+		t.Fatalf("probes=%d report=%#v", probes, report)
+	}
+	if len(store.rejectedSignals) != 1 || !strings.HasSuffix(store.rejectedSignals[0], ":"+DiscoveryFailureCompanyQuality) {
+		t.Fatalf("rejected signals=%v", store.rejectedSignals)
+	}
+	if len(store.seeded) != 1 || store.seeded[0].ID != "perplexity" || !HighSignalDiscoveryCandidate(store.seeded[0]) {
+		t.Fatalf("seeded candidates=%#v", store.seeded)
+	}
+}
+
 func TestMarketSourcePromoterQuarantinesEmptyAndNontechnicalBoards(t *testing.T) {
 	store := &discoveryRepositoryFake{}
 	extractor := extractorFunc(func(_ context.Context, source Source) (ExtractionResult, error) {

@@ -347,6 +347,16 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		return err
 	}
 	defer closeStore()
+	seed, err := loadDiscoverySeedFile(cfg.seedPath)
+	if err != nil {
+		return err
+	}
+	// Refresh descriptive tags even when active discovery is disabled. The
+	// company-quality reconciler needs the current curated evidence to retire
+	// previously promoted low-signal routes safely.
+	if err := store.SeedDiscoveryCandidates(startupCtx, seed.Candidates); err != nil {
+		return fmt.Errorf("refresh discovery target evidence: %w", err)
+	}
 	suppressedKnown, err := store.SuppressKnownDiscoveredSources(startupCtx, catalog.RoutineSources(), time.Now().UTC())
 	if err != nil {
 		return fmt.Errorf("suppress discovered copies of verified sources: %w", err)
@@ -397,13 +407,10 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 	extractor := pipeline.Extractor(marketObservations)
 	var discoveryRunner *pipeline.DiscoveryRunner
 	if cfg.tinyFishAPIKey != "" && !cfg.marketOnly {
-		seed, err := loadDiscoverySeedFile(cfg.seedPath)
-		if err != nil {
-			return err
-		}
-		candidates := pipeline.MissingDiscoveryCandidates(catalog, seed)
+		allCandidates := pipeline.MissingDiscoveryCandidates(catalog, seed)
+		candidates := pipeline.HighSignalDiscoveryCandidates(allCandidates)
 		discoveryRunner = newDiscoveryRunner(cfg, candidates, extractor, store, logger)
-		logger.Info("autodiscovery enabled", "candidates", len(candidates), "batch", cfg.discoveryBatch)
+		logger.Info("autodiscovery enabled", "eligible_candidates", len(candidates), "excluded_candidates", len(allCandidates)-len(candidates), "batch", cfg.discoveryBatch)
 	} else if cfg.marketOnly {
 		logger.Info("seed autodiscovery skipped", "reason", "market-only pass")
 	} else {
@@ -537,8 +544,9 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		}
 		linkReport, linkErr := linkChecker.Run(cycleCtx)
 		marketReport, marketErr := (pipeline.MarketSourcePromoter{
-			Extractor: productionExtractor,
-			Store:     store,
+			Extractor:        productionExtractor,
+			Store:            store,
+			TargetCandidates: seed.Candidates,
 			// Discovery runs before market promotion. Include the refreshed
 			// runtime set so a board promoted earlier in this same cycle is not
 			// re-created under a market-derived candidate alias.
@@ -799,7 +807,7 @@ func newDiscoveryRunner(cfg config, candidates []pipeline.DiscoveryCandidate, ex
 		Client:     client,
 		Extractor:  extractor, Store: store, Batch: cfg.discoveryBatch,
 		CandidateTimeout: cfg.discoveryTimeout, RetryDelay: cfg.discoveryRetry,
-		EmptyRetryDelay: cfg.discoveryEmptyRetry, Logger: logger,
+		EmptyRetryDelay: cfg.discoveryEmptyRetry, EnforceCompanyQuality: true, Logger: logger,
 	}
 }
 

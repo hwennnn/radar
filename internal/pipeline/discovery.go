@@ -101,17 +101,18 @@ type DiscoveryRepository interface {
 }
 
 type DiscoveryRunner struct {
-	Candidates       []DiscoveryCandidate
-	Client           TinyFishDiscoveryClient
-	Extractor        Extractor
-	Store            DiscoveryRepository
-	Batch            int
-	CandidateTimeout time.Duration
-	RetryDelay       time.Duration
-	EmptyRetryDelay  time.Duration
-	FailureThreshold int
-	Now              func() time.Time
-	Logger           *slog.Logger
+	Candidates            []DiscoveryCandidate
+	Client                TinyFishDiscoveryClient
+	Extractor             Extractor
+	Store                 DiscoveryRepository
+	Batch                 int
+	CandidateTimeout      time.Duration
+	RetryDelay            time.Duration
+	EmptyRetryDelay       time.Duration
+	FailureThreshold      int
+	EnforceCompanyQuality bool
+	Now                   func() time.Time
+	Logger                *slog.Logger
 }
 
 type resolvedDiscoverySource struct {
@@ -174,6 +175,17 @@ func (r DiscoveryRunner) Run(ctx context.Context) (DiscoveryReport, error) {
 			return report, err
 		}
 		report.CandidatesAttempted++
+		if r.EnforceCompanyQuality && !HighSignalDiscoveryCandidate(candidate.DiscoveryCandidate) {
+			attemptedAt := now().UTC()
+			qualityErr := errors.New("company lacks high-signal target evidence")
+			if err := r.Store.RecordDiscoveryFailure(ctx, candidate, nil, qualityErr, attemptedAt, attemptedAt); err != nil {
+				return report, fmt.Errorf("record company quality rejection: %w", err)
+			}
+			report.CandidatesFailed++
+			r.logEvent(ctx, slog.LevelWarn, "candidate_quality_rejected", "company failed the target-quality admission gate",
+				"candidate_id", candidate.ID, "company", candidate.Name, "failure_code", DiscoveryFailureCompanyQuality)
+			continue
+		}
 		r.logEvent(ctx, slog.LevelInfo, "candidate_started", "autodiscovery candidate started",
 			"candidate_id", candidate.ID, "company", candidate.Name, "attempt", candidate.Attempts+1, "previous_state", candidate.State)
 		candidateCtx, cancel := context.WithTimeout(ctx, r.candidateTimeout())

@@ -21,6 +21,41 @@ type DiscoveryCandidate struct {
 	Tags    []string `json:"tags,omitempty"`
 }
 
+var highSignalEvidenceTags = map[string]struct{}{
+	"benchmark-hiremepls": {}, "benchmark-quantt-2026": {}, "curated-2026": {}, "curated-public-tech-2026": {},
+	"forbes-ai50-2026": {}, "forbes-cloud100-2025": {}, "futuriom50-2026": {},
+	"nasdaq-tech-2026": {}, "pwc-unicorns-2025": {}, "quant-benchmark-2026": {},
+	"yc-top": {},
+}
+
+// HighSignalDiscoveryCandidate is the company-level admission boundary for
+// discovered sources. A job-board mention is not reputation evidence: the
+// company must be priority one and backed by a curated target list, recognized
+// industry ranking, established public-tech set, quant benchmark, or YC target.
+func HighSignalDiscoveryCandidate(candidate DiscoveryCandidate) bool {
+	priorityOne := false
+	evidence := false
+	for _, tag := range candidate.Tags {
+		if tag == "priority-1" {
+			priorityOne = true
+		}
+		if _, ok := highSignalEvidenceTags[tag]; ok {
+			evidence = true
+		}
+	}
+	return priorityOne && evidence
+}
+
+func HighSignalDiscoveryCandidates(candidates []DiscoveryCandidate) []DiscoveryCandidate {
+	filtered := make([]DiscoveryCandidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		if HighSignalDiscoveryCandidate(candidate) {
+			filtered = append(filtered, candidate)
+		}
+	}
+	return filtered
+}
+
 func LoadDiscoverySeed(r io.Reader) (DiscoverySeed, error) {
 	var seed DiscoverySeed
 	if err := decodeStrictJSON(r, &seed); err != nil {

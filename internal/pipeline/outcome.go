@@ -12,6 +12,7 @@ const (
 	DiscoveryFailureProviderMismatch  = "provider_mismatch"
 	DiscoveryFailureNontechnical      = "nontechnical_board"
 	DiscoveryFailureAggregator        = "aggregator"
+	DiscoveryFailureCompanyQuality    = "company_quality"
 )
 
 // DiscoveryFailureClass converts private provider errors into stable control-
@@ -25,6 +26,8 @@ func DiscoveryFailureClass(cause error) (code string, terminal bool) {
 	switch {
 	case strings.Contains(message, "blocked job aggregator"), strings.Contains(message, "aggregator/search listing"):
 		return DiscoveryFailureAggregator, true
+	case strings.Contains(message, "high-signal target evidence"), strings.Contains(message, "company quality gate"):
+		return DiscoveryFailureCompanyQuality, true
 	case strings.Contains(message, "identity does not match"), strings.Contains(message, "does not match candidate company identity"):
 		return DiscoveryFailureOwnershipMismatch, true
 	case strings.Contains(message, "unsupported provider"), strings.Contains(message, "provider mismatch"):

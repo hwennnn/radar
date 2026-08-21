@@ -12,6 +12,19 @@ func TestAuditUniverseRejectsShallowUnauditableSeed(t *testing.T) {
 	}
 }
 
+func TestAuditUniverseReportsActiveCompanyQualityBoundary(t *testing.T) {
+	report := AuditUniverse(
+		Catalog{Companies: []Company{{ID: "verified", Name: "Verified", Sources: []Source{{ID: "verified-jobs", Provider: "greenhouse", URL: "https://example.com/jobs"}}}}},
+		DiscoverySeed{Candidates: []DiscoveryCandidate{
+			{ID: "target", Name: "Target", Tags: []string{"priority-1", "curated-2026", "ai"}},
+			{ID: "research-only", Name: "Research Only", Tags: []string{"priority-2", "curated-2026", "ai"}},
+		}},
+	)
+	if report.AdmittedCandidates != 1 || report.ExcludedCandidates != 1 || report.ActiveTargetCompanies != 2 {
+		t.Fatalf("quality boundary counts=%+v", report)
+	}
+}
+
 func TestDiscoveryPriorityPrefersFocusLanesThenResearchTiers(t *testing.T) {
 	seed := DiscoverySeed{Candidates: []DiscoveryCandidate{
 		{ID: "low", Name: "Low", Tags: []string{"priority-3"}},

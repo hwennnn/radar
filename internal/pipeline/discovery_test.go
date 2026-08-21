@@ -552,6 +552,34 @@ func TestDiscoveryRunnerBacksOffUnresolvedCandidate(t *testing.T) {
 	}
 }
 
+func TestDiscoveryRunnerParksCompanyWithoutQualityEvidenceBeforeResearch(t *testing.T) {
+	candidate := DiscoveryCandidate{ID: "smallco", Name: "SmallCo", Tags: []string{"priority-1", "benchmark-speedyapply-2027"}}
+	repository := &discoveryRepositoryFake{due: []DiscoveryCandidateRecord{{DiscoveryCandidate: candidate, State: "pending"}}}
+	runner := DiscoveryRunner{
+		Candidates: []DiscoveryCandidate{candidate}, EnforceCompanyQuality: true,
+		Client: discoveryClientFake{search: func(context.Context, tinyfish.SearchRequest) (tinyfish.SearchResponse, error) {
+			t.Fatal("low-signal company reached discovery search")
+			return tinyfish.SearchResponse{}, nil
+		}},
+		Extractor: extractorFunc(func(context.Context, Source) (ExtractionResult, error) {
+			t.Fatal("low-signal company reached extractor")
+			return ExtractionResult{}, nil
+		}),
+		Store: repository,
+	}
+	report, err := runner.Run(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.CandidatesFailed != 1 || len(repository.failures) != 1 {
+		t.Fatalf("report=%#v failures=%v", report, repository.failures)
+	}
+	code, terminal := DiscoveryFailureClass(repository.failures[0])
+	if code != DiscoveryFailureCompanyQuality || !terminal {
+		t.Fatalf("quality outcome=%q terminal=%t", code, terminal)
+	}
+}
+
 func TestDiscoveryRunnerExponentiallyBacksOffRepeatedFailures(t *testing.T) {
 	now := time.Date(2026, 8, 18, 3, 0, 0, 0, time.UTC)
 	candidate := DiscoveryCandidate{ID: "missing-ai", Name: "Missing AI"}

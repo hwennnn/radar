@@ -11,26 +11,29 @@ import (
 // queue as well as verified sources: a company can be covered before its board
 // is healthy enough to enter routine crawling.
 type UniverseCoverage struct {
-	Pass                bool           `json:"pass"`
-	VerifiedCompanies   int            `json:"verified_companies"`
-	DiscoveryCandidates int            `json:"discovery_candidates"`
-	TotalCompanies      int            `json:"total_companies"`
-	RoutineSources      int            `json:"routine_sources"`
-	CandidateCategories map[string]int `json:"candidate_categories"`
-	CandidatePriorities map[string]int `json:"candidate_priorities"`
-	CandidateProvenance map[string]int `json:"candidate_provenance"`
-	CandidateFocus      map[string]int `json:"candidate_focus"`
-	CandidatesWithSites int            `json:"candidates_with_websites"`
-	CriticalMissing     []string       `json:"critical_missing,omitempty"`
-	Errors              []string       `json:"errors,omitempty"`
+	Pass                  bool           `json:"pass"`
+	VerifiedCompanies     int            `json:"verified_companies"`
+	DiscoveryCandidates   int            `json:"discovery_candidates"`
+	AdmittedCandidates    int            `json:"admitted_discovery_candidates"`
+	ExcludedCandidates    int            `json:"excluded_discovery_candidates"`
+	ActiveTargetCompanies int            `json:"active_target_companies"`
+	TotalCompanies        int            `json:"total_companies"`
+	RoutineSources        int            `json:"routine_sources"`
+	CandidateCategories   map[string]int `json:"candidate_categories"`
+	CandidatePriorities   map[string]int `json:"candidate_priorities"`
+	CandidateProvenance   map[string]int `json:"candidate_provenance"`
+	CandidateFocus        map[string]int `json:"candidate_focus"`
+	CandidatesWithSites   int            `json:"candidates_with_websites"`
+	CriticalMissing       []string       `json:"critical_missing,omitempty"`
+	Errors                []string       `json:"errors,omitempty"`
 }
 
 var universeFocusMinimums = map[string]int{
-	"yc-top":                  25,
-	"speedyapply-high-signal": 95,
-	"priority-1-quant":        38,
-	"priority-1-big-tech":     100,
-	"priority-1-unicorn":      110,
+	"yc-top":               25,
+	"speedyapply-research": 95,
+	"priority-1-quant":     38,
+	"priority-1-big-tech":  100,
+	"priority-1-unicorn":   110,
 }
 
 var universeMinimums = map[string]int{
@@ -99,6 +102,11 @@ func AuditUniverse(catalog Catalog, seed DiscoverySeed) UniverseCoverage {
 		if strings.TrimSpace(candidate.Website) != "" {
 			report.CandidatesWithSites++
 		}
+		if HighSignalDiscoveryCandidate(candidate) {
+			report.AdmittedCandidates++
+		} else {
+			report.ExcludedCandidates++
+		}
 
 		priorityCount, segmentCount, provenanceCount := 0, 0, 0
 		hasPriorityOne := false
@@ -115,7 +123,7 @@ func AuditUniverse(catalog Catalog, seed DiscoverySeed) UniverseCoverage {
 				report.CandidateFocus[tag]++
 			}
 			if tag == "benchmark-speedyapply-2027" {
-				report.CandidateFocus["speedyapply-high-signal"]++
+				report.CandidateFocus["speedyapply-research"]++
 			}
 			if _, segment := universeSegments[tag]; segment {
 				report.CandidateCategories[tag]++
@@ -148,6 +156,7 @@ func AuditUniverse(catalog Catalog, seed DiscoverySeed) UniverseCoverage {
 	}
 
 	report.TotalCompanies = len(companyIDs)
+	report.ActiveTargetCompanies = report.VerifiedCompanies + report.AdmittedCandidates
 	for _, id := range universeCriticalCompanies {
 		if _, exists := companyIDs[id]; !exists {
 			report.CriticalMissing = append(report.CriticalMissing, id)
@@ -167,7 +176,7 @@ func AuditUniverse(catalog Catalog, seed DiscoverySeed) UniverseCoverage {
 			report.Errors = append(report.Errors, fmt.Sprintf("%s candidates %d < %d", category, report.CandidateCategories[category], universeMinimums[category]))
 		}
 	}
-	for _, focus := range []string{"yc-top", "speedyapply-high-signal", "priority-1-quant", "priority-1-big-tech", "priority-1-unicorn"} {
+	for _, focus := range []string{"yc-top", "speedyapply-research", "priority-1-quant", "priority-1-big-tech", "priority-1-unicorn"} {
 		if report.CandidateFocus[focus] < universeFocusMinimums[focus] {
 			report.Errors = append(report.Errors, fmt.Sprintf("%s focus candidates %d < %d", focus, report.CandidateFocus[focus], universeFocusMinimums[focus]))
 		}

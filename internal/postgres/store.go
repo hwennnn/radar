@@ -1811,7 +1811,9 @@ func readGroupedCounts(ctx context.Context, tx *sql.Tx, query string, destinatio
 
 // SeedDiscoveryCandidates imports the inert discovery seed into durable
 // scheduling state. Re-reading the seed updates descriptive fields without
-// resetting attempts, health, or promotion decisions.
+// resetting attempts, health, or promotion decisions, except that a candidate
+// parked solely by the company-quality gate becomes retryable when new seed
+// evidence now satisfies that gate.
 func (s *PostgresStore) SeedDiscoveryCandidates(ctx context.Context, candidates []DiscoveryCandidate) error {
 	if err := (DiscoverySeed{Candidates: candidates}).Validate(); err != nil {
 		return fmt.Errorf("lite: invalid discovery seed: %w", err)
@@ -1827,14 +1829,43 @@ func (s *PostgresStore) SeedDiscoveryCandidates(ctx context.Context, candidates 
 			return fmt.Errorf("lite: encode discovery tags for %s: %w", candidate.ID, err)
 		}
 		if _, err := tx.ExecContext(ctx, `
-INSERT INTO `+s.table("discovery_candidates")+` (id, name, website, tags)
+INSERT INTO `+s.table("discovery_candidates")+` AS current (id, name, website, tags)
 VALUES ($1, $2, $3, $4)
 ON CONFLICT (id) DO UPDATE SET
     name = EXCLUDED.name,
     website = EXCLUDED.website,
     tags = EXCLUDED.tags,
+    state = CASE
+        WHEN current.state = 'parked'
+         AND current.failure_code = $5
+         AND $6
+        THEN 'retry'
+        ELSE current.state
+    END,
+    next_attempt_at = CASE
+        WHEN current.state = 'parked'
+         AND current.failure_code = $5
+         AND $6
+        THEN now()
+        ELSE current.next_attempt_at
+    END,
+    last_error = CASE
+        WHEN current.state = 'parked'
+         AND current.failure_code = $5
+         AND $6
+        THEN ''
+        ELSE current.last_error
+    END,
+    failure_code = CASE
+        WHEN current.state = 'parked'
+         AND current.failure_code = $5
+         AND $6
+        THEN ''
+        ELSE current.failure_code
+    END,
     updated_at = now()`,
 			candidate.ID, strings.TrimSpace(candidate.Name), strings.TrimSpace(candidate.Website), tags,
+			pipeline.DiscoveryFailureCompanyQuality, pipeline.HighSignalDiscoveryCandidate(candidate),
 		); err != nil {
 			return fmt.Errorf("lite: seed discovery candidate %s: %w", candidate.ID, err)
 		}
@@ -2366,7 +2397,7 @@ UPDATE `+s.table("discovered_sources")+` SET company = $2 WHERE candidate_id = $
 	}
 	identityRows, err := tx.QueryContext(ctx, `
 SELECT discovered.id, discovered.candidate_id, discovered.company, discovered.provider, discovered.url,
-       candidate.name, candidate.website
+       candidate.name, candidate.website, candidate.tags
 FROM `+s.table("discovered_sources")+` AS discovered
 JOIN `+s.table("discovery_candidates")+` AS candidate ON candidate.id = discovered.candidate_id
 WHERE discovered.state IN ('promoted', 'candidate')
@@ -2379,31 +2410,44 @@ ORDER BY discovered.id`)
 		candidateID    string
 		reason         string
 		candidateState string
+		sourceState    string
+		failureCode    string
 	}
 	var invalidRoutes []invalidRoute
 	for identityRows.Next() {
 		var source Source
 		var candidate DiscoveryCandidate
-		if err := identityRows.Scan(&source.ID, &candidate.ID, &source.Company, &source.Provider, &source.URL, &candidate.Name, &candidate.Website); err != nil {
+		var tags []byte
+		if err := identityRows.Scan(&source.ID, &candidate.ID, &source.Company, &source.Provider, &source.URL, &candidate.Name, &candidate.Website, &tags); err != nil {
+			identityRows.Close()
+			return 0, err
+		}
+		if err := json.Unmarshal(tags, &candidate.Tags); err != nil {
 			identityRows.Close()
 			return 0, err
 		}
 		switch {
+		case !pipeline.HighSignalDiscoveryCandidate(candidate):
+			invalidRoutes = append(invalidRoutes, invalidRoute{
+				sourceID: source.ID, candidateID: candidate.ID,
+				reason: "company lacks high-signal target evidence", candidateState: "parked",
+				sourceState: "rejected", failureCode: pipeline.DiscoveryFailureCompanyQuality,
+			})
 		case pipeline.BlockedCompany(source.Company), pipeline.BlockedCompany(candidate.Name),
 			pipeline.BlockedMarketCandidateName(source.Company), pipeline.BlockedMarketCandidateName(candidate.Name):
 			invalidRoutes = append(invalidRoutes, invalidRoute{
 				sourceID: source.ID, candidateID: candidate.ID,
-				reason: "company excluded by target policy", candidateState: "duplicate",
+				reason: "company excluded by target policy", candidateState: "duplicate", sourceState: "unhealthy",
 			})
 		case source.Provider == "official_careers" && pipeline.BlockedMarketCandidateWebsite(candidate.Website):
 			invalidRoutes = append(invalidRoutes, invalidRoute{
 				sourceID: source.ID, candidateID: candidate.ID,
-				reason: "official route belongs to a job aggregator", candidateState: "duplicate",
+				reason: "official route belongs to a job aggregator", candidateState: "duplicate", sourceState: "unhealthy",
 			})
 		case !pipeline.DiscoveryRouteMatchesCandidate(candidate, source.Provider, source.URL):
 			invalidRoutes = append(invalidRoutes, invalidRoute{
 				sourceID: source.ID, candidateID: candidate.ID,
-				reason: "discovered board identity does not match candidate company", candidateState: "retry",
+				reason: "discovered board identity does not match candidate company", candidateState: "retry", sourceState: "unhealthy",
 			})
 		}
 	}
@@ -2416,17 +2460,21 @@ ORDER BY discovered.id`)
 	for _, invalid := range invalidRoutes {
 		if _, err := tx.ExecContext(ctx, `
 UPDATE `+s.table("discovered_sources")+` SET
-    state = 'unhealthy', last_checked_at = $2, last_failure_at = $2,
+    state = $4, last_checked_at = $2, last_failure_at = $2,
     consecutive_failures = consecutive_failures + 1,
-    last_error = $3
-WHERE id = $1 AND state IN ('promoted', 'candidate')`, invalid.sourceID, at, invalid.reason); err != nil {
+    last_error = $3, failure_code = $5
+WHERE id = $1 AND state IN ('promoted', 'candidate')`, invalid.sourceID, at, invalid.reason, invalid.sourceState, invalid.failureCode); err != nil {
 			return 0, err
 		}
 		if _, err := tx.ExecContext(ctx, `
 UPDATE `+s.table("discovery_candidates")+` SET
 	state = $3, next_attempt_at = $2,
-	last_error = $4, updated_at = $2
-WHERE id = $1`, invalid.candidateID, at, invalid.candidateState, invalid.reason); err != nil {
+	last_error = $4, failure_code = $5, updated_at = $2
+WHERE id = $1`, invalid.candidateID, at, invalid.candidateState, invalid.reason, invalid.failureCode); err != nil {
+			return 0, err
+		}
+		if _, err := tx.ExecContext(ctx, `INSERT INTO `+s.table("discovery_events")+` (candidate_id, source_id, outcome, code, detail, created_at) VALUES ($1, $2, $3, $4, $5, $6)`,
+			invalid.candidateID, invalid.sourceID, invalid.candidateState, invalid.failureCode, invalid.reason, at); err != nil {
 			return 0, err
 		}
 		demotedCandidates[invalid.candidateID] = struct{}{}

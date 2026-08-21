@@ -15,6 +15,7 @@ func TestDiscoveryFailureClass(t *testing.T) {
 		{"429 rate limited", DiscoveryFailureRateLimited, false},
 		{"source returned an incomplete snapshot", DiscoveryFailureIncomplete, false},
 		{"discovered source does not match candidate company identity", DiscoveryFailureOwnershipMismatch, true},
+		{"company lacks high-signal target evidence", DiscoveryFailureCompanyQuality, true},
 		{"structured board returned postings but no relevant technical job roles", DiscoveryFailureNontechnical, true},
 		{"market result points to blocked job aggregator", DiscoveryFailureAggregator, true},
 	}

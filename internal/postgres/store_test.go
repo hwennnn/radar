@@ -487,12 +487,12 @@ func TestPostgresStoreDiscoveryPromotionAndAutomaticHealthDemotion(t *testing.T)
 	_, store := integrationStore(t)
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	candidate := DiscoveryCandidate{ID: "perplexity", Name: "Perplexity", Website: "https://www.perplexity.ai", Tags: []string{"ai"}}
+	candidate := DiscoveryCandidate{ID: "perplexity", Name: "Perplexity", Website: "https://www.perplexity.ai", Tags: []string{"priority-1", "benchmark-hiremepls", "ai"}}
 	if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{candidate}); err != nil {
 		t.Fatal(err)
 	}
 	due, err := store.ListDueDiscoveryCandidates(ctx, now.Add(time.Minute), 10)
-	if err != nil || len(due) != 1 || due[0].ID != candidate.ID || len(due[0].Tags) != 1 {
+	if err != nil || len(due) != 1 || due[0].ID != candidate.ID || len(due[0].Tags) != 3 {
 		t.Fatalf("due=%#v err=%v", due, err)
 	}
 	source := Source{ID: "auto-perplexity-ashby-1234", Company: "Perplexity", Provider: "ashby", URL: "https://jobs.ashbyhq.com/perplexity"}
@@ -797,7 +797,7 @@ func TestPostgresStoreDiscoveryDemotesPreviouslyPromotedIdentityMismatch(t *test
 	database, store := integrationStore(t)
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	candidate := DiscoveryCandidate{ID: "coreweave", Name: "CoreWeave", Website: "https://www.coreweave.com"}
+	candidate := DiscoveryCandidate{ID: "coreweave", Name: "CoreWeave", Website: "https://www.coreweave.com", Tags: []string{"priority-1", "curated-2026", "ai"}}
 	if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{candidate}); err != nil {
 		t.Fatal(err)
 	}
@@ -845,7 +845,7 @@ func TestPostgresStoreParksPreviouslyPromotedBlockedCompany(t *testing.T) {
 	database, store := integrationStore(t)
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	candidate := DiscoveryCandidate{ID: "anduril", Name: "Anduril Industries", Website: "https://www.anduril.com"}
+	candidate := DiscoveryCandidate{ID: "anduril", Name: "Anduril Industries", Website: "https://www.anduril.com", Tags: []string{"priority-1", "curated-2026"}}
 	if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{candidate}); err != nil {
 		t.Fatal(err)
 	}
@@ -904,6 +904,53 @@ func TestPostgresStoreParksBlockedMarketAggregatorCandidate(t *testing.T) {
 	}
 }
 
+func TestPostgresStoreRejectsPreviouslyPromotedLowSignalCompany(t *testing.T) {
+	database, store := integrationStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	candidate := DiscoveryCandidate{
+		ID: "random-startup", Name: "Random Startup", Website: "https://random.example",
+		Tags: []string{"priority-1", "benchmark-speedyapply-2027", "ai"},
+	}
+	if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{candidate}); err != nil {
+		t.Fatal(err)
+	}
+	due, err := store.ListDueDiscoveryCandidates(ctx, now.Add(time.Minute), 1)
+	if err != nil || len(due) != 1 {
+		t.Fatalf("due=%#v err=%v", due, err)
+	}
+	source := Source{ID: "legacy-random-ashby", Company: candidate.Name, Provider: "ashby", URL: "https://jobs.ashbyhq.com/randomstartup"}
+	if promoted, err := store.RecordDiscoverySuccess(ctx, due[0], source, 3, .95, "legacy promotion", now, now.Add(time.Hour)); err != nil || !promoted {
+		t.Fatalf("legacy promotion=%t err=%v", promoted, err)
+	}
+	if demoted, err := store.DemoteUnhealthyDiscoveredSources(ctx, 3, now.Add(time.Minute)); err != nil || demoted != 1 {
+		t.Fatalf("demoted=%d err=%v", demoted, err)
+	}
+	var sourceState, candidateState, sourceCode, candidateCode string
+	if err := database.QueryRowContext(ctx, `SELECT state, failure_code FROM `+store.table("discovered_sources")+` WHERE id=$1`, source.ID).Scan(&sourceState, &sourceCode); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRowContext(ctx, `SELECT state, failure_code FROM `+store.table("discovery_candidates")+` WHERE id=$1`, candidate.ID).Scan(&candidateState, &candidateCode); err != nil {
+		t.Fatal(err)
+	}
+	if sourceState != "rejected" || candidateState != "parked" || sourceCode != pipeline.DiscoveryFailureCompanyQuality || candidateCode != pipeline.DiscoveryFailureCompanyQuality {
+		t.Fatalf("source=%s/%s candidate=%s/%s", sourceState, sourceCode, candidateState, candidateCode)
+	}
+	if sources, err := store.ListPromotedSources(ctx); err != nil || len(sources) != 0 {
+		t.Fatalf("low-signal source remained promoted: %#v err=%v", sources, err)
+	}
+
+	qualified := candidate
+	qualified.Tags = []string{"priority-1", "curated-2026", "ai"}
+	if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{qualified}); err != nil {
+		t.Fatal(err)
+	}
+	due, err = store.ListDueDiscoveryCandidates(ctx, now.Add(2*time.Minute), 1)
+	if err != nil || len(due) != 1 || due[0].ID != candidate.ID || due[0].State != "retry" || due[0].FailureCode != "" || due[0].LastError != "" {
+		t.Fatalf("quality recovery due=%#v err=%v", due, err)
+	}
+}
+
 func TestPostgresStoreDemotesPromotedOfficialAggregatorButKeepsOwnedATS(t *testing.T) {
 	database, store := integrationStore(t)
 	ctx := context.Background()
@@ -911,7 +958,7 @@ func TestPostgresStoreDemotesPromotedOfficialAggregatorButKeepsOwnedATS(t *testi
 
 	for _, candidate := range []DiscoveryCandidate{
 		{ID: "market-builtin", Name: "BuiltinChicago", Website: "https://www.builtinchicago.org", Tags: []string{"auto-market-search"}},
-		{ID: "market-imc", Name: "IMC Trading", Website: "https://www.canarywharfian.co.uk", Tags: []string{"auto-market-search"}},
+		{ID: "market-imc", Name: "IMC Trading", Website: "https://www.canarywharfian.co.uk", Tags: []string{"priority-1", "quant", "quant-benchmark-2026"}},
 	} {
 		if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{candidate}); err != nil {
 			t.Fatal(err)
@@ -938,7 +985,7 @@ func TestPostgresStoreDemotesPromotedOfficialAggregatorButKeepsOwnedATS(t *testi
 	if err := database.QueryRowContext(ctx, `SELECT state FROM `+store.table("discovered_sources")+` WHERE id='imc-source'`).Scan(&imcState); err != nil {
 		t.Fatal(err)
 	}
-	if builtinState != "unhealthy" || imcState != "promoted" {
+	if builtinState != "rejected" || imcState != "promoted" {
 		t.Fatalf("builtin=%q imc=%q", builtinState, imcState)
 	}
 }
@@ -947,7 +994,7 @@ func TestPostgresStoreDiscoveryQuarantinesLegacyAmbiguousCandidateRoute(t *testi
 	db, store := integrationStore(t)
 	ctx := context.Background()
 	now := time.Now().UTC().Truncate(time.Microsecond)
-	candidate := DiscoveryCandidate{ID: "millennium", Name: "Millennium", Website: "https://www.mlp.com"}
+	candidate := DiscoveryCandidate{ID: "millennium", Name: "Millennium", Website: "https://www.mlp.com", Tags: []string{"priority-1", "quant", "quant-benchmark-2026"}}
 	if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{candidate}); err != nil {
 		t.Fatal(err)
 	}
