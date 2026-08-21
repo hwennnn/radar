@@ -8017,7 +8017,7 @@ func TestATSExtractorExtractsWorkstreamDetailJobPosting(t *testing.T) {
 			"title":"It and POS Deployment Engineer",
 			"description":"<p>Deploy restaurant systems, troubleshoot networks, and write automation scripts.</p>",
 			"datePosted":"2026-06-20",
-			"validThrough":"2026-08-21",
+			"validThrough":"2099-08-21",
 			"employmentType":["FULL_TIME"],
 			"url":"/j/4e274f56/ruths-chris-steak-house/pikesville-7242/it-and-pos-deployment-engineer-6da47fc7/apply?locale=en",
 			"hiringOrganization":{"@type":"Organization","name":"Ruth's Chris Steak House"},
