@@ -904,6 +904,45 @@ func TestPostgresStoreParksBlockedMarketAggregatorCandidate(t *testing.T) {
 	}
 }
 
+func TestPostgresStoreDemotesPromotedOfficialAggregatorButKeepsOwnedATS(t *testing.T) {
+	database, store := integrationStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+
+	for _, candidate := range []DiscoveryCandidate{
+		{ID: "market-builtin", Name: "BuiltinChicago", Website: "https://www.builtinchicago.org", Tags: []string{"auto-market-search"}},
+		{ID: "market-imc", Name: "IMC Trading", Website: "https://www.canarywharfian.co.uk", Tags: []string{"auto-market-search"}},
+	} {
+		if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{candidate}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, values := range []struct{ id, candidateID, company, provider, route string }{
+		{"builtin-source", "market-builtin", "BuiltinChicago", "official_careers", "https://www.builtinchicago.org"},
+		{"imc-source", "market-imc", "IMC Trading", "greenhouse", "https://job-boards.greenhouse.io/imc"},
+	} {
+		if _, err := database.ExecContext(ctx, `INSERT INTO `+store.table("discovered_sources")+`
+            (id, candidate_id, company, provider, url, state, last_checked_at)
+            VALUES ($1,$2,$3,$4,$5,'promoted',$6)`, values.id, values.candidateID, values.company, values.provider, values.route, now); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if demoted, err := store.DemoteUnhealthyDiscoveredSources(ctx, 3, now.Add(time.Minute)); err != nil || demoted != 1 {
+		t.Fatalf("demoted=%d err=%v", demoted, err)
+	}
+	var builtinState, imcState string
+	if err := database.QueryRowContext(ctx, `SELECT state FROM `+store.table("discovered_sources")+` WHERE id='builtin-source'`).Scan(&builtinState); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.QueryRowContext(ctx, `SELECT state FROM `+store.table("discovered_sources")+` WHERE id='imc-source'`).Scan(&imcState); err != nil {
+		t.Fatal(err)
+	}
+	if builtinState != "unhealthy" || imcState != "promoted" {
+		t.Fatalf("builtin=%q imc=%q", builtinState, imcState)
+	}
+}
+
 func TestPostgresStoreDiscoveryQuarantinesLegacyAmbiguousCandidateRoute(t *testing.T) {
 	db, store := integrationStore(t)
 	ctx := context.Background()

@@ -22,6 +22,12 @@ Empty, ambiguous, mismatched, incomplete, or nontechnical results do not
 promote. A source failure is isolated: healthy sources continue and previously
 healthy state is retained until a complete replacement snapshot exists.
 
+Broad market-search results cannot promote a generic website fallback. They
+must resolve to a recognized, candidate-matching ATS or explicitly supported
+company route. This prevents job boards and editorial networks from presenting
+copied listings under their own brand. Curated research candidates may still
+use the bounded same-site fallback after production extraction succeeds.
+
 ## Static and discovered sources
 
 `config/sources.json` is the trusted source floor. Prefer a static source when

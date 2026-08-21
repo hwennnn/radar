@@ -413,7 +413,12 @@ func (r DiscoveryRunner) resolveCandidate(ctx context.Context, candidate Discove
 // a complete, non-empty, technical snapshot before the source is promoted.
 func officialCareersFallback(candidate DiscoveryCandidate) []resolvedDiscoverySource {
 	raw := strings.TrimSpace(candidate.Website)
-	if raw == "" || BlockedMarketCandidateWebsite(raw) {
+	// A broad market-search result is not independent evidence that its
+	// apparent company/domain is an employer. Aggregators routinely label
+	// themselves as the company and then return copied postings. Auto-market
+	// candidates must resolve to a recognized ATS/company route; only curated
+	// research candidates may use the generic same-site fallback.
+	if raw == "" || BlockedMarketCandidateWebsite(raw) || discoveryCandidateHasTag(candidate, "auto-market-search") {
 		return nil
 	}
 	parsed, err := url.Parse(raw)
@@ -439,6 +444,15 @@ func officialCareersFallback(candidate DiscoveryCandidate) []resolvedDiscoverySo
 		Confidence: 0.84,
 		Evidence:   "researched official domain fallback",
 	}}
+}
+
+func discoveryCandidateHasTag(candidate DiscoveryCandidate, wanted string) bool {
+	for _, tag := range candidate.Tags {
+		if strings.EqualFold(strings.TrimSpace(tag), strings.TrimSpace(wanted)) {
+			return true
+		}
+	}
+	return false
 }
 
 func discoverySearchDiagnostics(candidate DiscoveryCandidate, results []tinyfish.SearchResult) (int, []string) {

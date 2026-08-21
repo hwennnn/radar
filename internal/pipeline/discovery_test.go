@@ -210,6 +210,7 @@ func TestOfficialCareersFallbackUsesOnlyResearchedCompanyDomain(t *testing.T) {
 	}
 	for _, blocked := range []DiscoveryCandidate{
 		{ID: "aggregator", Name: "Aggregator", Website: "https://startup.jobs/company/acme"},
+		{ID: "market", Name: "Unknown Market Result", Website: "https://unknown.example", Tags: []string{"auto-market-search"}},
 		{ID: "missing", Name: "Missing"},
 	} {
 		if got := officialCareersFallback(blocked); len(got) != 0 {

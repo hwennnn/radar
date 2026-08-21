@@ -115,6 +115,10 @@ func TestDeriveMarketCandidatesRejectsAggregatorCompanyArtifacts(t *testing.T) {
 		{SourceID: "market-4", Company: "Startup", ApplyURL: "https://jobs.ashbyhq.com/startup/123"},
 		{SourceID: "market-5", Company: "Addepar", ApplyURL: "https://startup.jobs/software-engineer-intern-123"},
 		{SourceID: "market-6", Company: "IBM", ApplyURL: "https://en.wizbii.com/company/ibm/job/ml-intern"},
+		{SourceID: "market-7", Company: "BuiltinChicago", ApplyURL: "https://www.builtinchicago.org/job/ml-intern"},
+		{SourceID: "market-8", Company: "Aijobs", ApplyURL: "https://aijobs.net/job/ml-intern"},
+		{SourceID: "market-9", Company: "App", ApplyURL: "https://app.welcometothejungle.com/jobs/123"},
+		{SourceID: "market-10", Company: "Careerhub", ApplyURL: "https://careerhub.students.duke.edu/jobs/example"},
 	})
 	if len(candidates) != 0 || len(sources) != 0 {
 		t.Fatalf("aggregator artifacts survived: candidates=%#v sources=%#v", candidates, sources)

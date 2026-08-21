@@ -412,14 +412,15 @@ func BlockedMarketCandidateWebsite(raw string) bool {
 	}
 	host := strings.TrimPrefix(strings.ToLower(parsed.Hostname()), "www.")
 	for _, blocked := range []string{
-		"brightnetwork.co.uk", "builtin.com", "careerbuilder.com", "dice.com", "expatjobboard.com",
-		"builtinsf.com", "cryptocurrencyjobs.co", "deepfinresearch.com", "efinancialcareers.com",
+		"aijobs.net", "bebee.com", "brightnetwork.co.uk", "builtin.com", "careerbuilder.com", "dice.com", "expatjobboard.com",
+		"builtinaustin.com", "builtinchicago.org", "builtinla.com", "builtinsf.com", "builtinsingapore.com",
+		"careerhub.students.duke.edu", "cryptocurrencyjobs.co", "deepfinresearch.com", "efinancialcareers.com",
 		"extern.com", "glassdoor.com", "gradconnection.com", "handshake.com", "hiring.cafe", "indeed.com",
-		"interninsider.me", "internships.com", "jobright.ai", "levels.fyi", "linkedin.com",
+		"hirify.me", "interninsider.me", "internships.com", "jobright.ai", "levels.fyi", "linkedin.com",
 		"jorb.ai", "monster.com", "notify.careers", "prosple.com", "remoterocketship.com", "ripplematch.com", "simplify.jobs",
-		"startup.jobs", "swiftcruit.ai", "talent.com", "targetjobs.co.uk", "tealhq.com", "themuse.com",
+		"spacecrew.com", "startup.jobs", "swiftcruit.ai", "talent.com", "targetjobs.co.uk", "tealhq.com", "themuse.com",
 		"wayup.com", "wellfound.com", "workatastartup.com", "ziprecruiter.com",
-		"wizbii.com",
+		"welcometothejungle.com", "wizbii.com",
 	} {
 		if host == blocked || strings.HasSuffix(host, "."+blocked) {
 			return true
@@ -453,12 +454,17 @@ func CompactMarketCompany(company string) string {
 }
 
 func BlockedMarketCandidateName(company string) bool {
+	normalized := strings.TrimSpace(normalizedText(company))
+	if strings.HasPrefix(strings.ReplaceAll(normalized, " ", ""), "builtin") {
+		return true
+	}
 	_, blocked := map[string]struct{}{
-		"base": {}, "builtin sf": {}, "builtinsf": {}, "campusjobs": {},
+		"aijobs": {}, "app": {}, "base": {}, "bebee": {}, "careerhub": {},
+		"builtin sf": {}, "builtinsf": {}, "campusjobs": {}, "hirify": {},
 		"deepfinresearch": {}, "efinancialcareers": {}, "extern": {},
-		"jorb": {}, "novaflow s25": {}, "remote rocketship": {},
+		"jorb": {}, "novaflow s25": {}, "remote rocketship": {}, "spacecrew": {},
 		"remoterocketship": {}, "startup": {}, "work at a startup": {},
-	}[strings.TrimSpace(normalizedText(company))]
+	}[normalized]
 	return blocked
 }
 

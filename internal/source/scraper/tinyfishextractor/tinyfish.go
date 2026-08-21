@@ -1472,13 +1472,14 @@ func blockedMarketSearchAggregator(rawURL string) bool {
 	}
 	host := strings.TrimPrefix(strings.ToLower(parsed.Hostname()), "www.")
 	for _, blocked := range []string{
-		"brightnetwork.co.uk", "builtin.com", "builtinsf.com", "careerbuilder.com", "cryptocurrencyjobs.co",
+		"aijobs.net", "bebee.com", "brightnetwork.co.uk", "builtin.com", "builtinaustin.com", "builtinchicago.org",
+		"builtinla.com", "builtinsf.com", "builtinsingapore.com", "careerbuilder.com", "careerhub.students.duke.edu", "cryptocurrencyjobs.co",
 		"deepfinresearch.com", "dice.com", "efinancialcareers.com", "expatjobboard.com", "extern.com", "glassdoor.com",
-		"gradconnection.com", "handshake.com", "hiring.cafe", "indeed.com", "interninsider.me", "internships.com",
+		"gradconnection.com", "handshake.com", "hiring.cafe", "hirify.me", "indeed.com", "interninsider.me", "internships.com",
 		"jobright.ai", "jorb.ai", "levels.fyi", "linkedin.com", "monster.com", "notify.careers", "prosple.com",
-		"remoterocketship.com", "ripplematch.com", "simplify.jobs", "startup.jobs", "swiftcruit.ai", "talent.com",
+		"remoterocketship.com", "ripplematch.com", "simplify.jobs", "spacecrew.com", "startup.jobs", "swiftcruit.ai", "talent.com",
 		"targetjobs.co.uk", "tealhq.com", "themuse.com", "wayup.com", "wellfound.com", "wizbii.com",
-		"workatastartup.com", "ziprecruiter.com",
+		"welcometothejungle.com", "workatastartup.com", "ziprecruiter.com",
 	} {
 		if host == blocked || strings.HasSuffix(host, "."+blocked) {
 			return true

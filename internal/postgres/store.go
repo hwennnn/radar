@@ -2019,11 +2019,15 @@ ORDER BY discovered.id`)
 		}
 		switch {
 		case pipeline.BlockedCompany(source.Company), pipeline.BlockedCompany(candidate.Name),
-			pipeline.BlockedMarketCandidateName(source.Company), pipeline.BlockedMarketCandidateName(candidate.Name),
-			pipeline.BlockedMarketCandidateWebsite(candidate.Website):
+			pipeline.BlockedMarketCandidateName(source.Company), pipeline.BlockedMarketCandidateName(candidate.Name):
 			invalidRoutes = append(invalidRoutes, invalidRoute{
 				sourceID: source.ID, candidateID: candidate.ID,
 				reason: "company excluded by target policy", candidateState: "duplicate",
+			})
+		case source.Provider == "official_careers" && pipeline.BlockedMarketCandidateWebsite(candidate.Website):
+			invalidRoutes = append(invalidRoutes, invalidRoute{
+				sourceID: source.ID, candidateID: candidate.ID,
+				reason: "official route belongs to a job aggregator", candidateState: "duplicate",
 			})
 		case !pipeline.DiscoveryRouteMatchesCandidate(candidate, source.Provider, source.URL):
 			invalidRoutes = append(invalidRoutes, invalidRoute{
