@@ -145,6 +145,9 @@ func (s *PostgresStore) EnsureSchema(ctx context.Context) error {
         )`,
 		`ALTER TABLE ` + s.table("deliveries") + ` DROP CONSTRAINT IF EXISTS deliveries_job_id_recipient_key`,
 		`CREATE UNIQUE INDEX IF NOT EXISTS lite_deliveries_job_channel_recipient_uidx ON ` + s.table("deliveries") + ` (job_id, channel, recipient)`,
+		`ALTER TABLE ` + s.table("deliveries") + ` ADD COLUMN IF NOT EXISTS receipt jsonb NOT NULL DEFAULT '{}'::jsonb`,
+		`ALTER TABLE ` + s.table("deliveries") + ` ADD COLUMN IF NOT EXISTS provider_message_id text NOT NULL DEFAULT ''`,
+		`ALTER TABLE ` + s.table("deliveries") + ` ADD COLUMN IF NOT EXISTS ambiguous_at timestamptz`,
 		`CREATE INDEX IF NOT EXISTS lite_deliveries_pending_idx ON ` + s.table("deliveries") + `(next_attempt_at, id) WHERE status IN ('pending', 'claimed')`,
 		`CREATE INDEX IF NOT EXISTS lite_deliveries_retryable_idx ON ` + s.table("deliveries") + `(channel, recipient, next_attempt_at, id) WHERE status IN ('pending', 'claimed', 'failed')`,
 		`DO $radar_lite_delivery_migration$
@@ -160,6 +163,10 @@ BEGIN
         SELECT 1 FROM pg_constraint
         WHERE conrelid = '` + s.table("deliveries") + `'::regclass
           AND conname = 'deliveries_status_v2_check'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = '` + s.table("deliveries") + `'::regclass
+          AND conname = 'deliveries_status_v3_check'
     ) THEN
         ALTER TABLE ` + s.table("deliveries") + `
             ADD CONSTRAINT deliveries_status_v2_check
@@ -167,6 +174,26 @@ BEGIN
     END IF;
 END
 $radar_lite_delivery_migration$;`,
+		`DO $radar_delivery_state_v3$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = '` + s.table("deliveries") + `'::regclass
+          AND conname = 'deliveries_status_v2_check'
+    ) THEN
+        ALTER TABLE ` + s.table("deliveries") + ` DROP CONSTRAINT deliveries_status_v2_check;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = '` + s.table("deliveries") + `'::regclass
+          AND conname = 'deliveries_status_v3_check'
+    ) THEN
+        ALTER TABLE ` + s.table("deliveries") + `
+            ADD CONSTRAINT deliveries_status_v3_check
+            CHECK (status IN ('staged', 'pending', 'claimed', 'sent', 'failed', 'suppressed', 'uncertain'));
+    END IF;
+END
+$radar_delivery_state_v3$;`,
 		`CREATE TABLE IF NOT EXISTS ` + s.table("source_status") + ` (
             source_id text PRIMARY KEY,
             state text NOT NULL CHECK (state IN ('success', 'failure')),
@@ -211,10 +238,32 @@ $radar_lite_delivery_migration$;`,
             next_attempt_at timestamptz NOT NULL DEFAULT now(),
             last_attempt_at timestamptz,
             last_success_at timestamptz,
-            last_error text NOT NULL DEFAULT '',
+			last_error text NOT NULL DEFAULT '',
             created_at timestamptz NOT NULL DEFAULT now(),
             updated_at timestamptz NOT NULL DEFAULT now()
-        )`,
+		)`,
+		`ALTER TABLE ` + s.table("source_status") + ` ADD COLUMN IF NOT EXISTS failure_code text NOT NULL DEFAULT ''`,
+		`ALTER TABLE ` + s.table("discovery_candidates") + ` ADD COLUMN IF NOT EXISTS failure_code text NOT NULL DEFAULT ''`,
+		`DO $radar_discovery_candidate_state$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = '` + s.table("discovery_candidates") + `'::regclass
+          AND conname = 'discovery_candidates_state_check'
+    ) THEN
+        ALTER TABLE ` + s.table("discovery_candidates") + ` DROP CONSTRAINT discovery_candidates_state_check;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = '` + s.table("discovery_candidates") + `'::regclass
+          AND conname = 'discovery_candidates_state_v2_check'
+    ) THEN
+        ALTER TABLE ` + s.table("discovery_candidates") + `
+            ADD CONSTRAINT discovery_candidates_state_v2_check
+            CHECK (state IN ('pending', 'retry', 'validating', 'promoted', 'duplicate', 'parked'));
+    END IF;
+END
+$radar_discovery_candidate_state$;`,
 		`CREATE INDEX IF NOT EXISTS lite_discovery_candidates_due_idx ON ` + s.table("discovery_candidates") + `(next_attempt_at, id) WHERE state IN ('pending', 'retry', 'validating')`,
 		`CREATE INDEX IF NOT EXISTS lite_discovery_candidates_due_v2_idx ON ` + s.table("discovery_candidates") + `(next_attempt_at, id) WHERE state IN ('pending', 'retry', 'validating', 'promoted')`,
 		`CREATE TABLE IF NOT EXISTS ` + s.table("discovered_sources") + ` (
@@ -235,7 +284,8 @@ $radar_lite_delivery_migration$;`,
             last_error text NOT NULL DEFAULT '',
             evidence text NOT NULL DEFAULT '',
             UNIQUE (provider, url)
-        )`,
+		)`,
+		`ALTER TABLE ` + s.table("discovered_sources") + ` ADD COLUMN IF NOT EXISTS failure_code text NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS lite_discovered_sources_state_idx ON ` + s.table("discovered_sources") + `(state, id)`,
 		`DO $radar_lite_migration$
 BEGIN
@@ -250,6 +300,10 @@ BEGIN
         SELECT 1 FROM pg_constraint
         WHERE conrelid = '` + s.table("discovered_sources") + `'::regclass
           AND conname = 'discovered_sources_state_v2_check'
+    ) AND NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = '` + s.table("discovered_sources") + `'::regclass
+          AND conname = 'discovered_sources_state_v3_check'
     ) THEN
         ALTER TABLE ` + s.table("discovered_sources") + `
             ADD CONSTRAINT discovered_sources_state_v2_check
@@ -257,6 +311,53 @@ BEGIN
     END IF;
 END
 $radar_lite_migration$;`,
+		`DO $radar_discovered_source_state_v3$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = '` + s.table("discovered_sources") + `'::regclass
+          AND conname = 'discovered_sources_state_v2_check'
+    ) THEN
+        ALTER TABLE ` + s.table("discovered_sources") + ` DROP CONSTRAINT discovered_sources_state_v2_check;
+    END IF;
+    IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conrelid = '` + s.table("discovered_sources") + `'::regclass
+          AND conname = 'discovered_sources_state_v3_check'
+    ) THEN
+        ALTER TABLE ` + s.table("discovered_sources") + `
+            ADD CONSTRAINT discovered_sources_state_v3_check
+            CHECK (state IN ('candidate', 'promoted', 'unhealthy', 'duplicate', 'rejected'));
+    END IF;
+END
+$radar_discovered_source_state_v3$;`,
+		`CREATE TABLE IF NOT EXISTS ` + s.table("discovery_events") + ` (
+            id bigserial PRIMARY KEY,
+            candidate_id text NOT NULL,
+            source_id text NOT NULL DEFAULT '',
+            outcome text NOT NULL,
+            code text NOT NULL DEFAULT '',
+            detail text NOT NULL DEFAULT '',
+            evidence text NOT NULL DEFAULT '',
+            created_at timestamptz NOT NULL DEFAULT now()
+        )`,
+		`CREATE INDEX IF NOT EXISTS radar_discovery_events_candidate_idx ON ` + s.table("discovery_events") + `(candidate_id, created_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS ` + s.table("source_controls") + ` (
+            source_id text PRIMARY KEY,
+            state text NOT NULL CHECK (state IN ('active', 'quarantined')),
+            reason text NOT NULL DEFAULT '',
+            actor text NOT NULL DEFAULT '',
+            updated_at timestamptz NOT NULL DEFAULT now()
+        )`,
+		`CREATE TABLE IF NOT EXISTS ` + s.table("source_events") + ` (
+            id bigserial PRIMARY KEY,
+            source_id text NOT NULL,
+            action text NOT NULL,
+            reason text NOT NULL DEFAULT '',
+            actor text NOT NULL DEFAULT '',
+            created_at timestamptz NOT NULL DEFAULT now()
+        )`,
+		`CREATE INDEX IF NOT EXISTS radar_source_events_source_idx ON ` + s.table("source_events") + `(source_id, created_at DESC)`,
 	}
 	for _, statement := range statements {
 		if _, err := tx.ExecContext(ctx, statement); err != nil {
@@ -1058,6 +1159,39 @@ func (s *PostgresStore) MarkDeliverySent(ctx context.Context, id int64, owner st
 	return requireOne(result, err, "claimed delivery")
 }
 
+func (s *PostgresStore) MarkDeliverySentWithReceipt(ctx context.Context, id int64, owner string, receipt pipeline.DeliveryReceipt) error {
+	encoded, err := json.Marshal(receipt)
+	if err != nil {
+		return err
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE `+s.table("deliveries")+` SET
+    status = 'sent', attempts = attempts + 1, sent_at = COALESCE($4, now()),
+    claim_owner = '', claim_expires_at = NULL, last_error = '', receipt = $3,
+    provider_message_id = $5, ambiguous_at = NULL
+WHERE id = $1 AND status = 'claimed' AND claim_owner = $2`,
+		id, owner, encoded, nullableReceiptTime(receipt.AcceptedAt), strings.TrimSpace(receipt.ProviderMessageID))
+	return requireOne(result, err, "claimed delivery")
+}
+
+func nullableReceiptTime(value time.Time) any {
+	if value.IsZero() {
+		return nil
+	}
+	return value.UTC()
+}
+
+func (s *PostgresStore) MarkDeliveryAmbiguous(ctx context.Context, id int64, owner, message string, at time.Time) error {
+	if at.IsZero() {
+		at = s.now().UTC()
+	}
+	result, err := s.db.ExecContext(ctx, `UPDATE `+s.table("deliveries")+` SET
+    status = 'uncertain', attempts = attempts + 1, ambiguous_at = $3,
+    last_error = $4, claim_owner = '', claim_expires_at = NULL
+WHERE id = $1 AND status = 'claimed' AND claim_owner = $2`,
+		id, owner, at.UTC(), pipeline.TruncateText(message, 1000))
+	return requireOne(result, err, "claimed delivery")
+}
+
 func (s *PostgresStore) MarkDeliveryFailed(ctx context.Context, id int64, owner, message string, retryAt time.Time) error {
 	if retryAt.IsZero() {
 		retryAt = s.now().UTC()
@@ -1097,7 +1231,7 @@ INSERT INTO `+s.table("source_status")+` AS current (source_id, state, observed_
 VALUES ($1, 'success', $2, $3, $3)
 ON CONFLICT (source_id) DO UPDATE SET state = 'success', observed_count = EXCLUDED.observed_count,
     last_attempt_at = EXCLUDED.last_attempt_at, last_success_at = EXCLUDED.last_success_at,
-	consecutive_failures = 0, last_error = ''
+	consecutive_failures = 0, last_error = '', failure_code = ''
 WHERE current.last_attempt_at <= EXCLUDED.last_attempt_at`, sourceID, observedCount, at)
 	return err
 }
@@ -1114,23 +1248,150 @@ func (s *PostgresStore) RecordSourceFailure(ctx context.Context, sourceID string
 		message = cause.Error()
 	}
 	message = pipeline.TruncateText(message, 1000)
+	failureCode, _ := pipeline.DiscoveryFailureClass(cause)
 	_, err := s.db.ExecContext(ctx, `
-INSERT INTO `+s.table("source_status")+` AS current (source_id, state, observed_count, last_attempt_at, last_failure_at, consecutive_failures, last_error)
-VALUES ($1, 'failure', 0, $2, $2, 1, $3)
+INSERT INTO `+s.table("source_status")+` AS current (source_id, state, observed_count, last_attempt_at, last_failure_at, consecutive_failures, last_error, failure_code)
+VALUES ($1, 'failure', 0, $2, $2, 1, $3, $4)
 ON CONFLICT (source_id) DO UPDATE SET state = 'failure', observed_count = 0,
     last_attempt_at = EXCLUDED.last_attempt_at, last_failure_at = EXCLUDED.last_failure_at,
-	consecutive_failures = current.consecutive_failures + 1, last_error = EXCLUDED.last_error
-WHERE current.last_attempt_at <= EXCLUDED.last_attempt_at`, sourceID, at, message)
+	consecutive_failures = current.consecutive_failures + 1, last_error = EXCLUDED.last_error,
+	failure_code = EXCLUDED.failure_code
+WHERE current.last_attempt_at <= EXCLUDED.last_attempt_at`, sourceID, at, message, failureCode)
 	return err
 }
 
 func (s *PostgresStore) GetSourceStatus(ctx context.Context, sourceID string) (SourceStatus, error) {
 	var status SourceStatus
-	err := s.db.QueryRowContext(ctx, `SELECT source_id, state, observed_count, last_attempt_at, last_success_at, last_failure_at, consecutive_failures, last_error FROM `+s.table("source_status")+` WHERE source_id = $1`, sourceID).Scan(
+	err := s.db.QueryRowContext(ctx, `SELECT source_id, state, observed_count, last_attempt_at, last_success_at, last_failure_at, consecutive_failures, last_error, failure_code FROM `+s.table("source_status")+` WHERE source_id = $1`, sourceID).Scan(
 		&status.SourceID, &status.State, &status.ObservedCount, &status.LastAttemptAt,
-		&status.LastSuccessAt, &status.LastFailureAt, &status.ConsecutiveFailures, &status.LastError,
+		&status.LastSuccessAt, &status.LastFailureAt, &status.ConsecutiveFailures, &status.LastError, &status.FailureCode,
 	)
 	return status, err
+}
+
+func (s *PostgresStore) ListSourceControls(ctx context.Context) ([]pipeline.SourceControl, error) {
+	rows, err := s.db.QueryContext(ctx, `SELECT source_id, state, reason, actor, updated_at FROM `+s.table("source_controls")+` ORDER BY source_id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var controls []pipeline.SourceControl
+	for rows.Next() {
+		var control pipeline.SourceControl
+		if err := rows.Scan(&control.SourceID, &control.State, &control.Reason, &control.Actor, &control.UpdatedAt); err != nil {
+			return nil, err
+		}
+		controls = append(controls, control)
+	}
+	return controls, rows.Err()
+}
+
+func (s *PostgresStore) QuarantineSource(ctx context.Context, sourceID, reason, actor string, at time.Time) error {
+	return s.setSourceControl(ctx, sourceID, "quarantined", reason, actor, at)
+}
+
+func (s *PostgresStore) RestoreSource(ctx context.Context, sourceID, reason, actor string, at time.Time) error {
+	return s.setSourceControl(ctx, sourceID, "active", reason, actor, at)
+}
+
+func (s *PostgresStore) setSourceControl(ctx context.Context, sourceID, state, reason, actor string, at time.Time) error {
+	sourceID, reason, actor = strings.TrimSpace(sourceID), strings.TrimSpace(reason), strings.TrimSpace(actor)
+	if sourceID == "" || (state != "active" && state != "quarantined") {
+		return errors.New("radar: valid source control is required")
+	}
+	if reason == "" {
+		return errors.New("radar: source control reason is required")
+	}
+	if actor == "" {
+		actor = "operator"
+	}
+	if at.IsZero() {
+		at = s.now().UTC()
+	}
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO `+s.table("source_controls")+` (source_id, state, reason, actor, updated_at)
+VALUES ($1, $2, $3, $4, $5)
+ON CONFLICT (source_id) DO UPDATE SET state = EXCLUDED.state, reason = EXCLUDED.reason,
+    actor = EXCLUDED.actor, updated_at = EXCLUDED.updated_at`, sourceID, state, pipeline.TruncateText(reason, 1000), actor, at.UTC()); err != nil {
+		return err
+	}
+	action := state
+	if state == "active" {
+		action = "restored"
+	}
+	if _, err := tx.ExecContext(ctx, `INSERT INTO `+s.table("source_events")+` (source_id, action, reason, actor, created_at) VALUES ($1, $2, $3, $4, $5)`,
+		sourceID, action, pipeline.TruncateText(reason, 1000), actor, at.UTC()); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (s *PostgresStore) ExplainSource(ctx context.Context, sourceID string) (pipeline.SourceExplanation, error) {
+	sourceID = strings.TrimSpace(sourceID)
+	if sourceID == "" {
+		return pipeline.SourceExplanation{}, errors.New("radar: source is required")
+	}
+	explanation := pipeline.SourceExplanation{SourceID: sourceID, Events: []pipeline.SourceEvent{}, DiscoveryEvents: []map[string]any{}}
+	var control pipeline.SourceControl
+	if err := s.db.QueryRowContext(ctx, `SELECT source_id, state, reason, actor, updated_at FROM `+s.table("source_controls")+` WHERE source_id = $1`, sourceID).Scan(
+		&control.SourceID, &control.State, &control.Reason, &control.Actor, &control.UpdatedAt,
+	); err == nil {
+		explanation.Control = &control
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return explanation, err
+	}
+	if status, err := s.GetSourceStatus(ctx, sourceID); err == nil {
+		explanation.Status = &status
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return explanation, err
+	}
+	var candidateID, company, provider, rawURL, state, failureCode, lastError string
+	if err := s.db.QueryRowContext(ctx, `SELECT candidate_id, company, provider, url, state, failure_code, last_error FROM `+s.table("discovered_sources")+` WHERE id = $1`, sourceID).Scan(
+		&candidateID, &company, &provider, &rawURL, &state, &failureCode, &lastError,
+	); err == nil {
+		explanation.DiscoverySource = map[string]any{"candidate_id": candidateID, "company": company, "provider": provider, "url": rawURL, "state": state, "failure_code": failureCode, "last_error": lastError}
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return explanation, err
+	}
+	eventRows, err := s.db.QueryContext(ctx, `SELECT action, reason, actor, created_at FROM `+s.table("source_events")+` WHERE source_id = $1 ORDER BY created_at DESC LIMIT 20`, sourceID)
+	if err != nil {
+		return explanation, err
+	}
+	for eventRows.Next() {
+		var event pipeline.SourceEvent
+		if err := eventRows.Scan(&event.Action, &event.Reason, &event.Actor, &event.CreatedAt); err != nil {
+			eventRows.Close()
+			return explanation, err
+		}
+		explanation.Events = append(explanation.Events, event)
+	}
+	if err := eventRows.Close(); err != nil {
+		return explanation, err
+	}
+	if candidateID != "" {
+		rows, err := s.db.QueryContext(ctx, `SELECT outcome, code, detail, evidence, created_at FROM `+s.table("discovery_events")+` WHERE candidate_id = $1 ORDER BY created_at DESC LIMIT 20`, candidateID)
+		if err != nil {
+			return explanation, err
+		}
+		for rows.Next() {
+			var outcome, code, detail, evidence string
+			var createdAt time.Time
+			if err := rows.Scan(&outcome, &code, &detail, &evidence, &createdAt); err != nil {
+				rows.Close()
+				return explanation, err
+			}
+			explanation.DiscoveryEvents = append(explanation.DiscoveryEvents, map[string]any{"outcome": outcome, "code": code, "detail": detail, "evidence": evidence, "created_at": createdAt})
+		}
+		if err := rows.Close(); err != nil {
+			return explanation, err
+		}
+	}
+	return explanation, nil
 }
 
 // ListPostings returns the compact durable fields needed by Radar's
@@ -1212,6 +1473,7 @@ AND EXISTS (
 	  `+activePredicate+`
 	  AND observation.source_id NOT LIKE 'market-%'
       AND (discovered.id IS NULL OR discovered.state = 'promoted')
+	  AND NOT EXISTS (SELECT 1 FROM `+s.table("source_controls")+` control WHERE control.source_id = observation.source_id AND control.state = 'quarantined')
 )
 ORDER BY first_seen_at DESC, company, title, id`)
 }
@@ -1236,8 +1498,21 @@ WHERE jobs.apply_url <> ''
       AND observation.active
       AND observation.source_id NOT LIKE 'market-%'
       AND (discovered.id IS NULL OR discovered.state = 'promoted')
+	  AND NOT EXISTS (SELECT 1 FROM `+s.table("source_controls")+` control WHERE control.source_id = observation.source_id AND control.state = 'quarantined')
   )
-ORDER BY jobs.apply_url_next_check_at NULLS FIRST, jobs.apply_url_checked_at NULLS FIRST, jobs.first_seen_at
+ORDER BY
+  CASE
+    WHEN jobs.apply_url_state = 'unchecked' THEN 0
+    WHEN EXISTS (
+      SELECT 1 FROM `+s.table("deliveries")+` delivery
+      WHERE delivery.job_id = jobs.id AND delivery.status IN ('staged', 'pending', 'claimed')
+    ) THEN 1
+    WHEN jobs.apply_url_state = 'live' THEN 2
+    ELSE 3
+  END,
+  jobs.first_seen_at DESC,
+  jobs.apply_url_next_check_at NULLS FIRST,
+  jobs.apply_url_checked_at NULLS FIRST
 LIMIT $2`, at.UTC(), limit)
 	if err != nil {
 		return nil, err
@@ -1288,7 +1563,7 @@ WHERE id = $1 AND apply_url = $2`,
 func (s *PostgresStore) ListSourceStatuses(ctx context.Context) ([]SourceStatus, error) {
 	rows, err := s.db.QueryContext(ctx, `
 SELECT source_id, state, observed_count, last_attempt_at, last_success_at,
-       last_failure_at, consecutive_failures, last_error
+       last_failure_at, consecutive_failures, last_error, failure_code
 FROM `+s.table("source_status")+` AS current
 WHERE NOT EXISTS (
     SELECT 1 FROM `+s.table("discovered_sources")+` discovered
@@ -1307,7 +1582,7 @@ ORDER BY source_id`)
 		if err := rows.Scan(
 			&status.SourceID, &status.State, &status.ObservedCount,
 			&status.LastAttemptAt, &status.LastSuccessAt, &status.LastFailureAt,
-			&status.ConsecutiveFailures, &status.LastError,
+			&status.ConsecutiveFailures, &status.LastError, &status.FailureCode,
 		); err != nil {
 			return nil, err
 		}
@@ -1343,6 +1618,7 @@ func (s *PostgresStore) ReadOperationalState(ctx context.Context) (OperationalSt
                 LEFT JOIN ` + s.table("discovered_sources") + ` discovered ON discovered.id = observation.source_id
                 WHERE observation.job_id = job.id AND observation.source_id NOT LIKE 'market-%'
                   AND (discovered.id IS NULL OR discovered.state = 'promoted')
+				  AND NOT EXISTS (SELECT 1 FROM ` + s.table("source_controls") + ` control WHERE control.source_id = observation.source_id AND control.state = 'quarantined')
             )`},
 		{&state.IdentityAliases, `SELECT count(*) FROM ` + s.table("job_identities") + ` AS identity
             WHERE EXISTS (
@@ -1350,16 +1626,19 @@ func (s *PostgresStore) ReadOperationalState(ctx context.Context) (OperationalSt
                 LEFT JOIN ` + s.table("discovered_sources") + ` discovered ON discovered.id = observation.source_id
                 WHERE observation.job_id = identity.job_id AND observation.source_id NOT LIKE 'market-%'
                   AND (discovered.id IS NULL OR discovered.state = 'promoted')
+				  AND NOT EXISTS (SELECT 1 FROM ` + s.table("source_controls") + ` control WHERE control.source_id = observation.source_id AND control.state = 'quarantined')
             )`},
 		{&state.SourceObservations, `SELECT count(*) FROM ` + s.table("job_source_observations") + ` observation
             LEFT JOIN ` + s.table("discovered_sources") + ` discovered ON discovered.id = observation.source_id
             WHERE observation.source_id NOT LIKE 'market-%'
-              AND (discovered.id IS NULL OR discovered.state = 'promoted')`},
+			  AND (discovered.id IS NULL OR discovered.state = 'promoted')
+			  AND NOT EXISTS (SELECT 1 FROM ` + s.table("source_controls") + ` control WHERE control.source_id = observation.source_id AND control.state = 'quarantined')`},
 		{&state.MultiSourceJobs, `SELECT count(*) FROM (
             SELECT observation.job_id FROM ` + s.table("job_source_observations") + ` observation
             LEFT JOIN ` + s.table("discovered_sources") + ` discovered ON discovered.id = observation.source_id
             WHERE observation.source_id NOT LIKE 'market-%'
               AND (discovered.id IS NULL OR discovered.state = 'promoted')
+			  AND NOT EXISTS (SELECT 1 FROM ` + s.table("source_controls") + ` control WHERE control.source_id = observation.source_id AND control.state = 'quarantined')
             GROUP BY observation.job_id HAVING count(DISTINCT observation.source_id) > 1
         ) AS converged`},
 	}
@@ -1377,10 +1656,37 @@ func (s *PostgresStore) ReadOperationalState(ctx context.Context) (OperationalSt
 	if err := readGroupedCounts(ctx, tx, `SELECT state, count(*) FROM `+s.table("discovered_sources")+` GROUP BY state`, state.DiscoveredCounts); err != nil {
 		return OperationalState{}, fmt.Errorf("lite operational discovered sources: %w", err)
 	}
+	dueQueries := []struct {
+		destination *int
+		query       string
+	}{
+		{&state.DiscoveryDue, `SELECT count(*) FROM ` + s.table("discovery_candidates") + `
+            WHERE state IN ('pending', 'retry', 'validating', 'promoted') AND next_attempt_at <= $1`},
+		{&state.ApplyURLsDue, `SELECT count(*) FROM ` + s.table("jobs") + ` AS jobs
+            WHERE jobs.apply_url <> ''
+              AND (jobs.apply_url_next_check_at IS NULL OR jobs.apply_url_next_check_at <= $1)
+              AND EXISTS (
+                  SELECT 1 FROM ` + s.table("job_source_observations") + ` observation
+                  LEFT JOIN ` + s.table("discovered_sources") + ` discovered ON discovered.id = observation.source_id
+                  WHERE observation.job_id = jobs.id AND observation.active
+                    AND observation.source_id NOT LIKE 'market-%'
+                    AND (discovered.id IS NULL OR discovered.state = 'promoted')
+					AND NOT EXISTS (SELECT 1 FROM ` + s.table("source_controls") + ` control WHERE control.source_id = observation.source_id AND control.state = 'quarantined')
+              )`},
+		{&state.DeliveriesDue, `SELECT count(*) FROM ` + s.table("deliveries") + `
+            WHERE (status IN ('pending', 'failed') AND next_attempt_at <= $1)
+               OR (status = 'claimed' AND claim_expires_at <= $1)`},
+	}
+	for _, item := range dueQueries {
+		if err := tx.QueryRowContext(ctx, item.query, state.GeneratedAt).Scan(item.destination); err != nil {
+			return OperationalState{}, fmt.Errorf("lite operational due counts: %w", err)
+		}
+	}
 	promotedRows, err := tx.QueryContext(ctx, `
 SELECT id, company, provider, url
 FROM `+s.table("discovered_sources")+`
 WHERE state = 'promoted'
+  AND NOT EXISTS (SELECT 1 FROM `+s.table("source_controls")+` control WHERE control.source_id = `+s.table("discovered_sources")+`.id AND control.state = 'quarantined')
 ORDER BY company, id`)
 	if err != nil {
 		return OperationalState{}, fmt.Errorf("lite operational promoted sources: %w", err)
@@ -1399,10 +1705,25 @@ ORDER BY company, id`)
 	if err := promotedRows.Err(); err != nil {
 		return OperationalState{}, fmt.Errorf("lite operational promoted sources: %w", err)
 	}
+	controlRows, err := tx.QueryContext(ctx, `SELECT source_id, state, reason, actor, updated_at FROM `+s.table("source_controls")+` ORDER BY source_id`)
+	if err != nil {
+		return OperationalState{}, fmt.Errorf("lite operational source controls: %w", err)
+	}
+	for controlRows.Next() {
+		var control pipeline.SourceControl
+		if err := controlRows.Scan(&control.SourceID, &control.State, &control.Reason, &control.Actor, &control.UpdatedAt); err != nil {
+			controlRows.Close()
+			return OperationalState{}, fmt.Errorf("lite operational source controls: %w", err)
+		}
+		state.SourceControls = append(state.SourceControls, control)
+	}
+	if err := controlRows.Close(); err != nil {
+		return OperationalState{}, fmt.Errorf("lite operational source controls: %w", err)
+	}
 
 	rows, err := tx.QueryContext(ctx, `
 SELECT source_id, state, observed_count, last_attempt_at, last_success_at,
-       last_failure_at, consecutive_failures, last_error
+       last_failure_at, consecutive_failures, last_error, failure_code
 FROM `+s.table("source_status")+` AS current
 WHERE NOT EXISTS (
     SELECT 1 FROM `+s.table("discovered_sources")+` discovered
@@ -1418,7 +1739,7 @@ ORDER BY source_id`)
 		if err := rows.Scan(
 			&status.SourceID, &status.State, &status.ObservedCount,
 			&status.LastAttemptAt, &status.LastSuccessAt, &status.LastFailureAt,
-			&status.ConsecutiveFailures, &status.LastError,
+			&status.ConsecutiveFailures, &status.LastError, &status.FailureCode,
 		); err != nil {
 			rows.Close()
 			return OperationalState{}, fmt.Errorf("lite operational source status: %w", err)
@@ -1521,6 +1842,28 @@ ON CONFLICT (id) DO UPDATE SET
 	return tx.Commit()
 }
 
+// RecordRejectedMarketSignal preserves search evidence that was denied
+// admission. It is deliberately separate from jobs and monitored sources.
+func (s *PostgresStore) RecordRejectedMarketSignal(ctx context.Context, observation Observation, code string, at time.Time) error {
+	if at.IsZero() {
+		at = s.now().UTC()
+	}
+	company := pipeline.CompactMarketCompany(observation.Company)
+	if company == "" {
+		company = strings.TrimSpace(observation.Company)
+	}
+	candidateID := "market-signal"
+	if company != "" {
+		candidateID = "market-signal:" + pipeline.CanonicalText(company)
+	}
+	detail := pipeline.TruncateText(strings.TrimSpace(observation.Title), 500)
+	evidence := pipeline.CompactDiscoveryEvidence(observation.ApplyURL)
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO `+s.table("discovery_events")+` (candidate_id, source_id, outcome, code, detail, evidence, created_at)
+VALUES ($1, $2, 'rejected_signal', $3, $4, $5, $6)`, candidateID, observation.SourceID, strings.TrimSpace(code), detail, evidence, at)
+	return err
+}
+
 // ListDueDiscoveryCandidates returns only candidates that are not already
 // promoted or known duplicates. The durable next_attempt_at field provides
 // restart-safe backoff without a queue.
@@ -1533,7 +1876,7 @@ func (s *PostgresStore) ListDueDiscoveryCandidates(ctx context.Context, at time.
 	}
 	rows, err := s.db.QueryContext(ctx, `
 WITH due AS (
-    SELECT id, name, website, tags, state, attempts, next_attempt_at, last_attempt_at, last_error,
+    SELECT id, name, website, tags, state, attempts, next_attempt_at, last_attempt_at, last_error, failure_code,
            CASE
                WHEN tags @> '["auto-market-search"]'::jsonb THEN 0
                WHEN tags @> '["yc-top"]'::jsonb THEN 1
@@ -1564,7 +1907,7 @@ WITH due AS (
     FROM `+s.table("discovery_candidates")+`
     WHERE state IN ('pending', 'retry', 'validating', 'promoted') AND next_attempt_at <= $1
 )
-SELECT id, name, website, tags, state, attempts, next_attempt_at, last_attempt_at, last_error
+SELECT id, name, website, tags, state, attempts, next_attempt_at, last_attempt_at, last_error, failure_code
 FROM due
 ORDER BY lane_rank, lane
 LIMIT $2`, at, limit)
@@ -1578,7 +1921,7 @@ LIMIT $2`, at, limit)
 		var tags []byte
 		if err := rows.Scan(
 			&record.ID, &record.Name, &record.Website, &tags, &record.State,
-			&record.Attempts, &record.NextAttemptAt, &record.LastAttemptAt, &record.LastError,
+			&record.Attempts, &record.NextAttemptAt, &record.LastAttemptAt, &record.LastError, &record.FailureCode,
 		); err != nil {
 			return nil, err
 		}
@@ -1608,6 +1951,13 @@ func (s *PostgresStore) RecordDiscoveryFailure(ctx context.Context, candidate Di
 		message = cause.Error()
 	}
 	message = pipeline.CompactDiscoveryError(message)
+	failureCode, terminal := pipeline.DiscoveryFailureClass(cause)
+	candidateState := "retry"
+	sourceState := "unhealthy"
+	if terminal {
+		candidateState = "parked"
+		sourceState = "rejected"
+	}
 
 	tx, err := s.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -1616,13 +1966,14 @@ func (s *PostgresStore) RecordDiscoveryFailure(ctx context.Context, candidate Di
 	defer tx.Rollback()
 	if _, err := tx.ExecContext(ctx, `
 UPDATE `+s.table("discovery_candidates")+` SET
-    state = CASE WHEN state = 'promoted' THEN state ELSE 'retry' END,
+    state = CASE WHEN state = 'promoted' THEN state ELSE $6 END,
     attempts = GREATEST(attempts, $5),
     next_attempt_at = $2,
     last_attempt_at = $3,
     last_error = $4,
+    failure_code = $7,
     updated_at = $3
-WHERE id = $1`, candidate.ID, nextAttemptAt, checkedAt, message, candidate.Attempts+1); err != nil {
+WHERE id = $1`, candidate.ID, nextAttemptAt, checkedAt, message, candidate.Attempts+1, candidateState, failureCode); err != nil {
 		return err
 	}
 	if source != nil {
@@ -1632,21 +1983,31 @@ WHERE id = $1`, candidate.ID, nextAttemptAt, checkedAt, message, candidate.Attem
 		if _, err := tx.ExecContext(ctx, `
 INSERT INTO `+s.table("discovered_sources")+` AS current (
     id, candidate_id, company, provider, url, state, last_checked_at,
-    last_failure_at, consecutive_failures, last_error
-) VALUES ($1, $2, $3, $4, $5, 'unhealthy', $6, $6, 1, $7)
+    last_failure_at, consecutive_failures, last_error, failure_code
+) VALUES ($1, $2, $3, $4, $5, $8, $6, $6, 1, $7, $9)
 ON CONFLICT (provider, url) DO UPDATE SET
-    state = CASE WHEN current.state = 'promoted' THEN 'promoted' ELSE 'unhealthy' END,
+    state = CASE WHEN current.state = 'promoted' THEN 'promoted' ELSE EXCLUDED.state END,
     company = EXCLUDED.company,
     last_checked_at = EXCLUDED.last_checked_at,
     last_failure_at = EXCLUDED.last_failure_at,
     consecutive_successes = 0,
     consecutive_failures = current.consecutive_failures + 1,
-    last_error = EXCLUDED.last_error
+    last_error = EXCLUDED.last_error,
+    failure_code = EXCLUDED.failure_code
 WHERE current.candidate_id = EXCLUDED.candidate_id`,
-			source.ID, candidate.ID, strings.TrimSpace(source.Company), strings.TrimSpace(source.Provider), strings.TrimSpace(source.URL), checkedAt, message,
+			source.ID, candidate.ID, strings.TrimSpace(source.Company), strings.TrimSpace(source.Provider), strings.TrimSpace(source.URL), checkedAt, message, sourceState, failureCode,
 		); err != nil {
 			return err
 		}
+	}
+	sourceID := ""
+	if source != nil {
+		sourceID = strings.TrimSpace(source.ID)
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO `+s.table("discovery_events")+` (candidate_id, source_id, outcome, code, detail, created_at)
+VALUES ($1, $2, $3, $4, $5, $6)`, candidate.ID, sourceID, candidateState, failureCode, message, checkedAt); err != nil {
+		return err
 	}
 	return tx.Commit()
 }
@@ -1734,6 +2095,7 @@ ON CONFLICT (provider, url) DO UPDATE SET
     last_success_at = EXCLUDED.last_success_at,
     promoted_at = COALESCE(current.promoted_at, EXCLUDED.promoted_at),
     last_error = '',
+    failure_code = '',
     evidence = EXCLUDED.evidence`,
 		source.ID, candidate.ID, strings.TrimSpace(source.Company), strings.TrimSpace(source.Provider), strings.TrimSpace(source.URL),
 		state, confidence, observedCount, successes, checkedAt, promotedAt, evidence,
@@ -1747,8 +2109,17 @@ ON CONFLICT (provider, url) DO UPDATE SET
 	if _, err := tx.ExecContext(ctx, `
 UPDATE `+s.table("discovery_candidates")+` SET
     state = $2, attempts = GREATEST(attempts, $5), next_attempt_at = $3,
-    last_attempt_at = $4, last_success_at = $4, last_error = '', updated_at = $4
+    last_attempt_at = $4, last_success_at = $4, last_error = '', failure_code = '', updated_at = $4
 WHERE id = $1`, candidate.ID, candidateState, nextAttemptAt, checkedAt, candidate.Attempts+1); err != nil {
+		return false, err
+	}
+	outcome := "admitted"
+	if !promoted {
+		outcome = "healthy_empty"
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO `+s.table("discovery_events")+` (candidate_id, source_id, outcome, code, evidence, created_at)
+VALUES ($1, $2, $3, '', $4, $5)`, candidate.ID, source.ID, outcome, evidence, checkedAt); err != nil {
 		return false, err
 	}
 	if err := tx.Commit(); err != nil {

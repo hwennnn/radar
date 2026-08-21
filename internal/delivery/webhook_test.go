@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -326,6 +327,22 @@ func TestTelegramOutboxReturnsStatusError(t *testing.T) {
 	err := outbox.Enqueue(context.Background(), Message{Body: "Radar match"})
 	if err == nil || !strings.Contains(err.Error(), "telegram webhook failed") || !strings.Contains(err.Error(), "502") {
 		t.Fatalf("Enqueue() error = %v, want Telegram status error", err)
+	}
+}
+
+func TestTelegramOutboxReturnsProviderReceipt(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"ok":true,"result":{"message_id":321,"date":1787356800,"chat":{"id":-10042}}}`)
+	}))
+	defer server.Close()
+
+	receipt, err := newTelegramOutboxWithEndpoint(server.URL, "test-chat", server.Client()).EnqueueWithReceipt(context.Background(), Message{Body: "Radar match"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if receipt.Provider != "telegram" || receipt.ProviderMessageID != "321" || receipt.ProviderChatID != "-10042" || receipt.AcceptedAt.IsZero() {
+		t.Fatalf("receipt = %#v", receipt)
 	}
 }
 

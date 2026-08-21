@@ -41,6 +41,7 @@ type discoveryRepositoryFake struct {
 	promoteOnSuccess bool
 	promotedSources  []Source
 	demoted          int
+	rejectedSignals  []string
 }
 
 func (f *discoveryRepositoryFake) SeedDiscoveryCandidates(_ context.Context, candidates []DiscoveryCandidate) error {
@@ -115,6 +116,11 @@ func (f *discoveryRepositoryFake) ListDiscoveredSources(context.Context) ([]Sour
 
 func (f *discoveryRepositoryFake) DemoteUnhealthyDiscoveredSources(context.Context, int, time.Time) (int, error) {
 	return f.demoted, nil
+}
+
+func (f *discoveryRepositoryFake) RecordRejectedMarketSignal(_ context.Context, observation Observation, code string, _ time.Time) error {
+	f.rejectedSignals = append(f.rejectedSignals, observation.Company+":"+code)
+	return nil
 }
 
 func TestSourceFromDiscoveryURLNormalizesStructuredBoards(t *testing.T) {

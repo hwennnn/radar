@@ -33,11 +33,12 @@ without downloading unchanged job bodies. A database failure returns an
 Returns one consistent operational snapshot:
 
 - `runtime` — mode, readiness, cycle ownership, last result, and cycle counts;
-- `sources` — configured, observed, healthy, empty, failed, pending, failures,
+- `sources` — configured, observed, healthy, empty, failed, quarantined, pending, failures,
   and the monitored company roster;
-- `discovery` — candidate and promoted-source counts;
+- `discovery` — exact currently-due, parked, rejected, and promoted-source counts;
+- `due` — exact apply-link and delivery work eligible at snapshot time;
 - `dedupe` — canonical jobs, aliases, observations, and multi-source jobs;
-- `deliveries` — counts by durable delivery state;
+- `deliveries` — counts by durable delivery state, including uncertain sends;
 - `telegram` — credentials, authorization gate, and external-publishing state.
 
 Provider diagnostics are sanitized before reaching this endpoint. Consult

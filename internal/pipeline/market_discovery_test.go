@@ -93,8 +93,8 @@ func TestDeriveMarketCandidatesCreatesDurableCompaniesAndCanonicalBoards(t *test
 		{SourceID: "market-6", Company: "IMC Trading", ApplyURL: "https://expatjobboard.com/jobs/15721"},
 	}
 	candidates, sources := deriveMarketCandidates(observations)
-	if len(candidates) != 2 {
-		t.Fatalf("candidates = %#v, want Acme AI and NewCo", candidates)
+	if len(candidates) != 1 {
+		t.Fatalf("candidates = %#v, want only provider-proven Acme AI", candidates)
 	}
 	if len(sources) != 1 {
 		t.Fatalf("sources = %#v, want one canonical board", sources)
@@ -119,9 +119,32 @@ func TestDeriveMarketCandidatesRejectsAggregatorCompanyArtifacts(t *testing.T) {
 		{SourceID: "market-8", Company: "Aijobs", ApplyURL: "https://aijobs.net/job/ml-intern"},
 		{SourceID: "market-9", Company: "App", ApplyURL: "https://app.welcometothejungle.com/jobs/123"},
 		{SourceID: "market-10", Company: "Careerhub", ApplyURL: "https://careerhub.students.duke.edu/jobs/example"},
+		{SourceID: "market-11", Company: "Mployee", ApplyURL: "https://jobs.ashbyhq.com/realco/456"},
+		{SourceID: "market-12", Company: "Careers Page", ApplyURL: "https://job-boards.greenhouse.io/realco/jobs/789"},
+		{SourceID: "market-13", Company: "IMC", ApplyURL: "https://www.imc.com/us/about-us/news/editorial-page"},
 	})
 	if len(candidates) != 0 || len(sources) != 0 {
 		t.Fatalf("aggregator artifacts survived: candidates=%#v sources=%#v", candidates, sources)
+	}
+}
+
+func TestMarketSourcePromoterRetainsRejectedIncidentSignals(t *testing.T) {
+	store := &discoveryRepositoryFake{}
+	observations := []Observation{
+		{SourceID: "market-built-in", Company: "BuiltInChicago", Title: "Software Engineer Intern", ApplyURL: "https://builtinchicago.org/job/1"},
+		{SourceID: "market-mployee", Company: "Mployee", Title: "Machine Learning Intern", ApplyURL: "https://jobs.ashbyhq.com/realco/1"},
+		{SourceID: "market-careers-page", Company: "Careers Page", Title: "Graduate Engineer", ApplyURL: "https://job-boards.greenhouse.io/realco/jobs/2"},
+		{SourceID: "market-imc-editorial", Company: "IMC", Title: "Life at IMC", ApplyURL: "https://www.imc.com/us/about-us/news/life-at-imc"},
+	}
+	report, err := (MarketSourcePromoter{Store: store, Extractor: extractorFunc(func(context.Context, Source) (ExtractionResult, error) {
+		t.Fatal("rejected signal reached production extractor")
+		return ExtractionResult{}, nil
+	})}).Run(context.Background(), observations)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.SourcesProbed != 0 || len(store.rejectedSignals) != len(observations) {
+		t.Fatalf("report=%#v rejected=%v", report, store.rejectedSignals)
 	}
 }
 

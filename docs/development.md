@@ -35,6 +35,9 @@ docker compose up --build
 | `radar reconcile` | required | yes | yes | Process bounded discovery candidates only |
 | `radar drain` | required | delivery only | yes | Drain the durable delivery outbox |
 | `radar telegram-check` | no | Telegram only | no by default | Verify bot, channel, and posting permission |
+| `radar source quarantine SOURCE_ID --reason TEXT` | required | no | yes | Quarantine a noisy route with an audit entry |
+| `radar source restore SOURCE_ID --reason TEXT` | required | no | yes | Restore a quarantined route with an audit entry |
+| `radar source explain SOURCE_ID` | required | no | no | Inspect durable source evidence and operator history |
 
 Aliases exist for compatibility, but documentation and automation should use
 the canonical names above.

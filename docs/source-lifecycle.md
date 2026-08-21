@@ -11,6 +11,8 @@ Radar separates research evidence from production job ingestion.
 5. Routine cycles ingest complete snapshots, attach identities and provenance,
    and evaluate early-career eligibility.
 6. Repeatedly unhealthy discovered routes are demoted and returned to discovery.
+7. Terminal ownership, provider, aggregator, and relevance failures park with a
+   structured code; rejected search evidence remains outside job inventory.
 
 Routine scheduling is least-recently-attempted and bounded. New routes cannot
 be starved by a slow provider near the front of the catalog, and failed routes

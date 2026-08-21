@@ -22,6 +22,10 @@ A degraded cycle can remain ready: isolated source or delivery failures should
 not remove healthy data from service. A failed or stale cycle requires log and
 durable-state investigation.
 
+The `discovery.due`, `due.apply_urls`, and `due.deliveries` fields count only
+work whose durable schedule is eligible at the snapshot time. They are not
+totals of every row in a retry-capable state.
+
 ## Source scheduling and recovery
 
 Routine cycles select a bounded, durable batch instead of restarting at the
@@ -36,6 +40,24 @@ source failures: they do not increment failure counts or force a recovery
 baseline. Repeatedly unhealthy discovered routes still return to discovery for
 resolution; static catalog routes remain visible and are revisited after their
 backoff.
+
+Ownership mismatch, provider mismatch, aggregator, and nontechnical-board
+outcomes are terminal and park the candidate. Timeouts, rate limits, missing
+routes, and incomplete snapshots retain bounded retries. Every admission or
+rejection is appended to `discovery_events`; rejected market signals never
+enter the job feed.
+
+### Source intervention
+
+```sh
+radar source explain SOURCE_ID
+radar source quarantine SOURCE_ID --reason "copied aggregator inventory"
+radar source restore SOURCE_ID --reason "company-owned board verified"
+```
+
+Quarantine removes the source from scheduling, apply-link priority, and visible
+provenance without deleting jobs or observations. Restore reverses that control.
+Both actions append an immutable operator event.
 
 ## Delivery safety
 
@@ -56,6 +78,11 @@ hours. If an outbox retry becomes due before the normal crawl interval, the
 routine wakes early, reacquires the cycle lease, and drains it. This preserves
 single-writer ownership without leaving transport retries asleep for 15
 minutes.
+
+Successful Telegram sends store the returned message ID, chat ID, and accepted
+time. If the request outcome is ambiguous because the response was lost, Radar
+parks the row as `uncertain`; it does not blindly retry a message Telegram may
+already have accepted.
 
 External Telegram publishing is active only when all of these are true:
 

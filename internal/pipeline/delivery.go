@@ -21,6 +21,19 @@ type Sender interface {
 	Send(context.Context, Delivery) error
 }
 
+type ReceiptSender interface {
+	SendWithReceipt(context.Context, Delivery) (DeliveryReceipt, error)
+}
+
+type deliveryReceiptStore interface {
+	MarkDeliverySentWithReceipt(context.Context, int64, string, DeliveryReceipt) error
+	MarkDeliveryAmbiguous(context.Context, int64, string, string, time.Time) error
+}
+
+type ambiguousDeliveryError interface {
+	AmbiguousDelivery() bool
+}
+
 type DeliveryDrainer struct {
 	Store       DeliveryStore
 	Sender      Sender
@@ -146,11 +159,24 @@ func (d DeliveryDrainer) Drain(ctx context.Context) (DeliveryReport, error) {
 			}
 			return report, errors.Join(err, errors.Join(report.Errors...))
 		}
-		if sendErr := d.Sender.Send(ctx, delivery); sendErr != nil {
+		var receipt DeliveryReceipt
+		var sendErr error
+		if sender, ok := d.Sender.(ReceiptSender); ok {
+			receipt, sendErr = sender.SendWithReceipt(ctx, delivery)
+		} else {
+			sendErr = d.Sender.Send(ctx, delivery)
+		}
+		if sendErr != nil {
 			report.Failed++
 			finalizeCtx, cancel := d.finalizationContext(ctx)
-			retryAt := now().UTC().Add(deliveryRetryDelay(d.RetryDelay, delivery.Attempts, sendErr))
-			markErr := d.Store.MarkDeliveryFailed(finalizeCtx, delivery.ID, d.Owner, sendErr.Error(), retryAt)
+			var ambiguous ambiguousDeliveryError
+			var markErr error
+			if receiptStore, ok := d.Store.(deliveryReceiptStore); ok && errors.As(sendErr, &ambiguous) && ambiguous.AmbiguousDelivery() {
+				markErr = receiptStore.MarkDeliveryAmbiguous(finalizeCtx, delivery.ID, d.Owner, sendErr.Error(), now().UTC())
+			} else {
+				retryAt := now().UTC().Add(deliveryRetryDelay(d.RetryDelay, delivery.Attempts, sendErr))
+				markErr = d.Store.MarkDeliveryFailed(finalizeCtx, delivery.ID, d.Owner, sendErr.Error(), retryAt)
+			}
 			cancel()
 			if markErr != nil {
 				report.Errors = append(report.Errors, fmt.Errorf("delivery %d mark failed: %w", delivery.ID, markErr))
@@ -158,7 +184,11 @@ func (d DeliveryDrainer) Drain(ctx context.Context) (DeliveryReport, error) {
 			continue
 		}
 		finalizeCtx, cancel := d.finalizationContext(ctx)
-		err = d.Store.MarkDeliverySent(finalizeCtx, delivery.ID, d.Owner)
+		if receiptStore, ok := d.Store.(deliveryReceiptStore); ok && receipt.ProviderMessageID != "" {
+			err = receiptStore.MarkDeliverySentWithReceipt(finalizeCtx, delivery.ID, d.Owner, receipt)
+		} else {
+			err = d.Store.MarkDeliverySent(finalizeCtx, delivery.ID, d.Owner)
+		}
 		cancel()
 		if err != nil {
 			report.Errors = append(report.Errors, fmt.Errorf("delivery %d mark sent: %w", delivery.ID, err))

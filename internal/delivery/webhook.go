@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html"
 	"io"
@@ -11,12 +12,14 @@ import (
 	"net/http"
 	"net/netip"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 )
 
 const (
 	maxWebhookErrorBody       = 512
+	maxWebhookSuccessBody     = 64 << 10
 	defaultWebhookHTTPTimeout = 10 * time.Second
 	redactedWebhookEndpoint   = "<redacted webhook endpoint>"
 	telegramTitleRuneLimit    = 72
@@ -38,6 +41,25 @@ type WebhookStatusError struct {
 	Status     string
 	Body       string
 	retryAfter time.Duration
+}
+
+type WebhookRequestError struct {
+	Provider  string
+	Evidence  string
+	ambiguous bool
+}
+
+func (e WebhookRequestError) Error() string {
+	return fmt.Sprintf("%s webhook request failed: %s", e.Provider, e.Evidence)
+}
+
+func (e WebhookRequestError) AmbiguousDelivery() bool { return e.ambiguous }
+
+type Receipt struct {
+	Provider          string
+	ProviderMessageID string
+	ProviderChatID    string
+	AcceptedAt        time.Time
 }
 
 func (e WebhookStatusError) Error() string {
@@ -89,47 +111,93 @@ func NewWebhookHTTPClient(timeout time.Duration) *http.Client {
 }
 
 func (o *WebhookOutbox) Enqueue(ctx context.Context, msg Message) error {
+	_, err := o.EnqueueWithReceipt(ctx, msg)
+	return err
+}
+
+func (o *WebhookOutbox) EnqueueWithReceipt(ctx context.Context, msg Message) (Receipt, error) {
 	if o == nil {
-		return nil
+		return Receipt{}, nil
 	}
 	if err := ctx.Err(); err != nil {
-		return err
+		return Receipt{}, err
 	}
 	if strings.TrimSpace(o.endpoint) == "" {
-		return fmt.Errorf("%s webhook endpoint is not configured", o.provider)
+		return Receipt{}, fmt.Errorf("%s webhook endpoint is not configured", o.provider)
 	}
 	payload, err := o.payload(msg)
 	if err != nil {
-		return err
+		return Receipt{}, err
 	}
 	body, err := json.Marshal(payload)
 	if err != nil {
-		return err
+		return Receipt{}, err
 	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, o.endpoint, bytes.NewReader(body))
 	if err != nil {
-		return webhookRequestError(o.provider, o.endpoint, err)
+		return Receipt{}, webhookRequestError(o.provider, o.endpoint, err, false)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := o.client.Do(req)
 	if err != nil {
-		return webhookRequestError(o.provider, o.endpoint, err)
+		return Receipt{}, webhookRequestError(o.provider, o.endpoint, err, o.provider == "telegram" && ambiguousWebhookTransportError(err))
 	}
 	defer resp.Body.Close()
+	bodyLimit := int64(maxWebhookErrorBody)
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
-		return nil
+		bodyLimit = maxWebhookSuccessBody
 	}
-	data, _ := io.ReadAll(io.LimitReader(resp.Body, maxWebhookErrorBody))
+	data, readErr := io.ReadAll(io.LimitReader(resp.Body, bodyLimit))
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		if readErr != nil {
+			return Receipt{}, webhookRequestError(o.provider, o.endpoint, readErr, o.provider == "telegram")
+		}
+		if o.provider == "telegram" {
+			return parseTelegramReceipt(data), nil
+		}
+		return Receipt{Provider: o.provider, AcceptedAt: time.Now().UTC()}, nil
+	}
 	retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), time.Now)
 	if retryAfter == 0 && o.provider == "telegram" {
 		retryAfter = parseTelegramRetryAfter(data)
 	}
-	return WebhookStatusError{
+	return Receipt{}, WebhookStatusError{
 		Provider:   o.provider,
 		Status:     resp.Status,
 		Body:       sanitizeWebhookErrorEvidence(string(data), o.endpoint),
 		retryAfter: retryAfter,
 	}
+}
+
+func ambiguousWebhookTransportError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var networkError net.Error
+	return errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) || (errors.As(err, &networkError) && networkError.Timeout())
+}
+
+func parseTelegramReceipt(body []byte) Receipt {
+	var response struct {
+		Result struct {
+			MessageID int64 `json:"message_id"`
+			Date      int64 `json:"date"`
+			Chat      struct {
+				ID int64 `json:"id"`
+			} `json:"chat"`
+		} `json:"result"`
+	}
+	if json.Unmarshal(body, &response) != nil || response.Result.MessageID == 0 {
+		return Receipt{Provider: "telegram", AcceptedAt: time.Now().UTC()}
+	}
+	receipt := Receipt{
+		Provider: "telegram", ProviderMessageID: strconv.FormatInt(response.Result.MessageID, 10),
+		ProviderChatID: strconv.FormatInt(response.Result.Chat.ID, 10), AcceptedAt: time.Now().UTC(),
+	}
+	if response.Result.Date > 0 {
+		receipt.AcceptedAt = time.Unix(response.Result.Date, 0).UTC()
+	}
+	return receipt
 }
 
 func parseTelegramRetryAfter(body []byte) time.Duration {
@@ -323,7 +391,7 @@ func renderWebhookText(msg Message, limit int) string {
 	}
 }
 
-func webhookRequestError(provider string, endpoint string, err error) error {
+func webhookRequestError(provider string, endpoint string, err error, ambiguous bool) error {
 	if err == nil {
 		return nil
 	}
@@ -331,7 +399,7 @@ func webhookRequestError(provider string, endpoint string, err error) error {
 	if provider == "" {
 		provider = "webhook"
 	}
-	return fmt.Errorf("%s webhook request failed: %s", provider, sanitizeWebhookErrorEvidence(err.Error(), endpoint))
+	return WebhookRequestError{Provider: provider, Evidence: sanitizeWebhookErrorEvidence(err.Error(), endpoint), ambiguous: ambiguous}
 }
 
 func sanitizeWebhookErrorEvidence(value string, endpoint string) string {

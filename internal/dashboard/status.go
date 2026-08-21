@@ -42,6 +42,7 @@ type statusResponse struct {
 	Runtime     statusRuntime    `json:"runtime"`
 	Sources     statusSources    `json:"sources"`
 	Discovery   statusDiscovery  `json:"discovery"`
+	Due         statusWorkQueue  `json:"due"`
 	Dedupe      statusDedupe     `json:"dedupe"`
 	Deliveries  statusDeliveries `json:"deliveries"`
 	Telegram    statusTelegram   `json:"telegram"`
@@ -75,6 +76,7 @@ type statusSources struct {
 	Healthy      int                   `json:"healthy"`
 	HealthyEmpty int                   `json:"healthy_empty"`
 	Failed       int                   `json:"failed"`
+	Quarantined  int                   `json:"quarantined"`
 	Pending      int                   `json:"pending"`
 	Failures     []statusSourceFailure `json:"failures"`
 	Monitored    []statusSource        `json:"monitored"`
@@ -88,6 +90,7 @@ type statusSource struct {
 	State         string     `json:"state"`
 	ObservedCount int        `json:"observed_count"`
 	LastAttemptAt *time.Time `json:"last_attempt_at,omitempty"`
+	Reason        string     `json:"reason,omitempty"`
 }
 
 type statusSourceFailure struct {
@@ -97,6 +100,7 @@ type statusSourceFailure struct {
 	LastAttemptAt       time.Time `json:"last_attempt_at"`
 	ConsecutiveFailures int       `json:"consecutive_failures"`
 	LastError           string    `json:"last_error"`
+	Code                string    `json:"code"`
 }
 
 type statusDiscovery struct {
@@ -106,6 +110,13 @@ type statusDiscovery struct {
 	PromotedSources   int `json:"promoted_sources"`
 	CandidateSources  int `json:"candidate_sources"`
 	UnhealthySources  int `json:"unhealthy_sources"`
+	ParkedCandidates  int `json:"parked_candidates"`
+	RejectedSources   int `json:"rejected_sources"`
+}
+
+type statusWorkQueue struct {
+	ApplyURLs  int `json:"apply_urls"`
+	Deliveries int `json:"deliveries"`
 }
 
 type statusDedupe struct {
@@ -122,6 +133,7 @@ type statusDeliveries struct {
 	Claimed    int `json:"claimed"`
 	Sent       int `json:"sent"`
 	Failed     int `json:"failed"`
+	Uncertain  int `json:"uncertain"`
 	Suppressed int `json:"suppressed"`
 }
 
@@ -159,6 +171,10 @@ func (s statusServer) handler(w http.ResponseWriter, request *http.Request) {
 }
 
 func buildStatusResponse(operational pipeline.OperationalState, cfg Config, health HealthProvider) statusResponse {
+	controls := make(map[string]pipeline.SourceControl, len(operational.SourceControls))
+	for _, control := range operational.SourceControls {
+		controls[control.SourceID] = control
+	}
 	sourceMetadata := make(map[string]pipeline.Source, len(cfg.BaseSources))
 	for _, source := range cfg.BaseSources {
 		sourceMetadata[source.ID] = source
@@ -178,6 +194,12 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg Config, heal
 	for _, current := range operational.RoutineSourceStatus {
 		statusByID[current.SourceID] = current
 		sources.Observed++
+		if control, ok := controls[current.SourceID]; ok && control.State == "quarantined" {
+			// Quarantine is the current operational truth. Preserve the last
+			// observation for explanation, but do not double-count its historical
+			// failure as an actively failing route.
+			continue
+		}
 		switch current.State {
 		case "success":
 			sources.Healthy++
@@ -191,6 +213,7 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg Config, heal
 				SourceID: current.SourceID, Company: metadata.Company, Provider: metadata.Provider,
 				LastAttemptAt: current.LastAttemptAt, ConsecutiveFailures: current.ConsecutiveFailures,
 				LastError: sanitizeOperationalError(current.LastError),
+				Code:      current.FailureCode,
 			})
 		}
 	}
@@ -216,6 +239,11 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg Config, heal
 			}
 			delete(statusByID, sourceID)
 		}
+		if control, ok := controls[sourceID]; ok && control.State == "quarantined" {
+			item.State = "quarantined"
+			item.Reason = control.Reason
+			sources.Quarantined++
+		}
 		sources.Monitored = append(sources.Monitored, item)
 	}
 	// Preserve provider rows that are not part of the current static catalog or
@@ -234,6 +262,11 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg Config, heal
 		if !current.LastAttemptAt.IsZero() {
 			attemptedAt := current.LastAttemptAt
 			item.LastAttemptAt = &attemptedAt
+		}
+		if control, ok := controls[sourceID]; ok && control.State == "quarantined" {
+			item.State = "quarantined"
+			item.Reason = control.Reason
+			sources.Quarantined++
 		}
 		sources.Monitored = append(sources.Monitored, item)
 	}
@@ -260,16 +293,19 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg Config, heal
 	deliveries := statusDeliveries{
 		Staged: operational.DeliveryCounts["staged"], Pending: operational.DeliveryCounts["pending"], Claimed: operational.DeliveryCounts["claimed"],
 		Sent: operational.DeliveryCounts["sent"], Failed: operational.DeliveryCounts["failed"],
+		Uncertain:  operational.DeliveryCounts["uncertain"],
 		Suppressed: operational.DeliveryCounts["suppressed"],
 	}
-	deliveries.Total = deliveries.Staged + deliveries.Pending + deliveries.Claimed + deliveries.Sent + deliveries.Failed + deliveries.Suppressed
+	deliveries.Total = deliveries.Staged + deliveries.Pending + deliveries.Claimed + deliveries.Sent + deliveries.Failed + deliveries.Uncertain + deliveries.Suppressed
 	discovery := statusDiscovery{
 		Candidates:        sumCounts(operational.CandidateCounts),
-		Due:               operational.CandidateCounts["pending"] + operational.CandidateCounts["retry"] + operational.CandidateCounts["validating"],
+		Due:               operational.DiscoveryDue,
 		PromotedCompanies: operational.CandidateCounts["promoted"],
 		PromotedSources:   operational.DiscoveredCounts["promoted"],
 		CandidateSources:  operational.DiscoveredCounts["candidate"],
 		UnhealthySources:  operational.DiscoveredCounts["unhealthy"],
+		ParkedCandidates:  operational.CandidateCounts["parked"],
+		RejectedSources:   operational.DiscoveredCounts["rejected"],
 	}
 	runtime := statusRuntime{Mode: strings.TrimSpace(cfg.RuntimeMode), CrawlerEmbedded: cfg.RuntimeMode != "serve"}
 	if durable := operational.Runtime; durable != nil {
@@ -279,7 +315,7 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg Config, heal
 		runtime.LastCycleAt = durable.LastCycleFinished
 		runtime.LastCycleError = durable.LastCycleState == "failure"
 		runtime.Degraded = durable.LastCycleState == "degraded"
-		runtime.Ready = runtime.CycleRunning || durable.LastCycleState == "success" || durable.LastCycleState == "degraded"
+		runtime.Ready = durable.LastCycleState == "success" || durable.LastCycleState == "degraded"
 		runtime.SourcesAttempted = durable.SourcesAttempted
 		runtime.SourcesSucceeded = durable.SourcesSucceeded
 		runtime.SourcesFailed = durable.SourcesFailed
@@ -297,12 +333,13 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg Config, heal
 			if operational.GeneratedAt.After(runtime.ActiveSince.Add(cycleTimeout + time.Minute)) {
 				runtime.CycleStale = true
 				runtime.LastCycleError = true
+				runtime.Ready = false
 			}
 		}
 	}
 	if health != nil {
 		current := health.Snapshot()
-		if current.Ready {
+		if current.Ready && !runtime.CycleStale {
 			runtime.Ready = true
 		}
 		if !current.LastCycleAt.IsZero() && (runtime.LastCycleAt == nil || current.LastCycleAt.After(*runtime.LastCycleAt)) {
@@ -323,7 +360,7 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg Config, heal
 	}
 	telegram := buildTelegramStatus(cfg)
 	state := "healthy"
-	if sources.Failed > 0 || deliveries.Failed > 0 || deliveries.Staged > 0 || runtime.Degraded || runtime.LastCycleError || runtime.CycleStale {
+	if sources.Failed > 0 || sources.Quarantined > 0 || deliveries.Failed > 0 || deliveries.Uncertain > 0 || deliveries.Staged > 0 || runtime.Degraded || runtime.LastCycleError || runtime.CycleStale {
 		state = "degraded"
 	} else if sources.Pending > 0 || sources.Observed == 0 {
 		state = "pending"
@@ -331,6 +368,7 @@ func buildStatusResponse(operational pipeline.OperationalState, cfg Config, heal
 	return statusResponse{
 		GeneratedAt: operational.GeneratedAt, State: state, Runtime: runtime, Sources: sources,
 		Discovery: discovery,
+		Due:       statusWorkQueue{ApplyURLs: operational.ApplyURLsDue, Deliveries: operational.DeliveriesDue},
 		Dedupe: statusDedupe{
 			CanonicalJobs: operational.CanonicalJobs, IdentityAliases: operational.IdentityAliases,
 			SourceObservations: operational.SourceObservations, MultiSourceJobs: operational.MultiSourceJobs,

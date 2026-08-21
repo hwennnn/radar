@@ -129,6 +129,9 @@ compatibility.
 | `discover` | Print catalog coverage and gaps | No database |
 | `audit` | Enforce the static catalog contract | No database |
 | `telegram-check` | Verify configured delivery identity and permissions; `--send` remains explicitly guarded | No |
+| `source quarantine SOURCE_ID --reason TEXT` | Stop crawling and hide one source while retaining evidence | Yes |
+| `source restore SOURCE_ID --reason TEXT` | Restore a quarantined source and retain the audit trail | Yes |
+| `source explain SOURCE_ID` | Print source health, discovery, control, and audit history | No |
 
 ### Verify changes
 

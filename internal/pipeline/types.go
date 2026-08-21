@@ -64,6 +64,13 @@ type Delivery struct {
 	SentAt         *time.Time
 }
 
+type DeliveryReceipt struct {
+	Provider          string    `json:"provider,omitempty"`
+	ProviderMessageID string    `json:"provider_message_id,omitempty"`
+	ProviderChatID    string    `json:"provider_chat_id,omitempty"`
+	AcceptedAt        time.Time `json:"accepted_at,omitempty"`
+}
+
 // SourceStatus preserves the important distinction between a successful empty
 // crawl and a failed crawl. LastSuccessAt is advanced by successful zero-result
 // runs too.
@@ -76,6 +83,31 @@ type SourceStatus struct {
 	LastFailureAt       *time.Time
 	ConsecutiveFailures int
 	LastError           string
+	FailureCode         string
+}
+
+type SourceControl struct {
+	SourceID  string    `json:"source_id"`
+	State     string    `json:"state"`
+	Reason    string    `json:"reason"`
+	Actor     string    `json:"actor"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type SourceEvent struct {
+	Action    string    `json:"action"`
+	Reason    string    `json:"reason"`
+	Actor     string    `json:"actor"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type SourceExplanation struct {
+	SourceID        string           `json:"source_id"`
+	Control         *SourceControl   `json:"control,omitempty"`
+	Status          *SourceStatus    `json:"status,omitempty"`
+	DiscoverySource map[string]any   `json:"discovery_source,omitempty"`
+	Events          []SourceEvent    `json:"events"`
+	DiscoveryEvents []map[string]any `json:"discovery_events"`
 }
 
 type BootstrapState struct {
@@ -128,6 +160,9 @@ type CycleResult struct {
 // dashboard, health checks, and future operators all read the same truth.
 type OperationalState struct {
 	GeneratedAt         time.Time
+	DiscoveryDue        int
+	ApplyURLsDue        int
+	DeliveriesDue       int
 	CanonicalJobs       int
 	IdentityAliases     int
 	SourceObservations  int
@@ -136,6 +171,7 @@ type OperationalState struct {
 	CandidateCounts     map[string]int
 	DiscoveredCounts    map[string]int
 	PromotedSources     []Source
+	SourceControls      []SourceControl
 	RoutineSourceStatus []SourceStatus
 	Runtime             *RuntimeState
 }

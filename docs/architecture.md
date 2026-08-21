@@ -269,6 +269,7 @@ stateDiagram-v2
     pending --> claimed: drainer owns claim
     claimed --> sent: transport confirms
     claimed --> failed: transport fails
+    claimed --> uncertain: acknowledgement lost
     failed --> pending: retry delay expires
     [*] --> suppressed: bootstrap or recovery baseline
 ```
@@ -279,9 +280,9 @@ between “row exists” and “source state is trustworthy.” Expired claims a
 replayable after interruption without creating a new outbox row.
 
 No external API can offer true exactly-once delivery: Telegram may accept a
-message while its response is lost. Radar guarantees one durable decision and
-retry-safe ownership; a transport timeout at that final boundary can still
-produce a duplicate external message.
+message while its response is lost. Radar stores confirmed provider receipts
+and parks ambiguous outcomes as `uncertain` for reconciliation rather than
+blindly retrying and producing a duplicate external message.
 
 ### Publishing gate
 

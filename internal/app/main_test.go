@@ -450,8 +450,11 @@ func TestHealthHandlerReadinessTracksLastCompletedCycle(t *testing.T) {
 	state.recordCycle(pipeline.RunReport{SourcesSucceeded: 48}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, nil)
 	assertReadiness(t, state, http.StatusOK, readinessExpectation{ready: true, sourcesSucceeded: 48})
 
-	state.recordCycle(pipeline.RunReport{SourcesSucceeded: 3}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, errors.New("database failed"))
-	assertReadiness(t, state, http.StatusServiceUnavailable, readinessExpectation{cycleError: true, sourcesSucceeded: 3})
+	state.recordCycle(pipeline.RunReport{SourcesSucceeded: 3}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, errors.New("isolated provider failed"))
+	assertReadiness(t, state, http.StatusOK, readinessExpectation{ready: true, degraded: true, sourcesSucceeded: 3})
+
+	state.recordCycle(pipeline.RunReport{}, pipeline.DiscoveryReport{}, pipeline.DeliveryReport{}, errors.New("database failed"))
+	assertReadiness(t, state, http.StatusServiceUnavailable, readinessExpectation{cycleError: true})
 }
 
 func TestHealthHandlerReportsManagedFailuresAsDegradedAndReady(t *testing.T) {
@@ -478,6 +481,17 @@ func TestHealthHandlerReportsDiscoveryOnlyFailureAsDegradedAndReady(t *testing.T
 	assertReadiness(t, state, http.StatusOK, readinessExpectation{
 		ready: true, degraded: true, sourcesSucceeded: 70,
 	})
+}
+
+func TestFilterControlledSourcesOmitsOnlyQuarantined(t *testing.T) {
+	sources := []pipeline.Source{{ID: "healthy"}, {ID: "blocked"}, {ID: "restored"}}
+	got := filterControlledSources(sources, []pipeline.SourceControl{
+		{SourceID: "blocked", State: "quarantined"},
+		{SourceID: "restored", State: "active"},
+	})
+	if len(got) != 2 || got[0].ID != "healthy" || got[1].ID != "restored" {
+		t.Fatalf("filtered sources = %#v", got)
+	}
 }
 
 func TestLogSenderRejectsInvalidPayload(t *testing.T) {

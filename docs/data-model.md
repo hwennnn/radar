@@ -15,6 +15,9 @@ migrations in writer modes.
 | `runtime_state` | Current cycle owner and last completed cycle summary |
 | `discovery_candidates` | Scheduled company research and retry state |
 | `discovered_sources` | Candidate, promoted, unhealthy, or duplicate routes |
+| `discovery_events` | Append-only admission, rejection, and failure evidence |
+| `source_controls` | Current active or quarantined operator decision |
+| `source_events` | Append-only quarantine and restore audit history |
 
 ## Identity and provenance
 
@@ -28,7 +31,8 @@ incomplete or failed source cannot falsely close jobs or replace a previous
 healthy snapshot.
 
 Apply-link health is stored on the canonical job. Writer cycles select a
-bounded due set, preserve ambiguous failures, and hide a URL only after two
+bounded due set, prioritizing unchecked and newly publishable jobs, preserve
+ambiguous failures, and hide a URL only after two
 consecutive terminal results. When an observation changes `apply_url`, its
 health, failure count, and schedule reset atomically so a re-uploaded
 requisition is validated as new evidence.
@@ -39,6 +43,9 @@ Job persistence, identity attachment, provenance, and the delivery decision are
 committed together. A unique database index permits at most one delivery for a
 given `(job_id, channel, recipient)` tuple. Bootstrap and recovery baselines use
 suppressed or staged rows so historical jobs are not emitted as new alerts.
+Confirmed Telegram responses store the provider message and chat IDs. A lost
+response after a request may have been accepted externally; those rows move to
+`uncertain` instead of retrying blindly and risking a duplicate alert.
 
 ## Schema-change rules
 

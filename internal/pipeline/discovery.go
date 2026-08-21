@@ -52,6 +52,7 @@ type DiscoveryCandidateRecord struct {
 	NextAttemptAt time.Time  `json:"next_attempt_at"`
 	LastAttemptAt *time.Time `json:"last_attempt_at,omitempty"`
 	LastError     string     `json:"last_error,omitempty"`
+	FailureCode   string     `json:"failure_code,omitempty"`
 }
 
 // DiscoveredSource is a source proposed by TinyFish and verified by the real
@@ -69,6 +70,7 @@ type DiscoveredSource struct {
 	LastFailureAt        *time.Time `json:"last_failure_at,omitempty"`
 	PromotedAt           *time.Time `json:"promoted_at,omitempty"`
 	LastError            string     `json:"last_error,omitempty"`
+	FailureCode          string     `json:"failure_code,omitempty"`
 	Evidence             string     `json:"evidence,omitempty"`
 }
 

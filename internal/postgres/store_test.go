@@ -1739,6 +1739,137 @@ func TestPostgresStoreRevalidatesApplyURLsWithoutHidingTransientFailures(t *test
 	}
 }
 
+func TestPostgresStoreQuarantineRestoreAndExplainAreAuditable(t *testing.T) {
+	_, store := integrationStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	posting, created, err := store.Observe(ctx, Observation{
+		SourceID: "greenhouse:incident-source", SourceNativeID: "job-1", Company: "Incident Co",
+		Title: "Software Engineer Intern", ApplyURL: "https://jobs.incident.test/1", ObservedAt: now,
+	})
+	if err != nil || !created {
+		t.Fatalf("observe posting=%#v created=%v err=%v", posting, created, err)
+	}
+	if postings, err := store.ListPostings(ctx); err != nil || len(postings) != 1 {
+		t.Fatalf("visible before quarantine: postings=%#v err=%v", postings, err)
+	}
+	if err := store.QuarantineSource(ctx, "greenhouse:incident-source", "copied aggregator inventory", "test-operator", now.Add(time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if postings, err := store.ListPostings(ctx); err != nil || len(postings) != 0 {
+		t.Fatalf("quarantined source remained visible: postings=%#v err=%v", postings, err)
+	}
+	explanation, err := store.ExplainSource(ctx, "greenhouse:incident-source")
+	if err != nil || explanation.Control == nil || explanation.Control.State != "quarantined" || len(explanation.Events) != 1 {
+		t.Fatalf("explanation=%#v err=%v", explanation, err)
+	}
+	if err := store.RestoreSource(ctx, "greenhouse:incident-source", "verified company board", "test-operator", now.Add(2*time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	if postings, err := store.ListPostings(ctx); err != nil || len(postings) != 1 {
+		t.Fatalf("restored source not visible: postings=%#v err=%v", postings, err)
+	}
+	explanation, err = store.ExplainSource(ctx, "greenhouse:incident-source")
+	if err != nil || explanation.Control.State != "active" || len(explanation.Events) != 2 {
+		t.Fatalf("restored explanation=%#v err=%v", explanation, err)
+	}
+}
+
+func TestPostgresStoreParksTerminalDiscoveryFailureWithEvidence(t *testing.T) {
+	db, store := integrationStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	candidate := DiscoveryCandidate{ID: "incident-mployee", Name: "Mployee", Website: "https://mployee.example"}
+	if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{candidate}); err != nil {
+		t.Fatal(err)
+	}
+	source := Source{ID: "auto-incident-mployee-greenhouse", Company: "Mployee", Provider: "greenhouse", URL: "https://job-boards.greenhouse.io/mployee"}
+	err := store.RecordDiscoveryFailure(ctx, DiscoveryCandidateRecord{DiscoveryCandidate: candidate}, &source,
+		errors.New("structured board returned postings but no relevant technical job roles"), now, now.Add(time.Hour))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var candidateState, candidateCode, sourceState, sourceCode string
+	if err := db.QueryRowContext(ctx, `SELECT state, failure_code FROM `+store.table("discovery_candidates")+` WHERE id = $1`, candidate.ID).Scan(&candidateState, &candidateCode); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT state, failure_code FROM `+store.table("discovered_sources")+` WHERE id = $1`, source.ID).Scan(&sourceState, &sourceCode); err != nil {
+		t.Fatal(err)
+	}
+	if candidateState != "parked" || sourceState != "rejected" || candidateCode != pipeline.DiscoveryFailureNontechnical || sourceCode != pipeline.DiscoveryFailureNontechnical {
+		t.Fatalf("candidate=%s/%s source=%s/%s", candidateState, candidateCode, sourceState, sourceCode)
+	}
+	var events int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM `+store.table("discovery_events")+` WHERE candidate_id = $1 AND outcome = 'parked'`, candidate.ID).Scan(&events); err != nil || events != 1 {
+		t.Fatalf("events=%d err=%v", events, err)
+	}
+}
+
+func TestPostgresStorePersistsTelegramReceiptAndParksAmbiguousOutcome(t *testing.T) {
+	db, store := integrationStore(t)
+	ctx := context.Background()
+	delivery := enqueueTestDelivery(t, ctx, store, "receipt")
+	claimed, err := store.ClaimDeliveries(ctx, "receipt-worker", "telegram", "chat-1", 1, time.Minute)
+	if err != nil || len(claimed) != 1 {
+		t.Fatalf("claimed=%#v err=%v", claimed, err)
+	}
+	receipt := pipeline.DeliveryReceipt{Provider: "telegram", ProviderMessageID: "321", ProviderChatID: "-10042", AcceptedAt: time.Now().UTC()}
+	if err := store.MarkDeliverySentWithReceipt(ctx, delivery.ID, "receipt-worker", receipt); err != nil {
+		t.Fatal(err)
+	}
+	var status, providerMessageID string
+	var storedReceipt []byte
+	if err := db.QueryRowContext(ctx, `SELECT status, provider_message_id, receipt FROM `+store.table("deliveries")+` WHERE id = $1`, delivery.ID).Scan(&status, &providerMessageID, &storedReceipt); err != nil {
+		t.Fatal(err)
+	}
+	var decodedReceipt pipeline.DeliveryReceipt
+	if err := json.Unmarshal(storedReceipt, &decodedReceipt); err != nil {
+		t.Fatal(err)
+	}
+	if status != "sent" || providerMessageID != "321" || decodedReceipt.ProviderChatID != "-10042" {
+		t.Fatalf("status=%s provider_message_id=%s receipt=%s", status, providerMessageID, storedReceipt)
+	}
+
+	ambiguous := enqueueTestDelivery(t, ctx, store, "ambiguous")
+	claimed, err = store.ClaimDeliveries(ctx, "ambiguous-worker", "telegram", "chat-1", 1, time.Minute)
+	if err != nil || len(claimed) != 1 || claimed[0].ID != ambiguous.ID {
+		t.Fatalf("ambiguous claim=%#v err=%v", claimed, err)
+	}
+	if err := store.MarkDeliveryAmbiguous(ctx, ambiguous.ID, "ambiguous-worker", "response lost", time.Now().UTC()); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT status FROM `+store.table("deliveries")+` WHERE id = $1`, ambiguous.ID).Scan(&status); err != nil || status != "uncertain" {
+		t.Fatalf("ambiguous status=%s err=%v", status, err)
+	}
+}
+
+func TestOperationalStateReportsOnlyWorkDueNow(t *testing.T) {
+	_, store := integrationStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC()
+	candidate := DiscoveryCandidate{ID: "future-candidate", Name: "Future Candidate", Website: "https://future.example"}
+	if err := store.SeedDiscoveryCandidates(ctx, []DiscoveryCandidate{candidate}); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.RecordDiscoveryFailure(ctx, DiscoveryCandidateRecord{DiscoveryCandidate: candidate}, nil, errors.New("temporary network error"), now, now.Add(24*time.Hour)); err != nil {
+		t.Fatal(err)
+	}
+	_, created, _, deliveryCreated, err := store.ObserveAndEnqueue(ctx, Observation{
+		SourceID: "greenhouse:due", SourceNativeID: "due-1", Company: "Due Co", Title: "Software Engineer Intern",
+		ApplyURL: "https://jobs.due.test/1", ObservedAt: now,
+	}, &DeliveryTarget{Channel: "telegram", Recipient: "due-chat"})
+	if err != nil || !created || !deliveryCreated {
+		t.Fatalf("created=%v deliveryCreated=%v err=%v", created, deliveryCreated, err)
+	}
+	state, err := store.ReadOperationalState(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.DiscoveryDue != 0 || state.ApplyURLsDue != 1 || state.DeliveriesDue != 1 {
+		t.Fatalf("due state = discovery:%d apply:%d delivery:%d", state.DiscoveryDue, state.ApplyURLsDue, state.DeliveriesDue)
+	}
+}
+
 func TestPostgresStoreSuppressedDecisionStaysSuppressedOnReplay(t *testing.T) {
 	_, store := integrationStore(t)
 	ctx := context.Background()

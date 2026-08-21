@@ -150,6 +150,10 @@ type MarketDiscoveryRepository interface {
 	ListDiscoveredSources(context.Context) ([]Source, error)
 }
 
+type MarketSignalRecorder interface {
+	RecordRejectedMarketSignal(context.Context, Observation, string, time.Time) error
+}
+
 // MarketSourcePromoter turns companies and apply links found by broad market
 // searches into durable discovery candidates. Recognized ATS boards are probed
 // immediately and enter routine monitoring only after a complete, non-empty,
@@ -180,6 +184,19 @@ func (p MarketSourcePromoter) Run(ctx context.Context, observations []Observatio
 	}
 	if p.Store == nil {
 		return report, errors.New("lite: market source promoter store is required")
+	}
+	if recorder, ok := p.Store.(MarketSignalRecorder); ok {
+		recordedAt := time.Now().UTC()
+		if p.Now != nil {
+			recordedAt = p.Now().UTC()
+		}
+		for _, observation := range observations {
+			if _, _, rejectionCode, accepted := marketObservationCandidate(observation); !accepted {
+				if err := recorder.RecordRejectedMarketSignal(ctx, observation, rejectionCode, recordedAt); err != nil {
+					return report, fmt.Errorf("retain rejected market signal: %w", err)
+				}
+			}
+		}
 	}
 	candidates, sources := deriveMarketCandidates(observations)
 	registeredSources, err := p.Store.ListDiscoveredSources(ctx)
@@ -365,23 +382,11 @@ func deriveMarketCandidates(observations []Observation) ([]DiscoveryCandidate, [
 	candidatesByID := make(map[string]DiscoveryCandidate)
 	sourcesByKey := make(map[string]marketSourceCandidate)
 	for _, observation := range observations {
-		if BlockedMarketCandidateWebsite(observation.ApplyURL) {
+		candidate, resolved, _, accepted := marketObservationCandidate(observation)
+		if !accepted {
 			continue
-		}
-		company := CompactMarketCompany(observation.Company)
-		if company == "" || BlockedCompany(company) {
-			continue
-		}
-		website := marketCandidateWebsite(observation.ApplyURL)
-		candidate := DiscoveryCandidate{
-			ID: marketCandidateID(company), Name: company, Website: website,
-			Tags: []string{"auto-market-search"},
 		}
 		candidatesByID[candidate.ID] = candidate
-		resolved, ok := sourceFromDiscoveryURL(candidate, observation.ApplyURL, 0.90, "market_search:"+observation.SourceID)
-		if !ok {
-			continue
-		}
 		key := strings.ToLower(resolved.Source.Provider) + "|" + strings.TrimRight(resolved.Source.URL, "/")
 		if _, exists := sourcesByKey[key]; !exists {
 			sourcesByKey[key] = marketSourceCandidate{candidate: candidate, resolved: resolved}
@@ -403,6 +408,40 @@ func deriveMarketCandidates(observations []Observation) ([]DiscoveryCandidate, [
 		sources = append(sources, sourcesByKey[key])
 	}
 	return candidates, sources
+}
+
+func marketObservationCandidate(observation Observation) (DiscoveryCandidate, resolvedDiscoverySource, string, bool) {
+	if BlockedMarketCandidateWebsite(observation.ApplyURL) {
+		return DiscoveryCandidate{}, resolvedDiscoverySource{}, DiscoveryFailureAggregator, false
+	}
+	company := CompactMarketCompany(observation.Company)
+	if company == "" || BlockedCompany(company) {
+		return DiscoveryCandidate{}, resolvedDiscoverySource{}, DiscoveryFailureAggregator, false
+	}
+	candidate := DiscoveryCandidate{
+		ID: marketCandidateID(company), Name: company, Website: marketCandidateWebsite(observation.ApplyURL),
+		Tags: []string{"auto-market-search"},
+	}
+	resolved, ok := sourceFromDiscoveryURL(candidate, observation.ApplyURL, 0.90, "market_search:"+observation.SourceID)
+	if !ok {
+		return candidate, resolvedDiscoverySource{}, DiscoveryFailureProviderMismatch, false
+	}
+	// Broad search may find an editorial page hosted on the real company
+	// domain. Only a provider-shaped application route is independent proof
+	// that the signal represents company-owned job inventory.
+	if !marketAdmissionProvider(resolved.Source.Provider) {
+		return candidate, resolved, DiscoveryFailureProviderMismatch, false
+	}
+	return candidate, resolved, "", true
+}
+
+func marketAdmissionProvider(provider string) bool {
+	switch strings.ToLower(strings.TrimSpace(provider)) {
+	case "greenhouse", "ashby", "lever", "gem", "workday", "smartrecruiters", "workable", "yc_jobs", "citadel_careers":
+		return true
+	default:
+		return false
+	}
 }
 
 func BlockedMarketCandidateWebsite(raw string) bool {
@@ -460,6 +499,7 @@ func BlockedMarketCandidateName(company string) bool {
 	}
 	_, blocked := map[string]struct{}{
 		"aijobs": {}, "app": {}, "base": {}, "bebee": {}, "careerhub": {},
+		"careers page": {}, "careerspage": {}, "mployee": {},
 		"builtin sf": {}, "builtinsf": {}, "campusjobs": {}, "hirify": {},
 		"deepfinresearch": {}, "efinancialcareers": {}, "extern": {},
 		"jorb": {}, "novaflow s25": {}, "remote rocketship": {}, "spacecrew": {},

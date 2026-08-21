@@ -73,6 +73,9 @@ func Run(ctx context.Context, args []string, stdout io.Writer, logger *slog.Logg
 }
 
 func run(ctx context.Context, args []string, getenv lookupEnv, stdout io.Writer, logger *slog.Logger) error {
+	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "source") {
+		return runSourceCommand(ctx, args[1:], getenv, stdout)
+	}
 	if len(args) > 0 && strings.EqualFold(strings.TrimSpace(args[0]), "telegram-check") {
 		return delivery.RunTelegramCheck(ctx, func(key string) string {
 			value, _ := getenv(key)
@@ -96,6 +99,61 @@ func run(ctx context.Context, args []string, getenv lookupEnv, stdout io.Writer,
 		return runDrain(ctx, cfg, stdout, logger)
 	}
 	return runRoutine(ctx, cfg, logger)
+}
+
+func runSourceCommand(ctx context.Context, args []string, getenv lookupEnv, stdout io.Writer) error {
+	if len(args) < 2 {
+		return errors.New("usage: radar source [quarantine|restore|explain] SOURCE_ID [--reason TEXT]")
+	}
+	action, sourceID := strings.ToLower(strings.TrimSpace(args[0])), strings.TrimSpace(args[1])
+	reason := ""
+	for index := 2; index < len(args); index++ {
+		if args[index] != "--reason" || index+1 >= len(args) {
+			return errors.New("usage: radar source [quarantine|restore|explain] SOURCE_ID [--reason TEXT]")
+		}
+		reason = strings.TrimSpace(args[index+1])
+		index++
+	}
+	cfg, err := loadConfig([]string{"serve"}, getenv)
+	if err != nil {
+		return err
+	}
+	store, closeStore, err := openStore(ctx, cfg, true)
+	if err != nil {
+		return err
+	}
+	defer closeStore()
+	actor := envOr(getenv, "RADAR_OPERATOR", envOr(getenv, "USER", "operator"))
+	state := ""
+	switch action {
+	case "quarantine":
+		if reason == "" {
+			return errors.New("source quarantine requires --reason")
+		}
+		if err := store.QuarantineSource(ctx, sourceID, reason, actor, time.Now().UTC()); err != nil {
+			return err
+		}
+		state = "quarantined"
+	case "restore":
+		if reason == "" {
+			reason = "operator restored source"
+		}
+		if err := store.RestoreSource(ctx, sourceID, reason, actor, time.Now().UTC()); err != nil {
+			return err
+		}
+		state = "active"
+	case "explain":
+		explanation, err := store.ExplainSource(ctx, sourceID)
+		if err != nil {
+			return err
+		}
+		encoder := json.NewEncoder(stdout)
+		encoder.SetIndent("", "  ")
+		return encoder.Encode(explanation)
+	default:
+		return fmt.Errorf("unknown source action %q; use quarantine, restore, or explain", action)
+	}
+	return json.NewEncoder(stdout).Encode(map[string]string{"source_id": sourceID, "state": state})
 }
 
 func loadConfig(args []string, getenv lookupEnv) (config, error) {
@@ -438,6 +496,10 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 
 		cycleCtx, cycleCancel := context.WithTimeout(ctx, cfg.cycleTimeout)
 		cycleSources := sources
+		// Never carry a previous cycle's schedule across a control-plane read
+		// failure. A newly quarantined source must remain stopped even when the
+		// promoted-source or status query is temporarily unavailable.
+		runner.Sources = nil
 		var discoveryReport pipeline.DiscoveryReport
 		var discoveryErr error
 		if cfg.marketOnly {
@@ -453,6 +515,12 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			discoveryErr = errors.Join(discoveryErr, fmt.Errorf("load promoted discovery sources: %w", promotedErr))
 		} else {
 			cycleSources = runtimeSources(baseSources, promoted, marketSources, cfg.marketOnly)
+			controls, controlErr := store.ListSourceControls(cycleCtx)
+			if controlErr != nil {
+				discoveryErr = errors.Join(discoveryErr, fmt.Errorf("load source controls: %w", controlErr))
+			} else {
+				cycleSources = filterControlledSources(cycleSources, controls)
+			}
 			statuses, statusErr := store.ListSourceStatuses(cycleCtx)
 			if statusErr != nil {
 				discoveryErr = errors.Join(discoveryErr, fmt.Errorf("load source schedule state: %w", statusErr))
@@ -621,10 +689,10 @@ func mergeDeliveryReports(left, right pipeline.DeliveryReport) pipeline.Delivery
 }
 
 func cycleResultStatus(report pipeline.RunReport, discovery pipeline.DiscoveryReport, delivery pipeline.DeliveryReport, err error) string {
-	if err != nil {
+	if err != nil && report.SourcesSucceeded == 0 && delivery.Sent == 0 {
 		return "failure"
 	}
-	if report.SourcesFailed > 0 || discovery.CandidatesFailed > 0 || delivery.Failed > 0 {
+	if err != nil || report.SourcesFailed > 0 || discovery.CandidatesFailed > 0 || delivery.Failed > 0 {
 		return "degraded"
 	}
 	return "success"
@@ -635,6 +703,22 @@ func runtimeSources(base, promoted, market []pipeline.Source, marketOnly bool) [
 		return pipeline.MergeRoutineSources(nil, market)
 	}
 	return pipeline.MergeRoutineSources(pipeline.MergeRoutineSources(base, promoted), market)
+}
+
+func filterControlledSources(sources []pipeline.Source, controls []pipeline.SourceControl) []pipeline.Source {
+	quarantined := make(map[string]struct{})
+	for _, control := range controls {
+		if control.State == "quarantined" {
+			quarantined[control.SourceID] = struct{}{}
+		}
+	}
+	filtered := make([]pipeline.Source, 0, len(sources))
+	for _, source := range sources {
+		if _, blocked := quarantined[source.ID]; !blocked {
+			filtered = append(filtered, source)
+		}
+	}
+	return filtered
 }
 
 func waitForNextCycle(ctx context.Context, serverErrors <-chan error, interval time.Duration) error {
@@ -899,14 +983,29 @@ type outboxSender struct {
 }
 
 func (s outboxSender) Send(ctx context.Context, delivery pipeline.Delivery) error {
+	_, err := s.SendWithReceipt(ctx, delivery)
+	return err
+}
+
+func (s outboxSender) SendWithReceipt(ctx context.Context, item pipeline.Delivery) (pipeline.DeliveryReceipt, error) {
 	if s.outbox == nil {
-		return errors.New("notification outbox is required")
+		return pipeline.DeliveryReceipt{}, errors.New("notification outbox is required")
 	}
-	posting, err := decodePosting(delivery)
+	posting, err := decodePosting(item)
 	if err != nil {
-		return err
+		return pipeline.DeliveryReceipt{}, err
 	}
-	return s.outbox.Enqueue(ctx, postingMessage(delivery, posting, s.presentations))
+	message := postingMessage(item, posting, s.presentations)
+	if outbox, ok := s.outbox.(interface {
+		EnqueueWithReceipt(context.Context, delivery.Message) (delivery.Receipt, error)
+	}); ok {
+		receipt, err := outbox.EnqueueWithReceipt(ctx, message)
+		return pipeline.DeliveryReceipt{
+			Provider: receipt.Provider, ProviderMessageID: receipt.ProviderMessageID,
+			ProviderChatID: receipt.ProviderChatID, AcceptedAt: receipt.AcceptedAt,
+		}, err
+	}
+	return pipeline.DeliveryReceipt{}, s.outbox.Enqueue(ctx, message)
 }
 
 func newDeliverySender(cfg config, logger *slog.Logger) (pipeline.Sender, error) {
@@ -982,9 +1081,10 @@ func (s *healthState) recordCycle(report pipeline.RunReport, discovery pipeline.
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.lastCycleAt = time.Now().UTC()
-	s.lastCycleFail = err != nil
-	s.ready = err == nil
-	s.degraded = err == nil && (report.SourcesFailed > 0 || discovery.CandidatesFailed > 0 || delivery.Failed > 0)
+	status := cycleResultStatus(report, discovery, delivery, err)
+	s.lastCycleFail = status == "failure"
+	s.ready = status == "success" || status == "degraded"
+	s.degraded = status == "degraded"
 	s.sourcesSucceeded = report.SourcesSucceeded
 	s.sourcesFailed = report.SourcesFailed
 	s.deliveryFailures = delivery.Failed

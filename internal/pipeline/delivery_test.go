@@ -14,6 +14,8 @@ type deliveryStoreFake struct {
 	claimed          []Delivery
 	sent             []int64
 	failed           []int64
+	ambiguous        []int64
+	receipts         []DeliveryReceipt
 	released         []int64
 	claimLimits      []int
 	claimChannels    []string
@@ -61,6 +63,23 @@ func (s *deliveryStoreFake) MarkDeliveryFailed(ctx context.Context, id int64, _,
 	s.failed = append(s.failed, id)
 	s.retryAt = retryAt
 	s.retryAts = append(s.retryAts, retryAt)
+	return nil
+}
+
+func (s *deliveryStoreFake) MarkDeliverySentWithReceipt(ctx context.Context, id int64, _ string, receipt DeliveryReceipt) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.finalizeCanceled = append(s.finalizeCanceled, ctx.Err() != nil)
+	s.sent = append(s.sent, id)
+	s.receipts = append(s.receipts, receipt)
+	return nil
+}
+
+func (s *deliveryStoreFake) MarkDeliveryAmbiguous(ctx context.Context, id int64, _, _ string, _ time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.finalizeCanceled = append(s.finalizeCanceled, ctx.Err() != nil)
+	s.ambiguous = append(s.ambiguous, id)
 	return nil
 }
 
@@ -170,6 +189,25 @@ func TestDeliveryDrainerFinalizesSuccessfulSendAfterCancellation(t *testing.T) {
 type senderFunc func(context.Context, Delivery) error
 
 func (f senderFunc) Send(ctx context.Context, delivery Delivery) error { return f(ctx, delivery) }
+
+type ambiguousSendError struct{ message string }
+
+func (e ambiguousSendError) Error() string           { return e.message }
+func (e ambiguousSendError) AmbiguousDelivery() bool { return true }
+
+func TestDeliveryDrainerParksAmbiguousProviderOutcome(t *testing.T) {
+	store := &deliveryStoreFake{claimed: []Delivery{{ID: 77, Channel: "telegram", Recipient: "chat-1"}}}
+	report, err := (DeliveryDrainer{
+		Store: store, Owner: "worker", Channel: "telegram", Recipient: "chat-1", Limit: 1,
+		Sender: senderFunc(func(context.Context, Delivery) error { return ambiguousSendError{message: "response lost"} }),
+	}).Drain(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Failed != 1 || len(store.ambiguous) != 1 || len(store.failed) != 0 {
+		t.Fatalf("report=%#v ambiguous=%v failed=%v", report, store.ambiguous, store.failed)
+	}
+}
 
 func TestDeliveryDrainerRejectsAndReleasesMismatchedClaim(t *testing.T) {
 	store := &deliveryStoreFake{claimed: []Delivery{{ID: 7, Channel: "log", Recipient: "chat-1"}}}

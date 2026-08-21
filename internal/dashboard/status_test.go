@@ -18,6 +18,7 @@ func TestStatusHandlerReportsDurableStateAndLockedTelegram(t *testing.T) {
 	now := time.Date(2026, 8, 17, 10, 0, 0, 0, time.UTC)
 	store := fakeFeedStore{operational: pipeline.OperationalState{
 		GeneratedAt: now, CanonicalJobs: 9000, IdentityAliases: 9100,
+		DiscoveryDue: 2, ApplyURLsDue: 7, DeliveriesDue: 3,
 		SourceObservations: 9250, MultiSourceJobs: 42,
 		DeliveryCounts:   map[string]int{"sent": 12, "suppressed": 210, "pending": 3, "staged": 1},
 		CandidateCounts:  map[string]int{"promoted": 21, "pending": 8, "retry": 2},
@@ -49,6 +50,9 @@ func TestStatusHandlerReportsDurableStateAndLockedTelegram(t *testing.T) {
 	}
 	if body.Discovery.PromotedSources != 21 || body.Dedupe.MultiSourceJobs != 42 || body.Deliveries.Total != 226 || body.Deliveries.Staged != 1 {
 		t.Fatalf("unexpected durable state: %+v", body)
+	}
+	if body.Discovery.Due != 2 || body.Due.ApplyURLs != 7 || body.Due.Deliveries != 3 {
+		t.Fatalf("unexpected due work counts: %+v", body)
 	}
 	if body.Telegram.State != "locked" || !body.Telegram.ReadyForUserAuthorization || body.Telegram.ExternalPublishingActive {
 		t.Fatalf("unexpected Telegram state: %+v", body.Telegram)
@@ -152,6 +156,29 @@ func TestStatusHandlerKeepsQuarantinedDiscoveryOutOfActiveHealth(t *testing.T) {
 	}
 }
 
+func TestStatusReportsQuarantineInsteadOfHistoricalFailure(t *testing.T) {
+	response := buildStatusResponse(pipeline.OperationalState{
+		GeneratedAt: time.Now(),
+		RoutineSourceStatus: []pipeline.SourceStatus{{
+			SourceID: "blocked", State: "failure", ConsecutiveFailures: 4,
+			FailureCode: "timeout", LastError: "request timed out",
+		}},
+		SourceControls: []pipeline.SourceControl{{
+			SourceID: "blocked", State: "quarantined", Reason: "noisy board",
+		}},
+	}, dashboardConfig{
+		BaseSources: []pipeline.Source{{ID: "blocked", Company: "Blocked", Provider: "greenhouse"}},
+		RuntimeMode: "serve", DeliveryMode: "log",
+	}, nil)
+
+	if response.State != "degraded" || response.Sources.Quarantined != 1 || response.Sources.Failed != 0 || len(response.Sources.Failures) != 0 {
+		t.Fatalf("quarantine should replace active failure accounting: %+v", response)
+	}
+	if len(response.Sources.Monitored) != 1 || response.Sources.Monitored[0].State != "quarantined" {
+		t.Fatalf("quarantine missing from roster: %+v", response.Sources.Monitored)
+	}
+}
+
 func TestStatusConfiguredCountIncludesPersistedMarketSources(t *testing.T) {
 	statuses := make([]pipeline.SourceStatus, 0, 81)
 	for i := 0; i < 81; i++ {
@@ -192,10 +219,10 @@ func TestStatusHandlerReadsDurableCrawlerCycleFromSeparateUI(t *testing.T) {
 func TestStatusHandlerShowsCrossServiceCycleInProgress(t *testing.T) {
 	started := time.Date(2026, 8, 18, 2, 0, 0, 0, time.UTC)
 	response := buildStatusResponse(pipeline.OperationalState{
-		GeneratedAt: time.Now(),
+		GeneratedAt: started.Add(time.Minute),
 		Runtime:     &pipeline.RuntimeState{ActiveOwner: "worker-one", ActiveStartedAt: &started, LastCycleState: "pending"},
 	}, dashboardConfig{RuntimeMode: "serve", TotalSources: 70}, nil)
-	if !response.Runtime.CycleRunning || response.Runtime.ActiveSince == nil || !response.Runtime.ActiveSince.Equal(started) || !response.Runtime.Ready {
+	if !response.Runtime.CycleRunning || response.Runtime.ActiveSince == nil || !response.Runtime.ActiveSince.Equal(started) || response.Runtime.Ready {
 		t.Fatalf("running runtime response = %#v", response.Runtime)
 	}
 }
@@ -208,7 +235,7 @@ func TestStatusHandlerFlagsStaleCrossServiceCycle(t *testing.T) {
 			ActiveOwner: "dead-worker", ActiveStartedAt: &started, LastCycleState: "success",
 		},
 	}, dashboardConfig{RuntimeMode: "serve", TotalSources: 70, CycleTimeout: 20 * time.Minute}, nil)
-	if response.State != "degraded" || !response.Runtime.CycleRunning || !response.Runtime.CycleStale || !response.Runtime.LastCycleError {
+	if response.State != "degraded" || !response.Runtime.CycleRunning || !response.Runtime.CycleStale || !response.Runtime.LastCycleError || response.Runtime.Ready {
 		t.Fatalf("stale runtime response = %#v", response)
 	}
 }
