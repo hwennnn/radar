@@ -704,6 +704,9 @@ func TestRunnerCycleDeadlineRemainsFatalAfterAnotherSourceSucceeds(t *testing.T)
 	if !errors.Is(err, context.DeadlineExceeded) || report.SourcesSucceeded != 1 || report.SourcesFailed != 1 {
 		t.Fatalf("cycle deadline was downgraded: report=%#v err=%v", report, err)
 	}
+	if _, recorded := store.failures["timeout"]; recorded {
+		t.Fatalf("cycle interruption was recorded as a source failure: %#v", store.failures)
+	}
 }
 
 func TestRunnerBootstrapPersistenceFailureIsFatalDespiteHealthySource(t *testing.T) {

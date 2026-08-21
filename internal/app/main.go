@@ -56,6 +56,7 @@ type config struct {
 	discoveryTimeout      time.Duration
 	discoveryRetry        time.Duration
 	discoveryEmptyRetry   time.Duration
+	sourceBatch           int
 }
 
 type lookupEnv func(string) (string, bool)
@@ -192,6 +193,10 @@ func loadConfig(args []string, getenv lookupEnv) (config, error) {
 		return config{}, err
 	}
 	cfg.discoveryEmptyRetry, err = durationEnv(getenv, "RADAR_LITE_DISCOVERY_EMPTY_RETRY", time.Hour)
+	if err != nil {
+		return config{}, err
+	}
+	cfg.sourceBatch, err = integerEnv(getenv, "RADAR_SOURCE_BATCH", 96, 1, 1000)
 	if err != nil {
 		return config{}, err
 	}
@@ -432,6 +437,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		}()
 
 		cycleCtx, cycleCancel := context.WithTimeout(ctx, cfg.cycleTimeout)
+		cycleSources := sources
 		var discoveryReport pipeline.DiscoveryReport
 		var discoveryErr error
 		if cfg.marketOnly {
@@ -446,9 +452,21 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		if promotedErr != nil {
 			discoveryErr = errors.Join(discoveryErr, fmt.Errorf("load promoted discovery sources: %w", promotedErr))
 		} else {
-			runner.Sources = runtimeSources(baseSources, promoted, marketSources, cfg.marketOnly)
+			cycleSources = runtimeSources(baseSources, promoted, marketSources, cfg.marketOnly)
+			statuses, statusErr := store.ListSourceStatuses(cycleCtx)
+			if statusErr != nil {
+				discoveryErr = errors.Join(discoveryErr, fmt.Errorf("load source schedule state: %w", statusErr))
+				runner.Sources = nil
+			} else {
+				runner.Sources = pipeline.ScheduleSources(cycleSources, statuses, time.Now().UTC(), cfg.sourceBatch)
+				logger.Info("source batch scheduled", "due", len(runner.Sources), "total", len(cycleSources), "limit", cfg.sourceBatch)
+			}
 		}
-		report, runErr := runner.Run(cycleCtx)
+		var report pipeline.RunReport
+		var runErr error
+		if len(runner.Sources) > 0 {
+			report, runErr = runner.Run(cycleCtx)
+		}
 		linkReport, linkErr := linkChecker.Run(cycleCtx)
 		marketReport, marketErr := (pipeline.MarketSourcePromoter{
 			Extractor: productionExtractor,
@@ -456,7 +474,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			// Discovery runs before market promotion. Include the refreshed
 			// runtime set so a board promoted earlier in this same cycle is not
 			// re-created under a market-derived candidate alias.
-			KnownSources: runner.Sources,
+			KnownSources: cycleSources,
 			Logger:       logger,
 		}).Run(cycleCtx, marketObservations.DrainMarketObservations())
 		if marketErr == nil && marketReport.SourcesPromoted > 0 {
@@ -464,7 +482,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			if promotedErr != nil {
 				marketErr = fmt.Errorf("reload market-promoted discovery sources: %w", promotedErr)
 			} else {
-				runner.Sources = runtimeSources(baseSources, promoted, marketSources, cfg.marketOnly)
+				cycleSources = runtimeSources(baseSources, promoted, marketSources, cfg.marketOnly)
 			}
 		}
 		cycleCancel()

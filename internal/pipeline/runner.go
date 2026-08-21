@@ -117,6 +117,12 @@ func (r Runner) Run(ctx context.Context) (RunReport, error) {
 			report.SourcesFailed++
 			sourceErr := fmt.Errorf("source %s extract: %w", source.ID, extractErr)
 			report.Errors = append(report.Errors, sourceErr)
+			// A cycle shutdown or budget expiry says nothing about source health.
+			// Preserve the last real outcome and bootstrap state so the fair
+			// scheduler can retry this route without manufacturing a failure.
+			if ctxErr := ctx.Err(); ctxErr != nil {
+				return report, errors.Join(ctxErr, sourceErr, errors.Join(operationalErrors...))
+			}
 			failureCtx, failureCancel := sourceFinalizationContext(ctx)
 			if bootstrapMode == bootstrapReady {
 				if stateErr := r.setBootstrapMode(failureCtx, sourceBootstrapKey, bootstrapRebaseline, now().UTC()); stateErr != nil {
@@ -264,6 +270,9 @@ func (r Runner) Run(ctx context.Context) (RunReport, error) {
 		wrappedSourceErr := fmt.Errorf("source %s: %w", source.ID, sourceErr)
 		report.Errors = append(report.Errors, wrappedSourceErr)
 		operationalErrors = append(operationalErrors, wrappedSourceErr)
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return report, errors.Join(ctxErr, errors.Join(operationalErrors...))
+		}
 		failureCtx, failureCancel := sourceFinalizationContext(ctx)
 		if bootstrapMode == bootstrapReady {
 			if stateErr := r.setBootstrapMode(failureCtx, sourceBootstrapKey, bootstrapRebaseline, now().UTC()); stateErr != nil {
