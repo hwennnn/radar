@@ -379,7 +379,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 	drainer := pipeline.DeliveryDrainer{
 		Store: store, Sender: sender, Owner: owner,
 		Channel: cfg.deliveryMode, Recipient: cfg.recipient,
-		Limit: deliveryLimit, Lease: 2 * time.Minute, RetryDelay: time.Minute,
+		Limit: deliveryLimit, Lease: 2 * time.Minute, RetryDelay: 5 * time.Second,
 		MinInterval: deliveryInterval,
 	}
 	realtimeDrainer := drainer
@@ -529,7 +529,8 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			"market_sources_rejected", marketReport.SourcesRejected,
 			"market_sources_promoted", marketReport.SourcesPromoted,
 			"market_sources_already_monitored", marketReport.SourcesMonitored,
-			"monitored_sources", len(runner.Sources),
+			"monitored_sources", len(cycleSources),
+			"scheduled_sources", len(runner.Sources),
 			"sources_attempted", report.SourcesAttempted,
 			"sources_succeeded", report.SourcesSucceeded,
 			"sources_failed", report.SourcesFailed,
@@ -551,13 +552,32 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		if cfg.once {
 			return cycleErr
 		}
-		if err := waitForNextCycle(ctx, serverErrors, cfg.interval); err != nil {
+		nextDeliveryAt, nextDeliveryErr := store.NextDeliveryAttemptAt(ctx, cfg.deliveryMode, cfg.recipient)
+		if nextDeliveryErr != nil {
+			logger.Error("delivery wake schedule unavailable", "error", nextDeliveryErr)
+		}
+		waitInterval := nextRoutineDelay(cfg.interval, nextDeliveryAt, time.Now().UTC())
+		if err := waitForNextCycle(ctx, serverErrors, waitInterval); err != nil {
 			if ctx.Err() != nil {
 				return nil
 			}
 			return err
 		}
 	}
+}
+
+func nextRoutineDelay(interval time.Duration, nextDeliveryAt *time.Time, now time.Time) time.Duration {
+	if nextDeliveryAt == nil {
+		return interval
+	}
+	deliveryDelay := nextDeliveryAt.Sub(now)
+	if deliveryDelay < 0 {
+		deliveryDelay = 0
+	}
+	if deliveryDelay < interval {
+		return deliveryDelay
+	}
+	return interval
 }
 
 type deliveryDrainFunc func(context.Context) (pipeline.DeliveryReport, error)

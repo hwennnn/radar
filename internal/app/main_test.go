@@ -34,6 +34,21 @@ func TestLoadConfigRoutineUsesLiteDatabaseBeforeFallback(t *testing.T) {
 	}
 }
 
+func TestNextRoutineDelayWakesForDueDelivery(t *testing.T) {
+	now := time.Date(2026, 8, 21, 4, 0, 0, 0, time.UTC)
+	due := now.Add(5 * time.Second)
+	if got := nextRoutineDelay(15*time.Minute, &due, now); got != 5*time.Second {
+		t.Fatalf("delay = %s, want 5s", got)
+	}
+	overdue := now.Add(-time.Second)
+	if got := nextRoutineDelay(15*time.Minute, &overdue, now); got != 0 {
+		t.Fatalf("overdue delay = %s, want immediate wake", got)
+	}
+	if got := nextRoutineDelay(15*time.Minute, nil, now); got != 15*time.Minute {
+		t.Fatalf("empty outbox delay = %s", got)
+	}
+}
+
 func TestLoadConfigRoutineEnablesAutodiscoveryWhenTinyFishIsConfigured(t *testing.T) {
 	cfg, err := loadConfig(nil, mapLookup(map[string]string{
 		"DATABASE_URL":                        "postgres://example",

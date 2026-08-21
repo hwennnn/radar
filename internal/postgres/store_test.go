@@ -1557,9 +1557,21 @@ func TestPostgresStoreStagedDeliveryRequiresExplicitActivation(t *testing.T) {
 	if activated, err := store.ActivateDeliveries(ctx, []int64{decision.ID, decision.ID}, "telegram", "chat-staged"); err != nil || activated != 1 {
 		t.Fatalf("activation=%d err=%v", activated, err)
 	}
+	if next, err := store.NextDeliveryAttemptAt(ctx, "telegram", "chat-staged"); err != nil || next == nil || next.After(time.Now().UTC()) {
+		t.Fatalf("activated delivery next attempt=%v err=%v, want due now", next, err)
+	}
 	claimed, err = store.ClaimDeliveries(ctx, "worker", "telegram", "chat-staged", 10, time.Minute)
 	if err != nil || len(claimed) != 1 || claimed[0].ID != decision.ID {
 		t.Fatalf("activated decision not claimable: claimed=%#v err=%v", claimed, err)
+	}
+	if next, err := store.NextDeliveryAttemptAt(ctx, "telegram", "chat-staged"); err != nil || next == nil || !next.Equal(claimed[0].ClaimExpiresAt) {
+		t.Fatalf("claimed delivery wake=%v err=%v, want lease expiry %s", next, err, claimed[0].ClaimExpiresAt)
+	}
+	if err := store.MarkDeliverySent(ctx, decision.ID, "worker"); err != nil {
+		t.Fatal(err)
+	}
+	if next, err := store.NextDeliveryAttemptAt(ctx, "telegram", "chat-staged"); err != nil || next != nil {
+		t.Fatalf("sent delivery wake=%v err=%v, want none", next, err)
 	}
 }
 

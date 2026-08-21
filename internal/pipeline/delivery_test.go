@@ -84,6 +84,29 @@ func TestDeliveryRetryDelayIsExponentialAndCapped(t *testing.T) {
 	}
 }
 
+type retryAfterTestError struct{ delay time.Duration }
+
+func (e retryAfterTestError) Error() string             { return "rate limited" }
+func (e retryAfterTestError) RetryAfter() time.Duration { return e.delay }
+
+func TestDeliveryDrainerHonorsProviderRetryAfter(t *testing.T) {
+	now := time.Date(2026, 8, 21, 4, 0, 0, 0, time.UTC)
+	store := &deliveryStoreFake{claimed: []Delivery{{ID: 10, Channel: "telegram", Recipient: "chat-1"}}}
+	drainer := DeliveryDrainer{
+		Store: store, Sender: senderFunc(func(context.Context, Delivery) error {
+			return retryAfterTestError{delay: 45 * time.Second}
+		}),
+		Owner: "radar-1", Channel: "telegram", Recipient: "chat-1", Limit: 1,
+		RetryDelay: 5 * time.Second, Now: func() time.Time { return now },
+	}
+	if report, err := drainer.Drain(context.Background()); err != nil || report.Failed != 1 {
+		t.Fatalf("Drain report=%#v error=%v", report, err)
+	}
+	if want := now.Add(45 * time.Second); !store.retryAt.Equal(want) {
+		t.Fatalf("retry at = %s, want %s", store.retryAt, want)
+	}
+}
+
 func TestDeliveryDrainerUsesExistingAttemptsForCappedBackoff(t *testing.T) {
 	now := time.Date(2026, 8, 17, 1, 0, 0, 0, time.UTC)
 	store := &deliveryStoreFake{claimed: []Delivery{{ID: 9, Channel: "telegram", Recipient: "chat-1", Attempts: 99}}}

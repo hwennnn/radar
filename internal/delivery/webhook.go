@@ -119,12 +119,28 @@ func (o *WebhookOutbox) Enqueue(ctx context.Context, msg Message) error {
 		return nil
 	}
 	data, _ := io.ReadAll(io.LimitReader(resp.Body, maxWebhookErrorBody))
+	retryAfter := parseRetryAfter(resp.Header.Get("Retry-After"), time.Now)
+	if retryAfter == 0 && o.provider == "telegram" {
+		retryAfter = parseTelegramRetryAfter(data)
+	}
 	return WebhookStatusError{
 		Provider:   o.provider,
 		Status:     resp.Status,
 		Body:       sanitizeWebhookErrorEvidence(string(data), o.endpoint),
-		retryAfter: parseRetryAfter(resp.Header.Get("Retry-After"), time.Now),
+		retryAfter: retryAfter,
 	}
+}
+
+func parseTelegramRetryAfter(body []byte) time.Duration {
+	var response struct {
+		Parameters struct {
+			RetryAfter int `json:"retry_after"`
+		} `json:"parameters"`
+	}
+	if json.Unmarshal(body, &response) != nil || response.Parameters.RetryAfter <= 0 {
+		return 0
+	}
+	return boundedWebhookRetryAfter(time.Duration(response.Parameters.RetryAfter) * time.Second)
 }
 
 func renderTelegramText(msg Message) string {

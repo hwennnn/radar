@@ -357,6 +357,21 @@ func TestWebhookOutboxPreservesRetryAfterHint(t *testing.T) {
 	}
 }
 
+func TestTelegramOutboxReadsRetryAfterFromResponseBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		_, _ = w.Write([]byte(`{"ok":false,"parameters":{"retry_after":9}}`))
+	}))
+	defer server.Close()
+
+	outbox := newTelegramOutboxWithEndpoint(server.URL, "chat-1", server.Client())
+	err := outbox.Enqueue(context.Background(), Message{Recipient: "chat-1", Subject: "test"})
+	var retryable interface{ RetryAfter() time.Duration }
+	if !errors.As(err, &retryable) || retryable.RetryAfter() != 9*time.Second {
+		t.Fatalf("retry hint error=%v delay=%v", err, retryable)
+	}
+}
+
 func TestWebhookRetryAfterCapsRunawayHints(t *testing.T) {
 	if got := parseRetryAfter("86400", func() time.Time { return time.Unix(0, 0).UTC() }); got != MaxDeliveryRetryDelay {
 		t.Fatalf("numeric retry after = %s, want cap %s", got, MaxDeliveryRetryDelay)

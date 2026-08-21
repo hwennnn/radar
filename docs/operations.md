@@ -22,6 +22,21 @@ A degraded cycle can remain ready: isolated source or delivery failures should
 not remove healthy data from service. A failed or stale cycle requires log and
 durable-state investigation.
 
+## Source scheduling and recovery
+
+Routine cycles select a bounded, durable batch instead of restarting at the
+same catalog entry. Never-observed sources run first, then the least recently
+attempted routes. `RADAR_SOURCE_BATCH` controls the per-cycle ceiling and
+defaults to 96. This makes progress predictable even when the full catalog is
+larger than one cycle budget.
+
+Real source failures retry with exponential backoff from 15 minutes to 24
+hours. Process shutdown and cycle-budget expiration are interruptions, not
+source failures: they do not increment failure counts or force a recovery
+baseline. Repeatedly unhealthy discovered routes still return to discovery for
+resolution; static catalog routes remain visible and are revisited after their
+backoff.
+
 ## Delivery safety
 
 The outbox is durable and unique by `(job, channel, recipient)`. Delivery moves
@@ -34,6 +49,13 @@ complete source snapshot activates the delivery row. Telegram messages are then
 paced at the configured transport-safe interval; a final drain closes the race
 between the last source activation and pump shutdown. Standby and read-only
 processes never run this pump.
+
+Failed Telegram sends begin retrying after five seconds with exponential
+backoff, honor Telegram's `Retry-After` response, and remain capped at six
+hours. If an outbox retry becomes due before the normal crawl interval, the
+routine wakes early, reacquires the cycle lease, and drains it. This preserves
+single-writer ownership without leaving transport retries asleep for 15
+minutes.
 
 External Telegram publishing is active only when all of these are true:
 

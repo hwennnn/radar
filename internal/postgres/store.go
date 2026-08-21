@@ -1024,6 +1024,30 @@ RETURNING d.id, d.job_id, d.channel, d.recipient, d.payload, d.status, d.attempt
 	return deliveries, rows.Err()
 }
 
+// NextDeliveryAttemptAt returns the next time this target can make progress.
+// Routine mode uses it to wake before the crawl interval instead of leaving a
+// Telegram retry dormant in the durable outbox.
+func (s *PostgresStore) NextDeliveryAttemptAt(ctx context.Context, channel, recipient string) (*time.Time, error) {
+	channel, recipient = strings.TrimSpace(channel), strings.TrimSpace(recipient)
+	if channel == "" || recipient == "" {
+		return nil, errors.New("lite: delivery channel and recipient are required")
+	}
+	var next sql.NullTime
+	err := s.db.QueryRowContext(ctx, `
+SELECT min(CASE WHEN status = 'claimed' THEN claim_expires_at ELSE next_attempt_at END)
+FROM `+s.table("deliveries")+`
+WHERE channel = $1 AND recipient = $2
+  AND status IN ('pending', 'failed', 'claimed')`, channel, recipient).Scan(&next)
+	if err != nil {
+		return nil, err
+	}
+	if !next.Valid {
+		return nil, nil
+	}
+	value := next.Time.UTC()
+	return &value, nil
+}
+
 func (s *PostgresStore) ReleaseDelivery(ctx context.Context, id int64, owner string) error {
 	result, err := s.db.ExecContext(ctx, `UPDATE `+s.table("deliveries")+` SET status = 'pending', claim_owner = '', claim_expires_at = NULL WHERE id = $1 AND status = 'claimed' AND claim_owner = $2`, id, owner)
 	return requireOne(result, err, "claimed delivery")

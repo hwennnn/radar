@@ -12,6 +12,12 @@ Radar separates research evidence from production job ingestion.
    and evaluate early-career eligibility.
 6. Repeatedly unhealthy discovered routes are demoted and returned to discovery.
 
+Routine scheduling is least-recently-attempted and bounded. New routes cannot
+be starved by a slow provider near the front of the catalog, and failed routes
+use durable exponential backoff. A global cycle timeout preserves the route's
+last real health outcome because an interrupted worker is not evidence that the
+upstream source failed.
+
 Empty, ambiguous, mismatched, incomplete, or nontechnical results do not
 promote. A source failure is isolated: healthy sources continue and previously
 healthy state is retained until a complete replacement snapshot exists.
