@@ -6,7 +6,7 @@ migrations in writer modes.
 
 | Table | Responsibility |
 | --- | --- |
-| `jobs` | Canonical source-independent posting and active-seen timestamps |
+| `jobs` | Canonical posting, active-seen timestamps, and apply-link health |
 | `job_identities` | Native ID, canonical URL, requisition, and fallback aliases |
 | `job_source_observations` | Provenance and active state for each source sighting |
 | `deliveries` | Durable, replay-safe outbox rows |
@@ -26,6 +26,12 @@ company alone are never sufficient identity.
 Source reconciliation changes visibility only after a complete snapshot. An
 incomplete or failed source cannot falsely close jobs or replace a previous
 healthy snapshot.
+
+Apply-link health is stored on the canonical job. Writer cycles select a
+bounded due set, preserve ambiguous failures, and hide a URL only after two
+consecutive terminal results. When an observation changes `apply_url`, its
+health, failure count, and schedule reset atomically so a re-uploaded
+requisition is validated as new evidence.
 
 ## Atomic delivery decision
 

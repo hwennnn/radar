@@ -356,6 +356,11 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		Channel: cfg.deliveryMode, Recipient: cfg.recipient,
 		PublishBootstrap: cfg.deliveryMode == "telegram",
 	}
+	linkChecker := pipeline.ApplyURLChecker{
+		Store:  store,
+		Client: scraper.NewSafeHTTPClient(12 * time.Second),
+		Limit:  32,
+	}
 	deliveryLimit := 100
 	deliveryTimeout := 30 * time.Second
 	deliveryInterval := time.Duration(0)
@@ -444,6 +449,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			runner.Sources = runtimeSources(baseSources, promoted, marketSources, cfg.marketOnly)
 		}
 		report, runErr := runner.Run(cycleCtx)
+		linkReport, linkErr := linkChecker.Run(cycleCtx)
 		marketReport, marketErr := (pipeline.MarketSourcePromoter{
 			Extractor: productionExtractor,
 			Store:     store,
@@ -469,7 +475,7 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 		deliveryCancel()
 		deliveryReport := mergeDeliveryReports(pumpResult.report, finalDeliveryReport)
 		deliveryErr := errors.Join(pumpResult.err, finalDeliveryErr)
-		cycleErr := errors.Join(discoveryErr, runErr, marketErr, deliveryErr)
+		cycleErr := errors.Join(discoveryErr, runErr, linkErr, marketErr, deliveryErr)
 		cycleResult := pipeline.CycleResult{
 			Status:           cycleResultStatus(report, discoveryReport, deliveryReport, cycleErr),
 			SourcesAttempted: report.SourcesAttempted, SourcesSucceeded: report.SourcesSucceeded,
@@ -514,6 +520,11 @@ func runRoutine(ctx context.Context, cfg config, logger *slog.Logger) error {
 			"created", report.Created,
 			"eligible_created", report.EligibleCreated,
 			"enqueued", report.Enqueued,
+			"apply_urls_checked", linkReport.Attempted,
+			"apply_urls_live", linkReport.Live,
+			"apply_urls_gone", linkReport.Gone,
+			"apply_urls_unknown", linkReport.Unknown,
+			"apply_url_request_errors", len(linkReport.Errors),
 			"deliveries_sent", deliveryReport.Sent,
 			"deliveries_failed", deliveryReport.Failed,
 			"bootstrapping", report.Bootstrapping,

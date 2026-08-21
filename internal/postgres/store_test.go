@@ -1636,6 +1636,58 @@ func TestPostgresStoreFinalizesActiveSourceSnapshots(t *testing.T) {
 	}
 }
 
+func TestPostgresStoreRevalidatesApplyURLsWithoutHidingTransientFailures(t *testing.T) {
+	_, store := integrationStore(t)
+	ctx := context.Background()
+	now := time.Now().UTC().Truncate(time.Microsecond)
+	posting, created, err := store.Observe(ctx, Observation{
+		SourceID: "greenhouse:databricks", SourceNativeID: "greenhouse:8732364002",
+		Company: "Databricks", Title: "Software Engineering Intern",
+		ApplyURL: "https://databricks.test/company/careers/job?gh_jid=8732364002", ObservedAt: now,
+	})
+	if err != nil || !created {
+		t.Fatalf("observe created=%v err=%v", created, err)
+	}
+	due, err := store.ListApplyURLsDue(ctx, now, 10)
+	if err != nil || len(due) != 1 || due[0].JobID != posting.ID {
+		t.Fatalf("due=%#v err=%v", due, err)
+	}
+	record := func(outcome string, status int, at time.Time) {
+		t.Helper()
+		if err := store.RecordApplyURLCheck(ctx, ApplyURLCheck{
+			JobID: posting.ID, ApplyURL: posting.ApplyURL, Outcome: outcome,
+			StatusCode: status, CheckedAt: at, NextCheckAt: at.Add(time.Hour),
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	record(pipeline.ApplyURLGone, 404, now)
+	if postings, err := store.ListPostings(ctx); err != nil || len(postings) != 1 {
+		t.Fatalf("one terminal result hid posting: postings=%#v err=%v", postings, err)
+	}
+	record(pipeline.ApplyURLGone, 410, now.Add(time.Hour))
+	if postings, err := store.ListPostings(ctx); err != nil || len(postings) != 0 {
+		t.Fatalf("confirmed gone posting remained visible: postings=%#v err=%v", postings, err)
+	}
+	record(pipeline.ApplyURLLive, 200, now.Add(2*time.Hour))
+	if postings, err := store.ListPostings(ctx); err != nil || len(postings) != 1 {
+		t.Fatalf("recovered posting remained hidden: postings=%#v err=%v", postings, err)
+	}
+
+	updated, created, err := store.Observe(ctx, Observation{
+		SourceID: "greenhouse:databricks", SourceNativeID: "greenhouse:8732364002",
+		Company: "Databricks", Title: "Software Engineering Intern",
+		ApplyURL: "https://databricks.test/company/careers/job?gh_jid=9999999999", ObservedAt: now.Add(3 * time.Hour),
+	})
+	if err != nil || created || updated.ID != posting.ID {
+		t.Fatalf("updated posting=%#v created=%v err=%v", updated, created, err)
+	}
+	due, err = store.ListApplyURLsDue(ctx, now.Add(3*time.Hour), 10)
+	if err != nil || len(due) != 1 || due[0].ApplyURL != updated.ApplyURL || due[0].State != pipeline.ApplyURLUnchecked {
+		t.Fatalf("refreshed URL not reset for validation: due=%#v err=%v", due, err)
+	}
+}
+
 func TestPostgresStoreSuppressedDecisionStaysSuppressedOnReplay(t *testing.T) {
 	_, store := integrationStore(t)
 	ctx := context.Background()

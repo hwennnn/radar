@@ -19,6 +19,8 @@ import (
 
 type (
 	BootstrapState           = pipeline.BootstrapState
+	ApplyURLCandidate        = pipeline.ApplyURLCandidate
+	ApplyURLCheck            = pipeline.ApplyURLCheck
 	CycleResult              = pipeline.CycleResult
 	Delivery                 = pipeline.Delivery
 	DeliveryTarget           = pipeline.DeliveryTarget
@@ -102,6 +104,12 @@ func (s *PostgresStore) EnsureSchema(ctx context.Context) error {
         )`,
 		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS country text NOT NULL DEFAULT ''`,
 		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS posted_at timestamptz`,
+		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS apply_url_state text NOT NULL DEFAULT 'unchecked'`,
+		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS apply_url_checked_at timestamptz`,
+		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS apply_url_next_check_at timestamptz`,
+		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS apply_url_consecutive_gone integer NOT NULL DEFAULT 0`,
+		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS apply_url_last_status integer`,
+		`CREATE INDEX IF NOT EXISTS lite_jobs_apply_url_due_idx ON ` + s.table("jobs") + `(apply_url_next_check_at, first_seen_at) WHERE apply_url <> ''`,
 		`CREATE TABLE IF NOT EXISTS ` + s.table("job_identities") + ` (
             identity_key text PRIMARY KEY,
             job_id text NOT NULL REFERENCES ` + s.table("jobs") + `(id) ON DELETE CASCADE,
@@ -518,6 +526,11 @@ UPDATE `+s.table("jobs")+` SET
 	country = CASE WHEN $5 = '' THEN country ELSE $5 END,
 	employment_type = CASE WHEN $6 = '' THEN employment_type ELSE $6 END,
 	level = CASE WHEN $7 = '' THEN level ELSE $7 END,
+	apply_url_state = CASE WHEN $8 <> '' AND apply_url <> $8 THEN 'unchecked' ELSE apply_url_state END,
+	apply_url_checked_at = CASE WHEN $8 <> '' AND apply_url <> $8 THEN NULL ELSE apply_url_checked_at END,
+	apply_url_next_check_at = CASE WHEN $8 <> '' AND apply_url <> $8 THEN NULL ELSE apply_url_next_check_at END,
+	apply_url_consecutive_gone = CASE WHEN $8 <> '' AND apply_url <> $8 THEN 0 ELSE apply_url_consecutive_gone END,
+	apply_url_last_status = CASE WHEN $8 <> '' AND apply_url <> $8 THEN NULL ELSE apply_url_last_status END,
 	apply_url = CASE WHEN $8 = '' THEN apply_url ELSE $8 END,
 	description = CASE WHEN $9 = '' THEN description ELSE $9 END,
 	posted_at = COALESCE($10, posted_at),
@@ -1100,12 +1113,16 @@ func (s *PostgresStore) GetSourceStatus(ctx context.Context, sourceID string) (S
 // read-only feed. Eligibility remains a deterministic product rule applied by
 // the caller, so changing the rule never requires rewriting stored jobs.
 func (s *PostgresStore) ListPostings(ctx context.Context) ([]Posting, error) {
-	rows, err := s.queryCompatiblePostings(ctx, true)
+	rows, err := s.queryCompatiblePostings(ctx, true, true)
 	if isUndefinedColumn(err) {
-		// Read-only preview processes intentionally do not migrate. Fall back for
-		// a rolling deployment where the crawler has not added active provenance
-		// yet; the next successful crawler startup restores snapshot filtering.
-		rows, err = s.queryCompatiblePostings(ctx, false)
+		// Read-only processes intentionally do not migrate. During a rolling
+		// deployment, retain active provenance filtering even if the writer has
+		// not added link-health columns yet.
+		rows, err = s.queryCompatiblePostings(ctx, true, false)
+	}
+	if isUndefinedColumn(err) {
+		// Older schemas may also predate active provenance.
+		rows, err = s.queryCompatiblePostings(ctx, false, false)
 	}
 	if err != nil {
 		return nil, err
@@ -1127,11 +1144,11 @@ func (s *PostgresStore) ListPostings(ctx context.Context) ([]Posting, error) {
 	return postings, rows.Err()
 }
 
-func (s *PostgresStore) queryCompatiblePostings(ctx context.Context, activeOnly bool) (*sql.Rows, error) {
+func (s *PostgresStore) queryCompatiblePostings(ctx context.Context, activeOnly, hideGone bool) (*sql.Rows, error) {
 	fields := [][2]string{{"country", "posted_at"}, {"country", "NULL::timestamptz"}, {"''::text", "NULL::timestamptz"}}
 	var lastErr error
 	for _, field := range fields {
-		rows, err := s.queryPostings(ctx, field[0], field[1], activeOnly)
+		rows, err := s.queryPostings(ctx, field[0], field[1], activeOnly, hideGone)
 		if err == nil {
 			return rows, nil
 		}
@@ -1148,16 +1165,21 @@ func isUndefinedColumn(err error) bool {
 	return errors.As(err, &postgresError) && postgresError.Code == "42703"
 }
 
-func (s *PostgresStore) queryPostings(ctx context.Context, countryExpression, postedAtExpression string, activeOnly bool) (*sql.Rows, error) {
+func (s *PostgresStore) queryPostings(ctx context.Context, countryExpression, postedAtExpression string, activeOnly, hideGone bool) (*sql.Rows, error) {
 	activePredicate := ""
 	if activeOnly {
 		activePredicate = " AND observation.active"
+	}
+	linkPredicate := ""
+	if hideGone {
+		linkPredicate = " AND apply_url_state <> 'gone'"
 	}
 	return s.db.QueryContext(ctx, `
 SELECT id, company, title, location, `+countryExpression+`, employment_type, level, apply_url,
        `+postedAtExpression+`, first_seen_at, last_seen_at
 FROM `+s.table("jobs")+`
-WHERE EXISTS (
+WHERE 1=1 `+linkPredicate+`
+AND EXISTS (
     SELECT 1
     FROM `+s.table("job_source_observations")+` AS observation
     LEFT JOIN `+s.table("discovered_sources")+` AS discovered
@@ -1168,6 +1190,73 @@ WHERE EXISTS (
       AND (discovered.id IS NULL OR discovered.state = 'promoted')
 )
 ORDER BY first_seen_at DESC, company, title, id`)
+}
+
+// ListApplyURLsDue returns a bounded fair queue of currently active postings.
+// A missing check row is due immediately after an additive migration.
+func (s *PostgresStore) ListApplyURLsDue(ctx context.Context, at time.Time, limit int) ([]ApplyURLCandidate, error) {
+	if limit <= 0 {
+		return nil, errors.New("apply URL check limit must be positive")
+	}
+	rows, err := s.db.QueryContext(ctx, `
+SELECT jobs.id, jobs.apply_url, jobs.apply_url_state, jobs.apply_url_consecutive_gone
+FROM `+s.table("jobs")+` AS jobs
+WHERE jobs.apply_url <> ''
+  AND (jobs.apply_url_next_check_at IS NULL OR jobs.apply_url_next_check_at <= $1)
+  AND EXISTS (
+    SELECT 1
+    FROM `+s.table("job_source_observations")+` AS observation
+    LEFT JOIN `+s.table("discovered_sources")+` AS discovered
+      ON discovered.id = observation.source_id
+    WHERE observation.job_id = jobs.id
+      AND observation.active
+      AND observation.source_id NOT LIKE 'market-%'
+      AND (discovered.id IS NULL OR discovered.state = 'promoted')
+  )
+ORDER BY jobs.apply_url_next_check_at NULLS FIRST, jobs.apply_url_checked_at NULLS FIRST, jobs.first_seen_at
+LIMIT $2`, at.UTC(), limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var candidates []ApplyURLCandidate
+	for rows.Next() {
+		var candidate ApplyURLCandidate
+		if err := rows.Scan(&candidate.JobID, &candidate.ApplyURL, &candidate.State, &candidate.ConsecutiveGone); err != nil {
+			return nil, err
+		}
+		candidates = append(candidates, candidate)
+	}
+	return candidates, rows.Err()
+}
+
+// RecordApplyURLCheck ignores a stale result when the source refreshed the job
+// to a different URL while the request was in flight. Two consecutive terminal
+// results are required before the feed hides the posting.
+func (s *PostgresStore) RecordApplyURLCheck(ctx context.Context, check ApplyURLCheck) error {
+	outcome := strings.TrimSpace(check.Outcome)
+	if outcome != pipeline.ApplyURLLive && outcome != pipeline.ApplyURLGone && outcome != pipeline.ApplyURLUnchecked {
+		return fmt.Errorf("invalid apply URL outcome %q", check.Outcome)
+	}
+	_, err := s.db.ExecContext(ctx, `
+UPDATE `+s.table("jobs")+` SET
+  apply_url_state = CASE
+    WHEN $3 = 'live' THEN 'live'
+    WHEN $3 = 'gone' AND apply_url_consecutive_gone + 1 >= 2 THEN 'gone'
+    ELSE apply_url_state
+  END,
+  apply_url_consecutive_gone = CASE
+    WHEN $3 = 'live' THEN 0
+    WHEN $3 = 'gone' THEN apply_url_consecutive_gone + 1
+    ELSE apply_url_consecutive_gone
+  END,
+  apply_url_checked_at = $5,
+  apply_url_next_check_at = $6,
+  apply_url_last_status = NULLIF($4, 0)
+WHERE id = $1 AND apply_url = $2`,
+		check.JobID, pipeline.CanonicalApplyURL(check.ApplyURL), outcome, check.StatusCode,
+		check.CheckedAt.UTC(), check.NextCheckAt.UTC())
+	return err
 }
 
 // ListSourceStatuses exposes the latest outcome for each routine source. A

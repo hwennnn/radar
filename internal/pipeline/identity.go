@@ -12,7 +12,7 @@ import (
 )
 
 var trackingQueryKeys = map[string]struct{}{
-	"campaign": {}, "fbclid": {}, "gclid": {}, "gh_jid": {}, "gh_src": {}, "mc_cid": {},
+	"campaign": {}, "fbclid": {}, "gclid": {}, "gh_src": {}, "mc_cid": {},
 	"lever-source": {}, "lever-via": {}, "mc_eid": {}, "ref": {}, "referrer": {}, "source": {}, "src": {},
 	"tracking": {},
 }
@@ -56,7 +56,8 @@ func CanonicalApplyURL(raw string) string {
 	// hosts, and often repeats the path job ID in gh_jid. Treat those transport
 	// variants as one strong apply identity so verified and newly discovered
 	// boards cannot create duplicate openings.
-	if hostname == "boards.greenhouse.io" || hostname == "job-boards.greenhouse.io" {
+	greenhouseBoardHost := hostname == "boards.greenhouse.io" || hostname == "job-boards.greenhouse.io"
+	if greenhouseBoardHost {
 		hostname = "job-boards.greenhouse.io"
 		parsed.Scheme = "https"
 	}
@@ -90,6 +91,13 @@ func CanonicalApplyURL(raw string) string {
 	parsed.RawPath = cleanPath
 
 	query := parsed.Query()
+	// A Greenhouse board path already contains the requisition ID, so gh_jid is
+	// redundant there. Branded career sites such as Databricks use a generic
+	// /job path and require gh_jid to resolve the posting; stripping it produces
+	// a soft 404 and collapses distinct requisitions onto one URL.
+	if greenhouseBoardHost {
+		query.Del("gh_jid")
+	}
 	for key := range query {
 		lower := strings.ToLower(key)
 		_, exact := trackingQueryKeys[lower]

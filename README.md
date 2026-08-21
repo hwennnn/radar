@@ -18,6 +18,8 @@ a valid technical-job snapshot.
 The pipeline is intentionally conservative:
 
 - failed or incomplete source reads do not close previously observed jobs;
+- active apply URLs are revalidated; two terminal checks are required before a
+  dead link is hidden, while transient request failures preserve visibility;
 - source failures are isolated, so healthy routes continue processing;
 - job identity uses native IDs, canonical apply URLs, requisitions, and fallback
   fingerprints instead of title and company alone;
@@ -37,7 +39,7 @@ feed:
 | Extraction | Read supported ATS providers and normalized company career pages. |
 | Filtering | Retain technical internships and new-grad roles in configured markets. |
 | Identity | Resolve aliases, canonical jobs, cross-source observations, and provenance. |
-| Persistence | Store snapshots, health, leases, jobs, and the delivery outbox in PostgreSQL. |
+| Persistence | Store snapshots, apply-link health, leases, jobs, and the delivery outbox in PostgreSQL. |
 | HTTP | Serve incremental job reads, source status, health endpoints, and the embedded dashboard. |
 | Delivery | Drain an idempotent outbox to a configured transport; external publishing is off by default. |
 

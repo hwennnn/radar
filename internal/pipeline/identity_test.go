@@ -40,6 +40,14 @@ func TestCanonicalApplyURLConvergesGreenhouseBoardVariants(t *testing.T) {
 	}
 }
 
+func TestCanonicalApplyURLPreservesBrandedGreenhouseRequisition(t *testing.T) {
+	got := CanonicalApplyURL("https://databricks.com/company/careers/open-positions/job?gh_jid=8732364002&utm_source=feed")
+	want := "https://databricks.com/company/careers/open-positions/job?gh_jid=8732364002"
+	if got != want {
+		t.Fatalf("CanonicalApplyURL() = %q, want %q", got, want)
+	}
+}
+
 func TestIdentityKeysPreferStrongNativeAndURLAliases(t *testing.T) {
 	got, err := IdentityKeys(Observation{
 		SourceID: "Greenhouse", SourceNativeID: "ABC-42",

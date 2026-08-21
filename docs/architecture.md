@@ -133,6 +133,10 @@ sequenceDiagram
         and source crawling
             R->>E: Crawl verified sources independently
             E->>P: Reconcile complete snapshots
+        and link validation
+            R->>P: Select due active apply URLs
+            R->>E: Check terminal and soft-404 responses
+            E->>P: Persist health and next-check time
         and delivery pump
             R->>O: Claim activated deliveries every 500 ms
             O->>T: Send at transport-safe pace
@@ -191,6 +195,14 @@ Completeness matters as much as parsed rows. A failed or partial response may
 surface a source-health error, but it cannot reconcile missing postings as
 closed. Only a complete successful snapshot replaces active source state.
 
+Source snapshots and apply-link validation cover different failure modes. A
+complete snapshot retires a posting that disappears from its board. A bounded
+link validator revisits active application URLs in the background, including
+URLs an ATS still advertises. HTTP 404, 410, and narrowly recognized soft-404
+pages are terminal evidence; two consecutive terminal checks hide the job.
+Timeouts, rate limits, authorization responses, and server errors are ambiguous
+and never hide it. A refreshed URL resets link state and is checked immediately.
+
 ## Job identity and provenance
 
 One real job can appear under multiple URLs, sources, or titles. Radar assigns
@@ -232,7 +244,7 @@ schema is `radar_lite` for compatibility with existing deployments.
 
 | Durable object | Purpose |
 | --- | --- |
-| `jobs` | Canonical role, active state, first and last seen timestamps |
+| `jobs` | Canonical role, apply-link health, and first/last seen timestamps |
 | `job_identities` | Native ID, URL, requisition, and fallback aliases |
 | `job_source_observations` | Source-specific provenance and active sightings |
 | `source_status` | Success, healthy-empty, failure, and retry evidence |
