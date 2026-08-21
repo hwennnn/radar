@@ -153,7 +153,7 @@ func TestTelegramOutboxRendersJobMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Enqueue() error = %v", err)
 	}
-	want := "💼 <b>Internship · Aquatic Capital Management</b>\n<a href=\"https://example.com/jobs/123\">Quantitative Researcher, Intern (Summer 2027) ↗</a>\n📍 Chicago · London"
+	want := "💼 <b>Internship · Aquatic Capital Management</b>\n<a href=\"https://example.com/jobs/123\">Quantitative Researcher, Intern (Summer 2027) ↗</a>\n📍 Chicago · London\n📈 Quant / trading"
 	if got := payload["text"]; got != want {
 		t.Fatalf("text = %q, want %q", got, want)
 	}
@@ -174,7 +174,7 @@ func TestTelegramOutboxRendersCompactNewGradMessage(t *testing.T) {
 		"apply_url":       "https://example.com/headlands/new-grad",
 	}}
 
-	want := "🎓 <b>New grad · Headlands Technologies</b>\n<a href=\"https://example.com/headlands/new-grad\">Quantitative Researcher - New Grad ↗</a>\n📍 Amsterdam · Chicago · London · New York"
+	want := "🎓 <b>New grad · Headlands Technologies</b>\n<a href=\"https://example.com/headlands/new-grad\">Quantitative Researcher - New Grad ↗</a>\n📍 Amsterdam · Chicago · London · New York\n📈 Quant / trading · Software"
 	if got := renderTelegramText(msg); got != want {
 		t.Fatalf("renderTelegramText() = %q, want %q", got, want)
 	}

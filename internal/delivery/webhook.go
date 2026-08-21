@@ -166,6 +166,8 @@ func renderStructuredTelegramHTML(msg Message, limit int) (string, bool) {
 	reason := strings.TrimSpace(meta["reason"])
 	review := strings.TrimSpace(meta["review"])
 	track := strings.TrimSpace(meta["track"])
+	companyType := strings.TrimSpace(meta["company_type"])
+	category := strings.TrimSpace(meta["category"])
 
 	if title == "" || company == "" {
 		return "", false
@@ -177,6 +179,9 @@ func renderStructuredTelegramHTML(msg Message, limit int) (string, bool) {
 	}
 	if location != "" {
 		lines = append(lines, "📍 "+html.EscapeString(telegramInlineList(location)))
+	}
+	if classification := telegramClassificationLine(companyType, category); classification != "" {
+		lines = append(lines, classification)
 	}
 	if score != "" {
 		lines = append(lines, "⭐ <b>"+html.EscapeString(score)+"/100 fit</b>")
@@ -194,6 +199,21 @@ func renderStructuredTelegramHTML(msg Message, limit int) (string, bool) {
 		text = html.EscapeString(truncateWebhookText(text, limit))
 	}
 	return text, true
+}
+
+func telegramClassificationLine(companyType string, category string) string {
+	companyType = strings.Join(strings.Fields(strings.TrimSpace(companyType)), " ")
+	category = strings.Join(strings.Fields(strings.TrimSpace(category)), " ")
+	if companyType == "" {
+		if category == "" {
+			return ""
+		}
+		return "🏷 " + html.EscapeString(category)
+	}
+	if category == "" || strings.Contains(strings.ToLower(companyType), strings.ToLower(category)) {
+		return html.EscapeString(companyType)
+	}
+	return html.EscapeString(companyType + " · " + category)
 }
 
 func telegramJobHeadline(track string, company string) string {
