@@ -88,7 +88,7 @@ func TestTelegramOutboxSendsMessage(t *testing.T) {
 		t.Fatalf("chat_id = %#v, want chat-123", payload["chat_id"])
 	}
 	text, _ := payload["text"].(string)
-	want := "✨ New role\n<b><a href=\"https://example.com\">Backend intern</a></b>\n\n<b>Stripe</b>\n📍 New York, NY\n\n⭐ <b>93/100 fit</b>\n💡 you rated Stripe yes"
+	want := "✨ <b>Role · Stripe</b>\n<a href=\"https://example.com\">Backend intern ↗</a>\n📍 New York, NY\n⭐ <b>93/100 fit</b>\n💡 you rated Stripe yes"
 	if text != want {
 		t.Fatalf("text = %q, want %q", text, want)
 	}
@@ -153,7 +153,7 @@ func TestTelegramOutboxRendersJobMessage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Enqueue() error = %v", err)
 	}
-	want := "💼 New internship\n<b><a href=\"https://example.com/jobs/123\">Quantitative Researcher, Intern (Summer 2027)</a></b>\n\n<b>Aquatic Capital Management</b>\n📍 Chicago · London"
+	want := "💼 <b>Internship · Aquatic Capital Management</b>\n<a href=\"https://example.com/jobs/123\">Quantitative Researcher, Intern (Summer 2027) ↗</a>\n📍 Chicago · London"
 	if got := payload["text"]; got != want {
 		t.Fatalf("text = %q, want %q", got, want)
 	}
@@ -174,7 +174,7 @@ func TestTelegramOutboxRendersCompactNewGradMessage(t *testing.T) {
 		"apply_url":       "https://example.com/headlands/new-grad",
 	}}
 
-	want := "🎓 New grad\n<b><a href=\"https://example.com/headlands/new-grad\">Quantitative Researcher - New Grad</a></b>\n\n<b>Headlands Technologies</b>\n📍 Amsterdam · Chicago · London · New York"
+	want := "🎓 <b>New grad · Headlands Technologies</b>\n<a href=\"https://example.com/headlands/new-grad\">Quantitative Researcher - New Grad ↗</a>\n📍 Amsterdam · Chicago · London · New York"
 	if got := renderTelegramText(msg); got != want {
 		t.Fatalf("renderTelegramText() = %q, want %q", got, want)
 	}
@@ -182,6 +182,25 @@ func TestTelegramOutboxRendersCompactNewGradMessage(t *testing.T) {
 		if strings.TrimRight(line, " \t") != line {
 			t.Fatalf("renderTelegramText() contains trailing whitespace: %q", line)
 		}
+	}
+}
+
+func TestTelegramOutboxCapsProseLikeTitlesAndAvoidsLooseSections(t *testing.T) {
+	msg := Message{Metadata: map[string]string{
+		"title":     "Work as a software engineering intern for 12–14 weeks building and shipping projects that run",
+		"company":   "Builtinaustin",
+		"track":     "Internship",
+		"location":  "San Francisco, CA, United States",
+		"apply_url": "https://example.com/jobs/intern",
+	}}
+
+	got := renderTelegramText(msg)
+	want := "💼 <b>Internship · Builtinaustin</b>\n<a href=\"https://example.com/jobs/intern\">Work as a software engineering intern for 12–14 weeks building and ship… ↗</a>\n📍 San Francisco, CA, United States"
+	if got != want {
+		t.Fatalf("renderTelegramText() = %q, want %q", got, want)
+	}
+	if strings.Contains(got, "\n\n") || strings.Contains(got, "New internship") {
+		t.Fatalf("renderTelegramText() = %q, want compact hierarchy", got)
 	}
 }
 

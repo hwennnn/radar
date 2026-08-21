@@ -19,6 +19,7 @@ const (
 	maxWebhookErrorBody       = 512
 	defaultWebhookHTTPTimeout = 10 * time.Second
 	redactedWebhookEndpoint   = "<redacted webhook endpoint>"
+	telegramTitleRuneLimit    = 72
 )
 
 type httpDoer interface {
@@ -171,16 +172,11 @@ func renderStructuredTelegramHTML(msg Message, limit int) (string, bool) {
 	}
 
 	lines := []string{
-		telegramTrackHeadline(track),
+		telegramJobHeadline(track, company),
 		telegramTitleLine(title, applyURL),
-		"",
-		"<b>" + html.EscapeString(company) + "</b>",
 	}
 	if location != "" {
 		lines = append(lines, "📍 "+html.EscapeString(telegramInlineList(location)))
-	}
-	if score != "" || review != "" || reason != "" {
-		lines = append(lines, "")
 	}
 	if score != "" {
 		lines = append(lines, "⭐ <b>"+html.EscapeString(score)+"/100 fit</b>")
@@ -200,23 +196,33 @@ func renderStructuredTelegramHTML(msg Message, limit int) (string, bool) {
 	return text, true
 }
 
-func telegramTrackHeadline(track string) string {
+func telegramJobHeadline(track string, company string) string {
+	label := "Role"
+	emoji := "✨"
 	switch strings.ToLower(strings.TrimSpace(track)) {
 	case "intern", "internship":
-		return "💼 New internship"
+		emoji, label = "💼", "Internship"
 	case "new grad", "new graduate", "graduate":
-		return "🎓 New grad"
-	default:
-		return "✨ New role"
+		emoji, label = "🎓", "New grad"
 	}
+	return emoji + " <b>" + html.EscapeString(label+" · "+strings.TrimSpace(company)) + "</b>"
 }
 
 func telegramTitleLine(title string, applyURL string) string {
-	title = html.EscapeString(strings.TrimSpace(title))
+	title = html.EscapeString(telegramDisplayTitle(title))
 	if safeURL := telegramButtonURL(applyURL); safeURL != "" {
-		return `<b><a href="` + html.EscapeString(safeURL) + `">` + title + `</a></b>`
+		return `<a href="` + html.EscapeString(safeURL) + `">` + title + ` ↗</a>`
 	}
-	return "<b>" + title + "</b>"
+	return title
+}
+
+func telegramDisplayTitle(title string) string {
+	title = strings.Join(strings.Fields(strings.TrimSpace(title)), " ")
+	runes := []rune(title)
+	if len(runes) <= telegramTitleRuneLimit {
+		return title
+	}
+	return strings.TrimSpace(string(runes[:telegramTitleRuneLimit-1])) + "…"
 }
 
 func telegramInlineList(value string) string {
