@@ -224,6 +224,26 @@ func TestScraperExtractorReturnsRealFailures(t *testing.T) {
 	}
 }
 
+func TestScraperExtractorPreservesTruncatedSnapshotState(t *testing.T) {
+	adapter := NewScraperExtractor(scraperExtractorFunc{extract: func(context.Context, scraper.Source) (scraper.Result, error) {
+		return scraper.Result{
+			Jobs: []scraper.JobPosting{{
+				SourceJobID: "one", Company: "Acme", Title: "Software Engineer Intern",
+				ApplyURL: "https://jobs.example.test/one",
+			}},
+			Diagnostics: map[string]string{"completeness_status": "truncated", "has_more": "true"},
+		}, nil
+	}})
+
+	got, err := adapter.Extract(context.Background(), Source{ID: "acme", Company: "Acme", Provider: "workday"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Complete || len(got.Observations) != 1 {
+		t.Fatalf("truncated extraction=%#v, want one observation and incomplete state", got)
+	}
+}
+
 func TestAuthoritativeEmptyCompletesBootstrapBeforeFutureJobEnqueues(t *testing.T) {
 	calls := 0
 	extractor := NewScraperExtractor(scraperExtractorFunc{extract: func(_ context.Context, source scraper.Source) (scraper.Result, error) {

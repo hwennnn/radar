@@ -157,7 +157,14 @@ func (e *ScraperExtractor) Extract(ctx context.Context, source Source) (Extracti
 			ObservedAt:     observedAt,
 		})
 	}
-	return ExtractionResult{Observations: observations, Complete: true}, nil
+	complete := true
+	if status := strings.ToLower(strings.TrimSpace(result.Diagnostics["completeness_status"])); status == "truncated" || status == "incomplete" {
+		complete = false
+	}
+	if strings.EqualFold(strings.TrimSpace(result.Diagnostics["has_more"]), "true") {
+		complete = false
+	}
+	return ExtractionResult{Observations: observations, Complete: complete}, nil
 }
 
 // explicitTitleLocation corrects only strongly delimited geography in an
