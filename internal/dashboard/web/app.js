@@ -29,9 +29,11 @@ const elements = {
   companyFilterSearch: document.querySelector("#company-filter-search"),
   companyOptions: document.querySelector("#company-options"),
   showAllCompanies: document.querySelector("#show-all-companies"),
+  systemTitle: document.querySelector("#system-title"),
   systemSummary: document.querySelector("#system-summary"),
   stateUpdated: document.querySelector("#state-updated"),
   coverageCount: document.querySelector("#coverage-count"),
+  coverageCaption: document.querySelector("#coverage-caption"),
   discoveryCount: document.querySelector("#discovery-count"),
   dedupeCount: document.querySelector("#dedupe-count"),
   telegramState: document.querySelector("#telegram-state"),
@@ -617,7 +619,7 @@ function renderCurrentFeed() {
   renderCompanyPicker(data);
   elements.showingCount.textContent = visibleJobs.length === 0
     ? "No matching roles"
-    : `${numberFormat.format(pageStart + 1)}–${numberFormat.format(pageStart + renderedJobs.length)} of ${numberFormat.format(visibleJobs.length)} visible${hiddenInResult ? ` · ${numberFormat.format(hiddenInResult)} hidden` : ""}`;
+    : `${numberFormat.format(pageStart + 1)}-${numberFormat.format(pageStart + renderedJobs.length)} of ${numberFormat.format(visibleJobs.length)} visible${hiddenInResult ? ` · ${numberFormat.format(hiddenInResult)} hidden` : ""}`;
   elements.emptyTitle.textContent = data.total > 0 && visibleJobs.length === 0
     ? "Every matching role is hidden."
     : "No roles match these filters.";
@@ -748,7 +750,8 @@ function renderStatus(data) {
   const telegram = telegramPresentation(data.telegram);
   state.monitoredSources = Array.isArray(sources.monitored) ? sources.monitored : null;
   renderSourceRoster();
-  elements.coverageCount.textContent = `${sources.healthy}/${sources.configured}`;
+  elements.coverageCount.textContent = numberFormat.format(sources.healthy);
+  elements.coverageCaption.textContent = `of ${numberFormat.format(sources.configured)} monitored sources healthy`;
   elements.discoveryCount.textContent = numberFormat.format(data.discovery.promoted_sources);
   elements.dedupeCount.textContent = compactNumber.format(data.dedupe.canonical_jobs);
   elements.telegramState.textContent = telegram.label;
@@ -777,25 +780,28 @@ function renderStatus(data) {
         : data.runtime.last_cycle_state === "success" ? "Ready" : "Pending";
   elements.stateUpdated.textContent = `State read ${formatRelative(data.generated_at)}`;
 
-  let systemSummary = `${sources.healthy} of ${sources.configured} monitored sources are healthy.`;
-  let stateLabel = `${sources.healthy}/${sources.configured} sources healthy`;
-  if (data.state === "degraded") {
-    if (data.runtime.cycle_stale) {
-      systemSummary += " The crawler owner is overdue; its database lease may remain held until that process completes or exits.";
-    } else if (data.runtime.last_cycle_error) {
-      systemSummary += " The last crawler cycle failed; durable source and delivery state remains available.";
-    } else if (sources.failed > 0) {
-      systemSummary += ` ${sources.failed} active source${sources.failed === 1 ? " needs" : "s need"} attention, without blocking healthy routes.`;
-    } else if (data.discovery.unhealthy_sources > 0) {
-      systemSummary += ` ${data.discovery.unhealthy_sources} rejected discovery route${data.discovery.unhealthy_sources === 1 ? " is" : "s are"} quarantined outside active monitoring.`;
-    }
-  } else if (data.state === "pending") {
-    systemSummary += ` ${sources.pending} source${sources.pending === 1 ? " is" : "s are"} waiting for a first result.`;
-  } else {
-    systemSummary += " Delivery decisions and identity aliases are durable.";
+  const serviceUnavailable = data.runtime.cycle_stale || data.runtime.last_cycle_error;
+  const servicePending = !serviceUnavailable && data.state === "pending";
+  let systemTitle = "Radar is online";
+  let systemSummary = "Job discovery, verification, and alerts are operating normally.";
+  let stateLabel = "Service online";
+  let publicState = "healthy";
+  if (serviceUnavailable) {
+    systemTitle = "Updates are delayed";
+    systemSummary = "The existing job feed remains available while the next refresh recovers.";
+    stateLabel = "Updates delayed";
+    publicState = "degraded";
+  } else if (servicePending) {
+    systemTitle = "Source checks are starting";
+    systemSummary = "Jobs remain available while Radar completes its first source checks.";
+    stateLabel = "Checking service";
+    publicState = "pending";
+  } else if (sources.failed > 0) {
+    systemSummary = "Some career sites are delayed. Healthy sources and job alerts continue normally.";
   }
+  elements.systemTitle.textContent = systemTitle;
   elements.systemSummary.textContent = systemSummary;
-  elements.sourceState.dataset.state = data.state;
+  elements.sourceState.dataset.state = publicState;
   elements.sourceState.querySelector("span:last-child").textContent = stateLabel;
   elements.attentionCount.textContent = `${numberFormat.format(failures.length)} ${failures.length === 1 ? "route" : "routes"}`;
   elements.failureList.replaceChildren(...failures.map(renderFailure));
@@ -898,9 +904,11 @@ async function loadStatus({ force = false } = {}) {
     state.monitoredSources = null;
     renderSourceRoster();
     elements.statusError.hidden = false;
-    elements.systemSummary.textContent = "Durable pipeline state could not be read. The job feed remains independent.";
+    elements.systemTitle.textContent = "Status is unavailable";
+    elements.systemSummary.textContent = "Current service status could not be read. The job feed is still available.";
+    elements.stateUpdated.textContent = "Last check failed";
     elements.sourceState.dataset.state = "degraded";
-    elements.sourceState.querySelector("span:last-child").textContent = "Pipeline state unavailable";
+    elements.sourceState.querySelector("span:last-child").textContent = "Status unavailable";
   }
 }
 

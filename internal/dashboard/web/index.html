@@ -7,8 +7,8 @@
     <meta name="color-scheme" content="light dark" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ccircle cx='32' cy='32' r='28' fill='%230f766e'/%3E%3Ccircle cx='32' cy='32' r='15' fill='none' stroke='white' stroke-width='5'/%3E%3Ccircle cx='32' cy='32' r='4' fill='white'/%3E%3C/svg%3E" />
     <title>Radar | Early-career engineering jobs</title>
-    <link rel="stylesheet" href="/styles.css?v=20260820-pagination1" />
-    <script src="/app.js?v=20260820-pagination1" defer></script>
+    <link rel="stylesheet" href="/styles.css?v=20260822-system1" />
+    <script src="/app.js?v=20260822-system1" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#jobs-title">Skip to jobs</a>
@@ -60,97 +60,108 @@
       <section class="system-pulse" id="system-panel" data-view="system" aria-labelledby="system-title" hidden>
         <header class="system-header">
           <div>
-            <p class="section-label">Pipeline state</p>
-            <h2 id="system-title">System pulse</h2>
-            <p id="system-summary" aria-live="polite">Reading durable state across the crawler, discovery, and delivery layers.</p>
+            <p class="section-label">Service status</p>
+            <h2 id="system-title">Radar is checking its services</h2>
+            <p id="system-summary" aria-live="polite">Checking job discovery, the public feed, and alerts.</p>
           </div>
-          <p class="state-timestamp" id="state-updated">Loading state</p>
+          <p class="state-timestamp" id="state-updated">Checking now</p>
         </header>
 
-        <div class="pulse-measures" aria-label="Pipeline readiness summary">
+        <div class="pulse-measures" aria-label="Public service summary">
           <div>
-            <span>Coverage</span>
+            <span>Source monitoring</span>
             <strong id="coverage-count">...</strong>
-            <small>healthy sources</small>
+            <small id="coverage-caption">checking career sites</small>
           </div>
           <div>
-            <span>Discovery</span>
-            <strong id="discovery-count">...</strong>
-            <small>sources promoted</small>
-          </div>
-          <div>
-            <span>Durable state</span>
+            <span>Jobs indexed</span>
             <strong id="dedupe-count">...</strong>
-            <small>canonical jobs</small>
+            <small>verified and deduplicated</small>
           </div>
           <div>
-            <span>Telegram</span>
+            <span>Job alerts</span>
             <strong id="telegram-state">...</strong>
-            <small id="telegram-caption">checking delivery lock</small>
+            <small id="telegram-caption">checking alert delivery</small>
           </div>
         </div>
 
         <div class="pulse-details" id="pulse-details">
-          <details class="attention-panel" id="source-attention" hidden>
-            <summary class="attention-summary">
-              <span class="attention-summary-copy">
-                <span class="attention-title-row">
-                  <strong id="attention-title">Sources needing attention</strong>
-                  <span class="attention-count" id="attention-count">...</span>
-                </span>
-                <span class="attention-description">Healthy sources keep running while these routes retry with backoff.</span>
+          <div class="status-message" id="status-error" hidden>
+            <p>Service status is temporarily unavailable. The job feed can still be used.</p>
+            <button id="status-retry" type="button">Retry</button>
+          </div>
+
+          <details class="technical-panel" id="technical-panel">
+            <summary class="technical-summary">
+              <span>
+                <strong>Technical details</strong>
+                <small>Crawler, source health, dedupe, and delivery state</small>
               </span>
-              <span class="attention-toggle" aria-hidden="true">
-                <span class="attention-toggle-closed">Review details</span>
-                <span class="attention-toggle-open">Hide details</span>
+              <span class="technical-toggle" aria-hidden="true">
+                <span class="technical-toggle-closed">View details</span>
+                <span class="technical-toggle-open">Hide details</span>
               </span>
             </summary>
-            <div class="attention-body">
-              <div class="failure-list" id="failure-list"></div>
+
+            <div class="technical-body">
+              <details class="attention-panel" id="source-attention" hidden>
+                <summary class="attention-summary">
+                  <span class="attention-summary-copy">
+                    <span class="attention-title-row">
+                      <strong id="attention-title">Sources needing attention</strong>
+                      <span class="attention-count" id="attention-count">...</span>
+                    </span>
+                    <span class="attention-description">Healthy sources keep running while these routes retry with backoff.</span>
+                  </span>
+                  <span class="attention-toggle" aria-hidden="true">
+                    <span class="attention-toggle-closed">Review routes</span>
+                    <span class="attention-toggle-open">Hide routes</span>
+                  </span>
+                </summary>
+                <div class="attention-body">
+                  <div class="failure-list" id="failure-list"></div>
+                </div>
+              </details>
+
+              <div class="state-ledger" aria-label="Durable pipeline ledger">
+                <section>
+                  <h3>Discovery</h3>
+                  <dl>
+                    <div><dt>Promoted sources</dt><dd id="discovery-count">...</dd></div>
+                    <div><dt>Companies tracked</dt><dd id="candidate-total">...</dd></div>
+                    <div><dt>Due for resolution</dt><dd id="candidate-due">...</dd></div>
+                    <div><dt>Unhealthy routes</dt><dd id="discovery-unhealthy">...</dd></div>
+                  </dl>
+                </section>
+                <section>
+                  <h3>Dedupe and provenance</h3>
+                  <dl>
+                    <div><dt>Identity aliases</dt><dd id="identity-count">...</dd></div>
+                    <div><dt>Source observations</dt><dd id="observation-count">...</dd></div>
+                    <div><dt>Cross-source merges</dt><dd id="merge-count">...</dd></div>
+                  </dl>
+                </section>
+                <section>
+                  <h3>Delivery decisions</h3>
+                  <dl>
+                    <div><dt>Staged</dt><dd id="delivery-staged">...</dd></div>
+                    <div><dt>Pending</dt><dd id="delivery-pending">...</dd></div>
+                    <div><dt>Sent or previewed</dt><dd id="delivery-sent">...</dd></div>
+                    <div><dt>Failed</dt><dd id="delivery-failed">...</dd></div>
+                    <div><dt>Suppressed</dt><dd id="delivery-suppressed">...</dd></div>
+                  </dl>
+                </section>
+                <section>
+                  <h3>Runtime</h3>
+                  <dl>
+                    <div><dt>Process</dt><dd id="runtime-mode">...</dd></div>
+                    <div><dt>Last cycle</dt><dd id="runtime-cycle">...</dd></div>
+                    <div><dt>Cycle result</dt><dd id="runtime-result">...</dd></div>
+                  </dl>
+                </section>
+              </div>
             </div>
           </details>
-
-          <div class="state-ledger" aria-label="Durable pipeline ledger">
-            <section>
-              <h3>Discovery</h3>
-              <dl>
-                <div><dt>Companies tracked</dt><dd id="candidate-total">...</dd></div>
-                <div><dt>Due for resolution</dt><dd id="candidate-due">...</dd></div>
-                <div><dt>Unhealthy routes</dt><dd id="discovery-unhealthy">...</dd></div>
-              </dl>
-            </section>
-            <section>
-              <h3>Dedupe and provenance</h3>
-              <dl>
-                <div><dt>Identity aliases</dt><dd id="identity-count">...</dd></div>
-                <div><dt>Source observations</dt><dd id="observation-count">...</dd></div>
-                <div><dt>Cross-source merges</dt><dd id="merge-count">...</dd></div>
-              </dl>
-            </section>
-            <section>
-              <h3>Delivery decisions</h3>
-              <dl>
-                <div><dt>Staged</dt><dd id="delivery-staged">...</dd></div>
-                <div><dt>Pending</dt><dd id="delivery-pending">...</dd></div>
-                <div><dt>Sent or previewed</dt><dd id="delivery-sent">...</dd></div>
-                <div><dt>Failed</dt><dd id="delivery-failed">...</dd></div>
-                <div><dt>Suppressed</dt><dd id="delivery-suppressed">...</dd></div>
-              </dl>
-            </section>
-            <section>
-              <h3>Runtime</h3>
-              <dl>
-                <div><dt>Process</dt><dd id="runtime-mode">...</dd></div>
-                <div><dt>Last cycle</dt><dd id="runtime-cycle">...</dd></div>
-                <div><dt>Cycle result</dt><dd id="runtime-result">...</dd></div>
-              </dl>
-            </section>
-          </div>
-
-          <div class="status-message" id="status-error" hidden>
-            <p>Operational state is temporarily unavailable. The job feed can still be used.</p>
-            <button id="status-retry" type="button">Retry state</button>
-          </div>
         </div>
       </section>
 

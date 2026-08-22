@@ -326,6 +326,14 @@ func TestEmbeddedUIAndFeedShareOneServer(t *testing.T) {
 					t.Fatalf("system attention disclosure is missing %q: %s", expected, body)
 				}
 			}
+			for _, expected := range []string{`<details class="technical-panel" id="technical-panel">`, `<summary class="technical-summary">`, `Crawler, source health, dedupe, and delivery state`} {
+				if !strings.Contains(body, expected) {
+					t.Fatalf("system technical disclosure is missing %q: %s", expected, body)
+				}
+			}
+			if strings.Contains(body, `<details class="technical-panel" id="technical-panel" open`) {
+				t.Fatalf("system technical disclosure must be collapsed by default: %s", body)
+			}
 			if strings.Contains(body, `<details class="attention-panel" id="source-attention" open`) {
 				t.Fatalf("system attention disclosure must be collapsed by default: %s", body)
 			}
