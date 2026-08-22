@@ -100,6 +100,16 @@ func TestDiscoveryQueryCoversOfficialSiteAndGem(t *testing.T) {
 	}
 }
 
+func TestSnapshotOwnershipMismatchUsesExtractorReportedEmployer(t *testing.T) {
+	source := Source{ID: "auto-acme", Company: "Acme AI", Provider: "ashby"}
+	if reported, mismatch := snapshotOwnershipMismatch(source, []Observation{{Company: "Acme AI", ReportedCompany: "Built In Chicago"}}); !mismatch || reported != "Built In Chicago" {
+		t.Fatalf("reported=%q mismatch=%v, want ownership rejection", reported, mismatch)
+	}
+	if reported, mismatch := snapshotOwnershipMismatch(Source{Company: "Acme"}, []Observation{{Company: "Acme", ReportedCompany: "Acme, Inc."}}); mismatch || reported != "" {
+		t.Fatalf("reported=%q mismatch=%v, want matching identity", reported, mismatch)
+	}
+}
+
 func (f *discoveryRepositoryFake) RecordDiscoverySuccess(_ context.Context, _ DiscoveryCandidateRecord, source Source, observed int, _ float64, _ string, _, _ time.Time) (bool, error) {
 	f.successSources = append(f.successSources, source)
 	f.successCounts = append(f.successCounts, observed)

@@ -7,18 +7,20 @@ import (
 
 // Observation is one sighting of a posting from one configured source.
 type Observation struct {
-	SourceID       string
-	SourceNativeID string
-	Company        string
-	Title          string
-	Location       string
-	Country        string
-	EmploymentType string
-	Level          string
-	ApplyURL       string
-	Description    string
-	PostedAt       *time.Time
-	ObservedAt     time.Time
+	SourceID        string
+	SourceNativeID  string
+	ReportedCompany string
+	Authority       int
+	Company         string
+	Title           string
+	Location        string
+	Country         string
+	EmploymentType  string
+	Level           string
+	ApplyURL        string
+	Description     string
+	PostedAt        *time.Time
+	ObservedAt      time.Time
 	// SnapshotPending keeps provenance visibility unchanged until a complete
 	// source pass atomically reconciles its active job set.
 	SnapshotPending bool
@@ -28,6 +30,22 @@ type RejectedObservation struct {
 	Observation
 	Code          string
 	PolicyVersion string
+}
+
+// SourcePassFinalization is the single visibility boundary for one complete
+// source snapshot. Observation rows and delivery decisions may be prepared
+// earlier, but none becomes active or publishable until this transaction
+// succeeds together with source health and bootstrap state.
+type SourcePassFinalization struct {
+	SourceID       string
+	ActiveJobIDs   []string
+	DeliveryIDs    []int64
+	Channel        string
+	Recipient      string
+	ObservedCount  int
+	AttemptedAt    time.Time
+	BootstrapKey   string
+	BootstrapValue json.RawMessage
 }
 
 // Posting is Radar's durable, source-independent representation of a job.

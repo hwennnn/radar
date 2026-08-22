@@ -326,6 +326,14 @@ func (p MarketSourcePromoter) Run(ctx context.Context, observations []Observatio
 				"retry_in_seconds", int(nextAttempt.Sub(checkedAt).Seconds()), "next_attempt_at", nextAttempt)
 			continue
 		}
+		if reported, mismatch := snapshotOwnershipMismatch(item.resolved.Source, extraction.Observations); mismatch {
+			report.SourcesRejected++
+			ownershipErr := fmt.Errorf("reported employer %q does not match candidate company identity %q", reported, item.resolved.Source.Company)
+			if err := p.Store.RecordDiscoveryFailure(ctx, candidateRecord, &item.resolved.Source, ownershipErr, checkedAt, checkedAt.Add(marketDiscoveryRetry)); err != nil {
+				return report, fmt.Errorf("record market source ownership failure: %w", err)
+			}
+			continue
+		}
 		quality := assessDiscoverySnapshotQuality(extraction.Observations)
 		if len(extraction.Observations) > 0 && (quality.Usable == 0 || quality.Relevant == 0) {
 			report.SourcesRejected++

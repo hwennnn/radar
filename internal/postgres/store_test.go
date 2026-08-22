@@ -1620,6 +1620,125 @@ func TestPostgresStoreObserveAndEnqueueIsAtomicAndReplaySafe(t *testing.T) {
 	}
 }
 
+func TestPostgresStoreFinalizesSourceVisibilityAtomically(t *testing.T) {
+	db, store := integrationStore(t)
+	ctx := context.Background()
+	observation := Observation{
+		SourceID: "ashby:atomic-snapshot", SourceNativeID: "snapshot-1", Company: "Atomic Snapshot AI",
+		Title: "Software Engineer Intern", Location: "New York", ApplyURL: "https://jobs.atomic-snapshot.test/1",
+		ObservedAt: time.Now().UTC(), SnapshotPending: true,
+	}
+	posting, _, delivery, _, err := store.ObserveAndEnqueue(ctx, observation, &DeliveryTarget{
+		Channel: "telegram", Recipient: "chat-snapshot", Stage: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken := SourcePassFinalization{
+		SourceID: observation.SourceID, ActiveJobIDs: []string{posting.ID}, DeliveryIDs: []int64{delivery.ID},
+		Channel: "telegram", Recipient: "chat-snapshot", ObservedCount: 1, AttemptedAt: observation.ObservedAt,
+		BootstrapKey: "snapshot-bootstrap", BootstrapValue: json.RawMessage(`{"state":`),
+	}
+	if _, err := store.FinalizeSourcePass(ctx, broken); err == nil {
+		t.Fatal("invalid bootstrap state should abort source finalization")
+	}
+	var active bool
+	var deliveryStatus string
+	if err := db.QueryRowContext(ctx, `SELECT active FROM `+store.table("job_source_observations")+` WHERE job_id = $1`, posting.ID).Scan(&active); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT status FROM `+store.table("deliveries")+` WHERE id = $1`, delivery.ID).Scan(&deliveryStatus); err != nil {
+		t.Fatal(err)
+	}
+	var statusRows int
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM `+store.table("source_status")+` WHERE source_id = $1`, observation.SourceID).Scan(&statusRows); err != nil {
+		t.Fatal(err)
+	}
+	if active || deliveryStatus != "staged" || statusRows != 0 {
+		t.Fatalf("aborted finalization leaked state: active=%v delivery=%q status_rows=%d", active, deliveryStatus, statusRows)
+	}
+
+	ready := broken
+	ready.BootstrapValue = json.RawMessage(`{"state":"ready"}`)
+	activated, err := store.FinalizeSourcePass(ctx, ready)
+	if err != nil || activated != 1 {
+		t.Fatalf("activated=%d err=%v", activated, err)
+	}
+	var sourceState string
+	var bootstrapRows int
+	if err := db.QueryRowContext(ctx, `SELECT active FROM `+store.table("job_source_observations")+` WHERE job_id = $1`, posting.ID).Scan(&active); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT status FROM `+store.table("deliveries")+` WHERE id = $1`, delivery.ID).Scan(&deliveryStatus); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT state FROM `+store.table("source_status")+` WHERE source_id = $1`, observation.SourceID).Scan(&sourceState); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.QueryRowContext(ctx, `SELECT count(*) FROM `+store.table("bootstrap_state")+` WHERE key = $1`, ready.BootstrapKey).Scan(&bootstrapRows); err != nil {
+		t.Fatal(err)
+	}
+	if !active || deliveryStatus != "pending" || sourceState != "success" || bootstrapRows != 1 {
+		t.Fatalf("committed finalization state: active=%v delivery=%q source=%q bootstrap=%d", active, deliveryStatus, sourceState, bootstrapRows)
+	}
+}
+
+func TestPostgresStoreCanonicalFieldsPreferStrongerSourceAuthority(t *testing.T) {
+	db, store := integrationStore(t)
+	ctx := context.Background()
+	applyURL := "https://jobs.authority.test/role-1"
+	strong, created, err := store.Observe(ctx, Observation{
+		SourceID: "reviewed-source", SourceNativeID: "reviewed-1", Authority: 10, Company: "Authority AI",
+		Title: "Software Engineer Intern", Location: "New York", ApplyURL: applyURL,
+	})
+	if err != nil || !created {
+		t.Fatalf("strong observation created=%v err=%v", created, err)
+	}
+	weak, created, err := store.Observe(ctx, Observation{
+		SourceID: "auto-authority-source", SourceNativeID: "auto-1", Authority: 30, Company: "Authority AI",
+		Title: "Join our amazing team", Location: "Everywhere", ApplyURL: applyURL,
+	})
+	if err != nil || created || weak.ID != strong.ID {
+		t.Fatalf("weak observation posting=%#v created=%v err=%v", weak, created, err)
+	}
+	var title, location, canonicalSource string
+	var authority int
+	if err := db.QueryRowContext(ctx, `SELECT title, location, canonical_source_id, canonical_authority FROM `+store.table("jobs")+` WHERE id = $1`, strong.ID).Scan(&title, &location, &canonicalSource, &authority); err != nil {
+		t.Fatal(err)
+	}
+	if title != "Software Engineer Intern" || location != "New York" || canonicalSource != "reviewed-source" || authority != 10 {
+		t.Fatalf("canonical fields were downgraded: title=%q location=%q source=%q authority=%d", title, location, canonicalSource, authority)
+	}
+}
+
+func TestPostgresStoreDeliveryClaimRequiresCurrentAdmissionAndActiveSource(t *testing.T) {
+	db, store := integrationStore(t)
+	ctx := context.Background()
+	posting, _, delivery, _, err := store.ObserveAndEnqueue(ctx, Observation{
+		SourceID: "greenhouse:delivery-guard", SourceNativeID: "guard-1", Company: "Guard AI",
+		Title: "Software Engineer Intern", ApplyURL: "https://jobs.guard.test/1",
+	}, &DeliveryTarget{Channel: "telegram", Recipient: "chat-guard"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE `+store.table("jobs")+` SET admission_policy_version = 'superseded' WHERE id = $1`, posting.ID); err != nil {
+		t.Fatal(err)
+	}
+	if next, err := store.NextDeliveryAttemptAt(ctx, "telegram", "chat-guard"); err != nil || next != nil {
+		t.Fatalf("superseded delivery wake=%v err=%v", next, err)
+	}
+	if claimed, err := store.ClaimDeliveries(ctx, "guard-worker", "telegram", "chat-guard", 1, time.Minute); err != nil || len(claimed) != 0 {
+		t.Fatalf("superseded delivery claimed=%#v err=%v", claimed, err)
+	}
+	if _, err := db.ExecContext(ctx, `UPDATE `+store.table("jobs")+` SET admission_policy_version = $2 WHERE id = $1`, posting.ID, pipeline.JobAdmissionPolicyVersion); err != nil {
+		t.Fatal(err)
+	}
+	claimed, err := store.ClaimDeliveries(ctx, "guard-worker", "telegram", "chat-guard", 1, time.Minute)
+	if err != nil || len(claimed) != 1 || claimed[0].ID != delivery.ID {
+		t.Fatalf("current delivery claimed=%#v err=%v", claimed, err)
+	}
+}
+
 func TestPostgresStoreStagedDeliveryRequiresExplicitActivation(t *testing.T) {
 	_, store := integrationStore(t)
 	ctx := context.Background()

@@ -25,9 +25,7 @@ const (
 type RunnerStore interface {
 	ObserveAndEnqueue(context.Context, Observation, *DeliveryTarget) (Posting, bool, Delivery, bool, error)
 	RecordRejectedObservation(context.Context, RejectedObservation) error
-	FinalizeSourceSnapshot(context.Context, string, []string) error
-	ActivateDeliveries(context.Context, []int64, string, string) (int, error)
-	RecordSourceSuccess(context.Context, string, int, time.Time) error
+	FinalizeSourcePass(context.Context, SourcePassFinalization) (int, error)
 	RecordSourceFailure(context.Context, string, error, time.Time) error
 	GetBootstrapState(context.Context, string) (BootstrapState, error)
 	SetBootstrapState(context.Context, string, json.RawMessage) error
@@ -111,6 +109,11 @@ func (r Runner) Run(ctx context.Context) (RunReport, error) {
 		if extractErr == nil && ctx.Err() != nil {
 			extractErr = ctx.Err()
 		}
+		if extractErr == nil && !strings.EqualFold(strings.TrimSpace(source.Provider), "market_search") {
+			if reported, mismatch := snapshotOwnershipMismatch(source, extraction.Observations); mismatch {
+				extractErr = fmt.Errorf("reported employer %q does not match source company identity %q", reported, source.Company)
+			}
+		}
 		if extractErr == nil && !extraction.Complete {
 			extractErr = errors.New("extractor returned an incomplete snapshot")
 		}
@@ -174,6 +177,7 @@ func (r Runner) Run(ctx context.Context) (RunReport, error) {
 			if observation.ObservedAt.IsZero() {
 				observation.ObservedAt = attemptedAt
 			}
+			observation.Authority = sourceAuthority(source)
 			observation.SnapshotPending = true
 			enrichObservationWithSourceScope(&observation, source)
 			candidate := Posting{
@@ -205,16 +209,6 @@ func (r Runner) Run(ctx context.Context) (RunReport, error) {
 				report.EligibleCreated++
 			}
 		}
-		if sourceComplete {
-			activeJobIDs := make([]string, 0, len(prepared))
-			for _, item := range prepared {
-				activeJobIDs = append(activeJobIDs, item.postingID)
-			}
-			if finalizeErr := r.Store.FinalizeSourceSnapshot(ctx, source.ID, activeJobIDs); finalizeErr != nil {
-				sourceComplete = false
-				sourceErrors = append(sourceErrors, fmt.Errorf("finalize source snapshot: %w", finalizeErr))
-			}
-		}
 		// Delivery decisions are a second phase. A partially persisted source
 		// snapshot therefore cannot leave publishable rows behind.
 		if sourceComplete {
@@ -243,30 +237,39 @@ func (r Runner) Run(ctx context.Context) (RunReport, error) {
 			}
 		}
 		if sourceComplete {
-			if statusErr := r.Store.RecordSourceSuccess(ctx, source.ID, len(observations), attemptedAt); statusErr != nil {
-				sourceComplete = false
-				sourceErrors = append(sourceErrors, fmt.Errorf("record success: %w", statusErr))
+			activeJobIDs := make([]string, 0, len(prepared))
+			for _, item := range prepared {
+				activeJobIDs = append(activeJobIDs, item.postingID)
 			}
-		}
-		if sourceComplete && (!sourceBootstrapping || r.PublishBootstrap) && len(stagedDeliveryIDs) > 0 {
-			ids := make([]int64, 0, len(stagedDeliveryIDs))
+			deliveryIDs := make([]int64, 0, len(stagedDeliveryIDs))
 			for id := range stagedDeliveryIDs {
-				ids = append(ids, id)
+				deliveryIDs = append(deliveryIDs, id)
 			}
-			activated, activateErr := r.Store.ActivateDeliveries(ctx, ids, channel, recipient)
-			if activateErr != nil {
-				sourceComplete = false
-				sourceErrors = append(sourceErrors, fmt.Errorf("activate delivery decisions: %w", activateErr))
-			} else {
-				report.Enqueued += activated
+			finalization := SourcePassFinalization{
+				SourceID: source.ID, ActiveJobIDs: activeJobIDs, DeliveryIDs: deliveryIDs,
+				Channel: channel, Recipient: recipient, ObservedCount: len(observations), AttemptedAt: attemptedAt,
 			}
-		}
-		if sourceBootstrapping && sourceComplete {
-			if err := r.setBootstrapMode(ctx, sourceBootstrapKey, bootstrapReady, now().UTC()); err != nil {
-				sourceComplete = false
-				sourceErrors = append(sourceErrors, fmt.Errorf("mark bootstrap complete: %w", err))
-			} else {
-				report.SourcesBootstrapped++
+			if sourceBootstrapping {
+				finalization.BootstrapKey = sourceBootstrapKey
+				value, marshalErr := bootstrapStateValue(bootstrapReady, now().UTC())
+				if marshalErr != nil {
+					sourceComplete = false
+					sourceErrors = append(sourceErrors, fmt.Errorf("encode bootstrap state: %w", marshalErr))
+				} else {
+					finalization.BootstrapValue = value
+				}
+			}
+			if sourceComplete {
+				activated, finalizeErr := r.Store.FinalizeSourcePass(ctx, finalization)
+				if finalizeErr != nil {
+					sourceComplete = false
+					sourceErrors = append(sourceErrors, fmt.Errorf("finalize source pass: %w", finalizeErr))
+				} else {
+					report.Enqueued += activated
+					if sourceBootstrapping {
+						report.SourcesBootstrapped++
+					}
+				}
 			}
 		}
 		if sourceComplete {
@@ -307,6 +310,21 @@ func (r Runner) Run(ctx context.Context) (RunReport, error) {
 		return report, fmt.Errorf("lite: all sources failed: %w", errors.Join(report.Errors...))
 	}
 	return report, nil
+}
+
+// sourceAuthority keeps a weaker auto-discovered route from replacing fields
+// already supplied by the reviewed catalog. Lower values are stronger.
+func sourceAuthority(source Source) int {
+	id := strings.ToLower(strings.TrimSpace(source.ID))
+	provider := strings.ToLower(strings.TrimSpace(source.Provider))
+	switch {
+	case provider == "market_search" || strings.HasPrefix(id, "market-"):
+		return 30
+	case strings.HasPrefix(id, "auto-"):
+		return 20
+	default:
+		return 10
+	}
 }
 
 // enrichObservationWithSourceScope turns an explicitly early-career board
@@ -385,14 +403,18 @@ func sourceFinalizationContext(parent context.Context) (context.Context, context
 }
 
 func (r Runner) setBootstrapMode(ctx context.Context, key, state string, at time.Time) error {
-	value, err := json.Marshal(map[string]string{
-		"state":        state,
-		"completed_at": at.UTC().Format(time.RFC3339Nano),
-	})
+	value, err := bootstrapStateValue(state, at)
 	if err != nil {
 		return err
 	}
 	return r.Store.SetBootstrapState(ctx, key, value)
+}
+
+func bootstrapStateValue(state string, at time.Time) (json.RawMessage, error) {
+	return json.Marshal(map[string]string{
+		"state":        state,
+		"completed_at": at.UTC().Format(time.RFC3339Nano),
+	})
 }
 
 func versionedBootstrapKey(prefix string, source Source, channel, recipient string) string {

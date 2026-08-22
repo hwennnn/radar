@@ -81,6 +81,19 @@ func TestNormalizePostingRequiresApplyURL(t *testing.T) {
 	}
 }
 
+func TestNormalizePostingRejectsNonHTTPApplyURLs(t *testing.T) {
+	for _, applyURL := range []string{"/jobs/123", "javascript:alert(1)", "https://user@example.com/jobs/123"} {
+		t.Run(applyURL, func(t *testing.T) {
+			_, err := NormalizePosting(JobPosting{
+				Company: "Nimbus Systems", Title: "Software Engineering Intern", ApplyURL: applyURL,
+			})
+			if !errors.Is(err, ErrMissingApplyURL) {
+				t.Fatalf("err = %v, want ErrMissingApplyURL", err)
+			}
+		})
+	}
+}
+
 func TestStaticExtractorReturnsNormalizedSampleJobs(t *testing.T) {
 	extractor := NewStaticExtractor()
 	result, err := extractor.Extract(context.Background(), SampleSources()[0])

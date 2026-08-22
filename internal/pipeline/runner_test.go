@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 )
@@ -44,6 +45,49 @@ type runnerStoreFake struct {
 
 func newRunnerStoreFake() *runnerStoreFake {
 	return &runnerStoreFake{jobs: map[string]Posting{}, bootstrap: map[string]bool{}, bootstrapValues: map[string]json.RawMessage{}, decisions: map[string]Delivery{}, successes: map[string]int{}, failures: map[string]string{}, finalized: map[string][]string{}}
+}
+
+func (s *runnerStoreFake) FinalizeSourcePass(_ context.Context, finalization SourcePassFinalization) (int, error) {
+	if s.finalizeErr != nil {
+		return 0, s.finalizeErr
+	}
+	if s.successErr != nil {
+		return 0, s.successErr
+	}
+	if s.activateErr != nil && len(finalization.DeliveryIDs) > 0 {
+		return 0, s.activateErr
+	}
+	if s.bootstrapSetErr != nil && finalization.BootstrapKey != "" {
+		return 0, s.bootstrapSetErr
+	}
+	wanted := make(map[int64]struct{}, len(finalization.DeliveryIDs))
+	for _, id := range finalization.DeliveryIDs {
+		wanted[id] = struct{}{}
+	}
+	activated := 0
+	for _, delivery := range s.decisions {
+		if _, ok := wanted[delivery.ID]; ok && delivery.Channel == finalization.Channel && delivery.Recipient == finalization.Recipient && delivery.Status == "staged" {
+			activated++
+		}
+	}
+	if activated != len(wanted) {
+		return 0, errors.New("staged delivery finalization mismatch")
+	}
+	s.finalized[finalization.SourceID] = append([]string(nil), finalization.ActiveJobIDs...)
+	s.successes[finalization.SourceID] = finalization.ObservedCount
+	for key, delivery := range s.decisions {
+		if _, ok := wanted[delivery.ID]; ok {
+			delivery.Status = "pending"
+			s.decisions[key] = delivery
+		}
+	}
+	s.enqueues += activated
+	if finalization.BootstrapKey != "" {
+		s.bootstrap[finalization.BootstrapKey] = true
+		s.bootstrapValues[finalization.BootstrapKey] = append(json.RawMessage(nil), finalization.BootstrapValue...)
+		s.bootstrapWrites++
+	}
+	return activated, nil
 }
 
 func (s *runnerStoreFake) FinalizeSourceSnapshot(_ context.Context, sourceID string, activeJobIDs []string) error {
@@ -203,6 +247,22 @@ func TestRunnerBootstrapsWithoutSendingAndRepeatedRunsDoNotEnqueueTwice(t *testi
 	}
 	if third.Enqueued != 0 || store.enqueues != 1 {
 		t.Fatalf("repeated job enqueued twice: %#v, enqueues=%d", third, store.enqueues)
+	}
+}
+
+func TestSourceAuthorityPrefersReviewedCatalog(t *testing.T) {
+	tests := []struct {
+		source Source
+		want   int
+	}{
+		{source: Source{ID: "openai-ashby", Provider: "ashby"}, want: 10},
+		{source: Source{ID: "auto-openai-ashby-deadbeef", Provider: "ashby"}, want: 20},
+		{source: Source{ID: "market-openai", Provider: "market_search"}, want: 30},
+	}
+	for _, test := range tests {
+		if got := sourceAuthority(test.source); got != test.want {
+			t.Fatalf("source %#v authority=%d, want %d", test.source, got, test.want)
+		}
 	}
 }
 
@@ -523,6 +583,24 @@ func TestRunnerAuditsRejectedJobsWithoutPopulatingCanonicalStorage(t *testing.T)
 	}
 }
 
+func TestRunnerRejectsRoutineSourceOwnershipMismatch(t *testing.T) {
+	store := newRunnerStoreFake()
+	runner := Runner{
+		Sources: []Source{{ID: "auto-acme-ashby", Company: "Acme AI", Provider: "ashby", URL: "https://jobs.ashbyhq.com/acme"}},
+		Extractor: extractorFunc(func(context.Context, Source) (ExtractionResult, error) {
+			return completeExtraction(Observation{
+				Company: "Acme AI", ReportedCompany: "Built In Chicago", Title: "Software Engineer Intern",
+				SourceNativeID: "copied-1", ApplyURL: "https://aggregator.example/copied-1",
+			}), nil
+		}),
+		Store: store, Channel: "telegram", Recipient: "chat-1",
+	}
+	report, err := runner.Run(context.Background())
+	if err == nil || report.SourcesFailed != 1 || len(store.jobs) != 0 || !strings.Contains(store.failures["auto-acme-ashby"], "does not match") {
+		t.Fatalf("ownership mismatch report=%#v jobs=%#v failures=%#v err=%v", report, store.jobs, store.failures, err)
+	}
+}
+
 func TestRunnerSnapshotFinalizationFailureIsFatalAndUnpublishable(t *testing.T) {
 	store := newRunnerStoreFake()
 	store.finalizeErr = errors.New("snapshot state unavailable")
@@ -541,8 +619,13 @@ func TestRunnerSnapshotFinalizationFailureIsFatalAndUnpublishable(t *testing.T) 
 	store.bootstrapValues[bootstrapKey] = json.RawMessage(`{"state":"ready"}`)
 
 	report, err := runner.Run(context.Background())
-	if err == nil || report.SourcesFailed != 1 || report.Enqueued != 0 || len(store.decisions) != 0 {
+	if err == nil || report.SourcesFailed != 1 || report.Enqueued != 0 || len(store.decisions) != 1 {
 		t.Fatalf("failed snapshot finalization became publishable: report=%#v decisions=%#v err=%v", report, store.decisions, err)
+	}
+	for _, decision := range store.decisions {
+		if decision.Status != "staged" {
+			t.Fatalf("failed snapshot finalization decision status=%q, want staged", decision.Status)
+		}
 	}
 }
 

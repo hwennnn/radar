@@ -92,7 +92,7 @@ func TestScraperExtractorTrustsOfficialCompanyAndExplicitTitleLocation(t *testin
 		t.Fatalf("extract: result=%#v err=%v", result, err)
 	}
 	got := result.Observations[0]
-	if got.Company != "D. E. Shaw" || got.Location != "New York, NY, United States" || got.Country != "United States" {
+	if got.Company != "D. E. Shaw" || got.ReportedCompany != "Deshaw" || got.Location != "New York, NY, United States" || got.Country != "United States" {
 		t.Fatalf("official identity/location was not normalized: %#v", got)
 	}
 }

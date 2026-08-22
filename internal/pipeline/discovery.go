@@ -256,6 +256,15 @@ func (r DiscoveryRunner) Run(ctx context.Context) (DiscoveryReport, error) {
 					"retry_in_seconds", int(nextAttempt.Sub(probeAt).Seconds()), "next_attempt_at", nextAttempt)
 				continue
 			}
+			if reported, mismatch := snapshotOwnershipMismatch(resolved.Source, extraction.Observations); mismatch {
+				report.SourcesRejected++
+				ownershipErr := fmt.Errorf("reported employer %q does not match candidate company identity %q", reported, resolved.Source.Company)
+				nextAttempt := probeAt.Add(r.retryDelayFor(candidate.Attempts))
+				if err := r.Store.RecordDiscoveryFailure(ctx, candidate, &resolved.Source, ownershipErr, probeAt, nextAttempt); err != nil {
+					return report, fmt.Errorf("record discovery ownership failure: %w", err)
+				}
+				continue
+			}
 			quality := assessDiscoverySnapshotQuality(extraction.Observations)
 			if len(extraction.Observations) > 0 && (quality.Usable == 0 || quality.Relevant == 0) {
 				report.SourcesRejected++
@@ -323,6 +332,16 @@ func (r DiscoveryRunner) Run(ctx context.Context) (DiscoveryReport, error) {
 		"sources_rejected", report.SourcesRejected,
 		"sources_promoted", report.SourcesPromoted, "sources_demoted", report.SourcesDemoted)
 	return report, nil
+}
+
+func snapshotOwnershipMismatch(source Source, observations []Observation) (string, bool) {
+	for _, observation := range observations {
+		reported := strings.TrimSpace(observation.ReportedCompany)
+		if reported != "" && !SameCompanyIdentity(source.Company, reported) {
+			return reported, true
+		}
+	}
+	return "", false
 }
 
 func assessDiscoverySnapshotQuality(observations []Observation) discoverySnapshotQuality {

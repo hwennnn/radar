@@ -118,7 +118,8 @@ func (e *ScraperExtractor) Extract(ctx context.Context, source Source) (Extracti
 	observedAt := result.FetchedAt.UTC()
 	observations := make([]Observation, 0, len(result.Jobs))
 	for _, job := range result.Jobs {
-		company := strings.TrimSpace(job.Company)
+		reportedCompany := strings.TrimSpace(job.Company)
+		company := reportedCompany
 		// A company-specific source is a stronger employer identity than an AI
 		// payload or ATS display label. Market search is deliberately the only
 		// multi-employer source and therefore keeps the extracted company.
@@ -143,18 +144,19 @@ func (e *ScraperExtractor) Extract(ctx context.Context, source Source) (Extracti
 			}
 		}
 		observations = append(observations, Observation{
-			SourceID:       source.ID,
-			SourceNativeID: job.SourceJobID,
-			Company:        company,
-			Title:          job.Title,
-			Location:       location,
-			Country:        country,
-			EmploymentType: job.EmploymentType,
-			Level:          level,
-			ApplyURL:       job.ApplyURL,
-			Description:    description,
-			PostedAt:       job.PostedAt,
-			ObservedAt:     observedAt,
+			SourceID:        source.ID,
+			SourceNativeID:  job.SourceJobID,
+			ReportedCompany: reportedCompany,
+			Company:         company,
+			Title:           job.Title,
+			Location:        location,
+			Country:         country,
+			EmploymentType:  job.EmploymentType,
+			Level:           level,
+			ApplyURL:        job.ApplyURL,
+			Description:     description,
+			PostedAt:        job.PostedAt,
+			ObservedAt:      observedAt,
 		})
 	}
 	complete := true

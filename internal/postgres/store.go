@@ -35,6 +35,7 @@ type (
 	Posting                  = pipeline.Posting
 	RuntimeState             = pipeline.RuntimeState
 	Source                   = pipeline.Source
+	SourcePassFinalization   = pipeline.SourcePassFinalization
 	SourceStatus             = pipeline.SourceStatus
 )
 
@@ -112,6 +113,9 @@ func (s *PostgresStore) EnsureSchema(ctx context.Context) error {
 		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS apply_url_next_check_at timestamptz`,
 		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS apply_url_consecutive_gone integer NOT NULL DEFAULT 0`,
 		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS apply_url_last_status integer`,
+		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS canonical_source_id text NOT NULL DEFAULT ''`,
+		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS canonical_authority integer NOT NULL DEFAULT 100`,
+		`ALTER TABLE ` + s.table("jobs") + ` ADD COLUMN IF NOT EXISTS admission_policy_version text NOT NULL DEFAULT ''`,
 		`CREATE INDEX IF NOT EXISTS lite_jobs_apply_url_due_idx ON ` + s.table("jobs") + `(apply_url_next_check_at, first_seen_at) WHERE apply_url <> ''`,
 		`CREATE TABLE IF NOT EXISTS ` + s.table("job_identities") + ` (
             identity_key text PRIMARY KEY,
@@ -635,6 +639,10 @@ func (s *PostgresStore) observeAndEnqueue(ctx context.Context, observation Obser
 		value := observation.PostedAt.UTC()
 		postedAt = &value
 	}
+	authority := observation.Authority
+	if authority <= 0 {
+		authority = 100
+	}
 
 	tx, err := s.db.BeginTx(ctx, &sql.TxOptions{Isolation: sql.LevelReadCommitted})
 	if err != nil {
@@ -666,34 +674,39 @@ func (s *PostgresStore) observeAndEnqueue(ctx context.Context, observation Obser
 			PostedAt: postedAt, FirstSeenAt: observedAt, LastSeenAt: observedAt,
 		}
 		err = tx.QueryRowContext(ctx, `
-INSERT INTO `+s.table("jobs")+` (id, company, title, location, country, employment_type, level, apply_url, description, posted_at, first_seen_at, last_seen_at)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+INSERT INTO `+s.table("jobs")+` (id, company, title, location, country, employment_type, level, apply_url, description, posted_at, first_seen_at, last_seen_at, canonical_source_id, canonical_authority, admission_policy_version)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11, $12, $13, $14)
 RETURNING id, company, title, location, country, employment_type, level, apply_url, description, posted_at, first_seen_at, last_seen_at`,
 			posting.ID, posting.Company, posting.Title, posting.Location, posting.Country, posting.EmploymentType, posting.Level, posting.ApplyURL, posting.Description, postedAt, observedAt,
+			strings.TrimSpace(observation.SourceID), authority, pipeline.JobAdmissionPolicyVersion,
 		).Scan(&posting.ID, &posting.Company, &posting.Title, &posting.Location, &posting.Country, &posting.EmploymentType, &posting.Level, &posting.ApplyURL, &posting.Description, &posting.PostedAt, &posting.FirstSeenAt, &posting.LastSeenAt)
 	} else if err == nil {
 		err = tx.QueryRowContext(ctx, `
 UPDATE `+s.table("jobs")+` SET
-    company = $2,
-    title = $3,
-	location = CASE WHEN $4 = '' THEN location ELSE $4 END,
-	country = CASE WHEN $5 = '' THEN country ELSE $5 END,
-	employment_type = CASE WHEN $6 = '' THEN employment_type ELSE $6 END,
-	level = CASE WHEN $7 = '' THEN level ELSE $7 END,
-	apply_url_state = CASE WHEN $8 <> '' AND apply_url <> $8 THEN 'unchecked' ELSE apply_url_state END,
-	apply_url_checked_at = CASE WHEN $8 <> '' AND apply_url <> $8 THEN NULL ELSE apply_url_checked_at END,
-	apply_url_next_check_at = CASE WHEN $8 <> '' AND apply_url <> $8 THEN NULL ELSE apply_url_next_check_at END,
-	apply_url_consecutive_gone = CASE WHEN $8 <> '' AND apply_url <> $8 THEN 0 ELSE apply_url_consecutive_gone END,
-	apply_url_last_status = CASE WHEN $8 <> '' AND apply_url <> $8 THEN NULL ELSE apply_url_last_status END,
-	apply_url = CASE WHEN $8 = '' THEN apply_url ELSE $8 END,
-	description = CASE WHEN $9 = '' THEN description ELSE $9 END,
-	posted_at = COALESCE($10, posted_at),
+	company = CASE WHEN $12 <= canonical_authority THEN $2 ELSE company END,
+	title = CASE WHEN $12 <= canonical_authority THEN $3 ELSE title END,
+	location = CASE WHEN $12 <= canonical_authority AND $4 <> '' THEN $4 ELSE location END,
+	country = CASE WHEN $12 <= canonical_authority AND $5 <> '' THEN $5 ELSE country END,
+	employment_type = CASE WHEN $12 <= canonical_authority AND $6 <> '' THEN $6 ELSE employment_type END,
+	level = CASE WHEN $12 <= canonical_authority AND $7 <> '' THEN $7 ELSE level END,
+	apply_url_state = CASE WHEN $12 <= canonical_authority AND $8 <> '' AND apply_url <> $8 THEN 'unchecked' ELSE apply_url_state END,
+	apply_url_checked_at = CASE WHEN $12 <= canonical_authority AND $8 <> '' AND apply_url <> $8 THEN NULL ELSE apply_url_checked_at END,
+	apply_url_next_check_at = CASE WHEN $12 <= canonical_authority AND $8 <> '' AND apply_url <> $8 THEN NULL ELSE apply_url_next_check_at END,
+	apply_url_consecutive_gone = CASE WHEN $12 <= canonical_authority AND $8 <> '' AND apply_url <> $8 THEN 0 ELSE apply_url_consecutive_gone END,
+	apply_url_last_status = CASE WHEN $12 <= canonical_authority AND $8 <> '' AND apply_url <> $8 THEN NULL ELSE apply_url_last_status END,
+	apply_url = CASE WHEN $12 <= canonical_authority AND $8 <> '' THEN $8 ELSE apply_url END,
+	description = CASE WHEN $12 <= canonical_authority AND $9 <> '' THEN $9 ELSE description END,
+	posted_at = CASE WHEN $12 <= canonical_authority THEN COALESCE($10, posted_at) ELSE posted_at END,
 	first_seen_at = LEAST(first_seen_at, $11),
-	last_seen_at = GREATEST(last_seen_at, $11)
+	last_seen_at = GREATEST(last_seen_at, $11),
+	canonical_source_id = CASE WHEN $12 <= canonical_authority THEN $13 ELSE canonical_source_id END,
+	canonical_authority = LEAST(canonical_authority, $12),
+	admission_policy_version = $14
 WHERE id = $1
 RETURNING id, company, title, location, country, employment_type, level, apply_url, description, posted_at, first_seen_at, last_seen_at`,
 			posting.ID, strings.TrimSpace(observation.Company), strings.TrimSpace(observation.Title), strings.TrimSpace(observation.Location),
 			strings.TrimSpace(observation.Country), strings.TrimSpace(observation.EmploymentType), strings.TrimSpace(observation.Level), pipeline.CanonicalApplyURL(observation.ApplyURL), strings.TrimSpace(observation.Description), postedAt, observedAt,
+			authority, strings.TrimSpace(observation.SourceID), pipeline.JobAdmissionPolicyVersion,
 		).Scan(&posting.ID, &posting.Company, &posting.Title, &posting.Location, &posting.Country, &posting.EmploymentType, &posting.Level, &posting.ApplyURL, &posting.Description, &posting.PostedAt, &posting.FirstSeenAt, &posting.LastSeenAt)
 	}
 	if err != nil {
@@ -785,7 +798,7 @@ WHERE identity.identity_key = ANY($1)
        identity.identity_key LIKE 'company-url:%'
        AND substring(identity.identity_key FROM position('|' IN identity.identity_key) + 1) = ANY($2)
    )
-ORDER BY j.first_seen_at, j.id
+ORDER BY j.canonical_authority, j.first_seen_at, j.id
 FOR UPDATE OF j`, pq.Array(keys), pq.Array(urlKeys))
 	if err != nil {
 		return err
@@ -831,17 +844,27 @@ func (s *PostgresStore) mergePostingInto(ctx context.Context, tx *sql.Tx, canoni
 	}
 	if _, err := tx.ExecContext(ctx, `
 UPDATE `+s.table("jobs")+` AS canonical SET
-    location = COALESCE(NULLIF(canonical.location, ''), duplicate.location),
-    country = COALESCE(NULLIF(canonical.country, ''), duplicate.country),
-    employment_type = COALESCE(NULLIF(canonical.employment_type, ''), duplicate.employment_type),
-    level = COALESCE(NULLIF(canonical.level, ''), duplicate.level),
-    apply_url = COALESCE(NULLIF(canonical.apply_url, ''), duplicate.apply_url),
-    description = COALESCE(NULLIF(canonical.description, ''), duplicate.description),
-    posted_at = COALESCE(canonical.posted_at, duplicate.posted_at),
+	company = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN duplicate.company ELSE canonical.company END,
+	title = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN duplicate.title ELSE canonical.title END,
+    location = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN COALESCE(NULLIF(duplicate.location, ''), canonical.location) ELSE COALESCE(NULLIF(canonical.location, ''), duplicate.location) END,
+    country = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN COALESCE(NULLIF(duplicate.country, ''), canonical.country) ELSE COALESCE(NULLIF(canonical.country, ''), duplicate.country) END,
+    employment_type = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN COALESCE(NULLIF(duplicate.employment_type, ''), canonical.employment_type) ELSE COALESCE(NULLIF(canonical.employment_type, ''), duplicate.employment_type) END,
+    level = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN COALESCE(NULLIF(duplicate.level, ''), canonical.level) ELSE COALESCE(NULLIF(canonical.level, ''), duplicate.level) END,
+    apply_url = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN COALESCE(NULLIF(duplicate.apply_url, ''), canonical.apply_url) ELSE COALESCE(NULLIF(canonical.apply_url, ''), duplicate.apply_url) END,
+	apply_url_state = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority AND duplicate.apply_url <> '' THEN duplicate.apply_url_state ELSE canonical.apply_url_state END,
+	apply_url_checked_at = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority AND duplicate.apply_url <> '' THEN duplicate.apply_url_checked_at ELSE canonical.apply_url_checked_at END,
+	apply_url_next_check_at = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority AND duplicate.apply_url <> '' THEN duplicate.apply_url_next_check_at ELSE canonical.apply_url_next_check_at END,
+	apply_url_consecutive_gone = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority AND duplicate.apply_url <> '' THEN duplicate.apply_url_consecutive_gone ELSE canonical.apply_url_consecutive_gone END,
+	apply_url_last_status = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority AND duplicate.apply_url <> '' THEN duplicate.apply_url_last_status ELSE canonical.apply_url_last_status END,
+    description = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN COALESCE(NULLIF(duplicate.description, ''), canonical.description) ELSE COALESCE(NULLIF(canonical.description, ''), duplicate.description) END,
+    posted_at = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN COALESCE(duplicate.posted_at, canonical.posted_at) ELSE COALESCE(canonical.posted_at, duplicate.posted_at) END,
+	canonical_source_id = CASE WHEN duplicate.canonical_authority < canonical.canonical_authority THEN duplicate.canonical_source_id ELSE canonical.canonical_source_id END,
+	canonical_authority = LEAST(canonical.canonical_authority, duplicate.canonical_authority),
+	admission_policy_version = CASE WHEN canonical.admission_policy_version = $3 THEN canonical.admission_policy_version ELSE duplicate.admission_policy_version END,
     first_seen_at = LEAST(canonical.first_seen_at, duplicate.first_seen_at),
     last_seen_at = GREATEST(canonical.last_seen_at, duplicate.last_seen_at)
 FROM `+s.table("jobs")+` AS duplicate
-WHERE canonical.id = $1 AND duplicate.id = $2`, canonicalID, duplicateID); err != nil {
+WHERE canonical.id = $1 AND duplicate.id = $2`, canonicalID, duplicateID, pipeline.JobAdmissionPolicyVersion); err != nil {
 		return err
 	}
 	if _, err := tx.ExecContext(ctx, `
@@ -1019,6 +1042,122 @@ WHERE source_id = $1`, sourceID, pq.Array(uniqueIDs))
 	return err
 }
 
+// FinalizeSourcePass is the atomic visibility boundary for a completed crawl.
+// A crash before this commit leaves the previous source snapshot active and
+// any newly staged deliveries unclaimable.
+func (s *PostgresStore) FinalizeSourcePass(ctx context.Context, finalization SourcePassFinalization) (int, error) {
+	sourceID := strings.TrimSpace(finalization.SourceID)
+	channel := strings.TrimSpace(finalization.Channel)
+	recipient := strings.TrimSpace(finalization.Recipient)
+	if sourceID == "" || channel == "" || recipient == "" || finalization.ObservedCount < 0 {
+		return 0, errors.New("radar: source finalization requires source, delivery target, and non-negative count")
+	}
+	attemptedAt := finalization.AttemptedAt.UTC()
+	if attemptedAt.IsZero() {
+		attemptedAt = s.now().UTC()
+	}
+	activeIDs, err := uniqueTextIDs(finalization.ActiveJobIDs)
+	if err != nil {
+		return 0, err
+	}
+	deliveryIDs, err := uniquePositiveInt64s(finalization.DeliveryIDs)
+	if err != nil {
+		return 0, err
+	}
+	bootstrapKey := strings.TrimSpace(finalization.BootstrapKey)
+	if bootstrapKey == "" && len(finalization.BootstrapValue) > 0 {
+		return 0, errors.New("radar: bootstrap value requires a key")
+	}
+	if bootstrapKey != "" && !json.Valid(finalization.BootstrapValue) {
+		return 0, errors.New("radar: bootstrap state must be valid JSON")
+	}
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback()
+	if _, err := tx.ExecContext(ctx, `
+UPDATE `+s.table("job_source_observations")+`
+SET active = job_id = ANY($2::text[])
+WHERE source_id = $1`, sourceID, pq.Array(activeIDs)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.ExecContext(ctx, `
+INSERT INTO `+s.table("source_status")+` AS current (source_id, state, observed_count, last_attempt_at, last_success_at)
+VALUES ($1, 'success', $2, $3, $3)
+ON CONFLICT (source_id) DO UPDATE SET state = 'success', observed_count = EXCLUDED.observed_count,
+    last_attempt_at = EXCLUDED.last_attempt_at, last_success_at = EXCLUDED.last_success_at,
+    consecutive_failures = 0, last_error = '', failure_code = ''
+WHERE current.last_attempt_at <= EXCLUDED.last_attempt_at`, sourceID, finalization.ObservedCount, attemptedAt); err != nil {
+		return 0, err
+	}
+	activated := 0
+	if len(deliveryIDs) > 0 {
+		result, err := tx.ExecContext(ctx, `
+UPDATE `+s.table("deliveries")+`
+SET status = 'pending', next_attempt_at = now()
+WHERE id = ANY($1) AND channel = $2 AND recipient = $3 AND status = 'staged'`, pq.Array(deliveryIDs), channel, recipient)
+		if err != nil {
+			return 0, err
+		}
+		affected, err := result.RowsAffected()
+		if err != nil {
+			return 0, err
+		}
+		if affected != int64(len(deliveryIDs)) {
+			return 0, fmt.Errorf("radar: activated %d of %d staged delivery decisions", affected, len(deliveryIDs))
+		}
+		activated = int(affected)
+	}
+	if bootstrapKey != "" {
+		if _, err := tx.ExecContext(ctx, `
+INSERT INTO `+s.table("bootstrap_state")+` (key, value, updated_at)
+VALUES ($1, $2, $3)
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = EXCLUDED.updated_at`,
+			bootstrapKey, finalization.BootstrapValue, s.now().UTC()); err != nil {
+			return 0, err
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, err
+	}
+	return activated, nil
+}
+
+func uniqueTextIDs(ids []string) ([]string, error) {
+	unique := make([]string, 0, len(ids))
+	seen := make(map[string]struct{}, len(ids))
+	for _, id := range ids {
+		id = strings.TrimSpace(id)
+		if id == "" {
+			return nil, errors.New("radar: active job IDs must be non-empty")
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	return unique, nil
+}
+
+func uniquePositiveInt64s(ids []int64) ([]int64, error) {
+	unique := make([]int64, 0, len(ids))
+	seen := make(map[int64]struct{}, len(ids))
+	for _, id := range ids {
+		if id <= 0 {
+			return nil, errors.New("radar: staged delivery IDs must be positive")
+		}
+		if _, exists := seen[id]; exists {
+			continue
+		}
+		seen[id] = struct{}{}
+		unique = append(unique, id)
+	}
+	return unique, nil
+}
+
 // ActivateDeliveries makes a fully persisted source pass publishable in one
 // statement. Staged rows left by an interrupted pass remain unclaimable and
 // can be activated safely when a later complete pass sees the same jobs.
@@ -1143,13 +1282,29 @@ func (s *PostgresStore) ClaimDeliveries(ctx context.Context, owner, channel, rec
 	expires := s.now().UTC().Add(lease)
 	rows, err := s.db.QueryContext(ctx, `
 WITH candidates AS (
-    SELECT id FROM `+s.table("deliveries")+`
-	WHERE channel = $4 AND recipient = $5 AND (
-        (status = 'pending' AND next_attempt_at <= now()) OR
-		(status = 'claimed' AND claim_expires_at <= now()) OR
-		(status = 'failed' AND next_attempt_at <= now())
+    SELECT delivery.id
+    FROM `+s.table("deliveries")+` delivery
+    JOIN `+s.table("jobs")+` job ON job.id = delivery.job_id
+	WHERE delivery.channel = $4 AND delivery.recipient = $5
+      AND job.admission_policy_version = $6
+      AND EXISTS (
+          SELECT 1
+          FROM `+s.table("job_source_observations")+` observation
+          LEFT JOIN `+s.table("discovered_sources")+` discovered ON discovered.id = observation.source_id
+          WHERE observation.job_id = job.id AND observation.active
+            AND observation.source_id NOT LIKE 'market-%'
+            AND (discovered.id IS NULL OR discovered.state = 'promoted')
+            AND NOT EXISTS (
+                SELECT 1 FROM `+s.table("source_controls")+` control
+                WHERE control.source_id = observation.source_id AND control.state = 'quarantined'
+            )
+      )
+      AND (
+        (delivery.status = 'pending' AND delivery.next_attempt_at <= now()) OR
+		(delivery.status = 'claimed' AND delivery.claim_expires_at <= now()) OR
+		(delivery.status = 'failed' AND delivery.next_attempt_at <= now())
     )
-    ORDER BY id
+    ORDER BY delivery.id
     LIMIT $2
     FOR UPDATE SKIP LOCKED
 )
@@ -1158,7 +1313,7 @@ UPDATE `+s.table("deliveries")+` d SET
 FROM candidates c WHERE d.id = c.id
 RETURNING d.id, d.job_id, d.channel, d.recipient, d.payload, d.status, d.attempts,
           d.claim_owner, d.claim_expires_at, d.next_attempt_at, d.last_error, d.created_at, d.sent_at`,
-		owner, limit, expires, channel, recipient)
+		owner, limit, expires, channel, recipient, pipeline.JobAdmissionPolicyVersion)
 	if err != nil {
 		return nil, err
 	}
@@ -1188,10 +1343,24 @@ func (s *PostgresStore) NextDeliveryAttemptAt(ctx context.Context, channel, reci
 	}
 	var next sql.NullTime
 	err := s.db.QueryRowContext(ctx, `
-SELECT min(CASE WHEN status = 'claimed' THEN claim_expires_at ELSE next_attempt_at END)
-FROM `+s.table("deliveries")+`
-WHERE channel = $1 AND recipient = $2
-  AND status IN ('pending', 'failed', 'claimed')`, channel, recipient).Scan(&next)
+SELECT min(CASE WHEN delivery.status = 'claimed' THEN delivery.claim_expires_at ELSE delivery.next_attempt_at END)
+FROM `+s.table("deliveries")+` delivery
+JOIN `+s.table("jobs")+` job ON job.id = delivery.job_id
+WHERE delivery.channel = $1 AND delivery.recipient = $2
+  AND delivery.status IN ('pending', 'failed', 'claimed')
+  AND job.admission_policy_version = $3
+  AND EXISTS (
+      SELECT 1
+      FROM `+s.table("job_source_observations")+` observation
+      LEFT JOIN `+s.table("discovered_sources")+` discovered ON discovered.id = observation.source_id
+      WHERE observation.job_id = job.id AND observation.active
+        AND observation.source_id NOT LIKE 'market-%'
+        AND (discovered.id IS NULL OR discovered.state = 'promoted')
+        AND NOT EXISTS (
+            SELECT 1 FROM `+s.table("source_controls")+` control
+            WHERE control.source_id = observation.source_id AND control.state = 'quarantined'
+        )
+  )`, channel, recipient, pipeline.JobAdmissionPolicyVersion).Scan(&next)
 	if err != nil {
 		return nil, err
 	}
@@ -1726,9 +1895,24 @@ func (s *PostgresStore) ReadOperationalState(ctx context.Context) (OperationalSt
                     AND (discovered.id IS NULL OR discovered.state = 'promoted')
 					AND NOT EXISTS (SELECT 1 FROM ` + s.table("source_controls") + ` control WHERE control.source_id = observation.source_id AND control.state = 'quarantined')
               )`},
-		{&state.DeliveriesDue, `SELECT count(*) FROM ` + s.table("deliveries") + `
-            WHERE (status IN ('pending', 'failed') AND next_attempt_at <= $1)
-               OR (status = 'claimed' AND claim_expires_at <= $1)`},
+		{&state.DeliveriesDue, `SELECT count(*)
+            FROM ` + s.table("deliveries") + ` delivery
+            JOIN ` + s.table("jobs") + ` job ON job.id = delivery.job_id
+            WHERE job.admission_policy_version = '` + pipeline.JobAdmissionPolicyVersion + `'
+              AND EXISTS (
+                  SELECT 1
+                  FROM ` + s.table("job_source_observations") + ` observation
+                  LEFT JOIN ` + s.table("discovered_sources") + ` discovered ON discovered.id = observation.source_id
+                  WHERE observation.job_id = job.id AND observation.active
+                    AND observation.source_id NOT LIKE 'market-%'
+                    AND (discovered.id IS NULL OR discovered.state = 'promoted')
+                    AND NOT EXISTS (
+                        SELECT 1 FROM ` + s.table("source_controls") + ` control
+                        WHERE control.source_id = observation.source_id AND control.state = 'quarantined'
+                    )
+              )
+              AND ((delivery.status IN ('pending', 'failed') AND delivery.next_attempt_at <= $1)
+                OR (delivery.status = 'claimed' AND delivery.claim_expires_at <= $1))`},
 	}
 	for _, item := range dueQueries {
 		if err := tx.QueryRowContext(ctx, item.query, state.GeneratedAt).Scan(item.destination); err != nil {

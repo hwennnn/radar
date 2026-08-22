@@ -3,6 +3,7 @@ package scraper
 import (
 	"context"
 	"errors"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
@@ -103,6 +104,10 @@ func NormalizePosting(in JobPosting) (JobPosting, error) {
 		return JobPosting{}, ErrMissingCompany
 	}
 	if out.ApplyURL == "" {
+		return JobPosting{}, ErrMissingApplyURL
+	}
+	parsedApplyURL, err := url.Parse(out.ApplyURL)
+	if err != nil || parsedApplyURL.Hostname() == "" || parsedApplyURL.User != nil || (parsedApplyURL.Scheme != "https" && parsedApplyURL.Scheme != "http") {
 		return JobPosting{}, ErrMissingApplyURL
 	}
 	if out.Level == "" {

@@ -30,7 +30,16 @@ func CanonicalText(value string) string {
 // "Citadelsecurities") without weakening the cross-company URL guard.
 func SameCompanyIdentity(left, right string) bool {
 	compact := func(value string) string {
-		return strings.ReplaceAll(CanonicalText(value), " ", "")
+		parts := strings.Fields(CanonicalText(value))
+		for len(parts) > 1 {
+			switch parts[len(parts)-1] {
+			case "inc", "incorporated", "llc", "ltd", "limited", "plc", "corp", "corporation", "company", "co":
+				parts = parts[:len(parts)-1]
+			default:
+				return strings.Join(parts, "")
+			}
+		}
+		return strings.Join(parts, "")
 	}
 	left, right = compact(left), compact(right)
 	return left != "" && left == right
