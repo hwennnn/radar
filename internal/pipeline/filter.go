@@ -10,6 +10,24 @@ import (
 
 const maxExplicitPostingAge = 180 * 24 * time.Hour
 
+const JobAdmissionPolicyVersion = "2026-08-22"
+
+const (
+	JobRejectionCompany     = "company"
+	JobRejectionGeography   = "geography"
+	JobRejectionStale       = "stale"
+	JobRejectionEditorial   = "editorial"
+	JobRejectionSector      = "sector"
+	JobRejectionRole        = "role"
+	JobRejectionCareerStage = "career_stage"
+)
+
+type JobAdmissionDecision struct {
+	Accepted      bool
+	Code          string
+	PolicyVersion string
+}
+
 // blockedCompanies is deliberately small and deterministic. These employers
 // are either explicitly outside the user's target set or primarily sell into
 // defense/government markets. Sector-specific roles at otherwise mixed
@@ -105,28 +123,38 @@ func Eligible(posting Posting) bool {
 // EligibleAt keeps the publish boundary deterministic for evaluation while
 // allowing the production caller to reject explicitly stale seasonal roles.
 func EligibleAt(posting Posting, now time.Time) bool {
+	return EvaluateJobAdmissionAt(posting, now).Accepted
+}
+
+func EvaluateJobAdmissionAt(posting Posting, now time.Time) JobAdmissionDecision {
+	reject := func(code string) JobAdmissionDecision {
+		return JobAdmissionDecision{Code: code, PolicyVersion: JobAdmissionPolicyVersion}
+	}
 	if BlockedCompany(posting.Company) {
-		return false
+		return reject(JobRejectionCompany)
 	}
 	title := normalizedText(posting.Title)
 	if hasAnyPhrase(title, []string{"tencent", "wechat"}) {
-		return false
+		return reject(JobRejectionCompany)
 	}
-	if titleHasOnlyNonTargetGeography(title) || staleExplicitTiming(title, now) || stalePostedAt(posting.PostedAt, now) {
-		return false
+	if titleHasOnlyNonTargetGeography(title) {
+		return reject(JobRejectionGeography)
+	}
+	if staleExplicitTiming(title, now) || stalePostedAt(posting.PostedAt, now) {
+		return reject(JobRejectionStale)
 	}
 	if hasAnyPhrase(title, rejectedEditorialTitlePhrases) || editorialApplyURL(posting.ApplyURL) {
-		return false
+		return reject(JobRejectionEditorial)
 	}
 	if !actionableGeography(posting) {
-		return false
+		return reject(JobRejectionGeography)
 	}
 
 	if hasAnyPhrase(title, blockedSectorPhrases) || hasAnyPhrase(title, rejectedEventPhrases) {
-		return false
+		return reject(JobRejectionSector)
 	}
 	if hasPhrase(normalizedText(posting.Company), "palantir") && hasPhrase(title, "intel") {
-		return false
+		return reject(JobRejectionSector)
 	}
 
 	memberOfTechnicalStaff := hasPhrase(title, "member of technical staff")
@@ -135,14 +163,14 @@ func EligibleAt(posting Posting, now time.Time) bool {
 			continue
 		}
 		if hasPhrase(title, rejected) {
-			return false
+			return reject(JobRejectionRole)
 		}
 	}
 
 	// Analyst titles are outside the software-focused boundary, except for the
 	// deliberately supported quantitative-trading early-career path.
 	if hasPhrase(title, "analyst") && !hasAnyPhrase(title, []string{"quantitative analyst", "quantitative trading analyst", "quant trading analyst"}) {
-		return false
+		return reject(JobRejectionRole)
 	}
 
 	aiResearchScientist := hasPhrase(title, "research scientist") && hasAnyPhrase(title, []string{
@@ -152,16 +180,19 @@ func EligibleAt(posting Posting, now time.Time) bool {
 		"ai", "genai", "ml", "machine learning", "artificial intelligence", "nlp", "computer vision", "applied vision", "deep learning",
 	}) && hasAnyPhrase(title, []string{"research", "engineer", "engineering", "scientist"})
 	if !hasAnyPhrase(title, acceptedRolePhrases) && !aiResearchScientist && !aiMLResearchOrEngineering {
-		return false
+		return reject(JobRejectionRole)
 	}
 
 	titleHasTiming := hasAnyPhrase(title, acceptedTimingPhrases)
 	employment := normalizedText(posting.EmploymentType)
 	if hasPhrase(employment, "experienced") && !titleHasTiming {
-		return false
+		return reject(JobRejectionCareerStage)
 	}
 	level := normalizedText(posting.Level)
-	return titleHasTiming || hasAnyPhrase(employment, acceptedTimingPhrases) || hasAnyPhrase(level, acceptedTimingPhrases)
+	if !titleHasTiming && !hasAnyPhrase(employment, acceptedTimingPhrases) && !hasAnyPhrase(level, acceptedTimingPhrases) {
+		return reject(JobRejectionCareerStage)
+	}
+	return JobAdmissionDecision{Accepted: true, PolicyVersion: JobAdmissionPolicyVersion}
 }
 
 func editorialApplyURL(raw string) bool {

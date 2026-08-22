@@ -39,6 +39,7 @@ type runnerStoreFake struct {
 	bootstrapSetErr error
 	successErr      error
 	failureErr      error
+	rejected        []RejectedObservation
 }
 
 func newRunnerStoreFake() *runnerStoreFake {
@@ -50,6 +51,11 @@ func (s *runnerStoreFake) FinalizeSourceSnapshot(_ context.Context, sourceID str
 		return s.finalizeErr
 	}
 	s.finalized[sourceID] = append([]string(nil), activeJobIDs...)
+	return nil
+}
+
+func (s *runnerStoreFake) RecordRejectedObservation(_ context.Context, rejected RejectedObservation) error {
+	s.rejected = append(s.rejected, rejected)
 	return nil
 }
 
@@ -368,7 +374,7 @@ func TestRunnerDoesNotMarkBootstrapAfterPersistenceFailure(t *testing.T) {
 	runner := Runner{
 		Sources: []Source{{ID: "source", Company: "Acme", Provider: "lever", URL: "https://example.test"}},
 		Extractor: extractorFunc(func(context.Context, Source) (ExtractionResult, error) {
-			return completeExtraction(Observation{Company: "Acme", Title: "Software Engineer Intern"}), nil
+			return completeExtraction(Observation{Company: "Acme", Title: "Software Engineer Intern", Location: "New York", Country: "US"}), nil
 		}),
 		Store: store, Channel: "telegram", Recipient: "chat-1",
 	}
@@ -396,8 +402,8 @@ func TestRunnerStagesDeliveryDecisionsUntilWholeSourceSnapshotPersists(t *testin
 		Sources: []Source{{ID: "source", Company: "Acme", Provider: "lever", URL: "https://example.test"}},
 		Extractor: extractorFunc(func(context.Context, Source) (ExtractionResult, error) {
 			return completeExtraction(
-				Observation{Company: "Acme", Title: "Software Engineer Intern", SourceNativeID: "one"},
-				Observation{Company: "Acme", Title: "Backend Engineer New Grad", SourceNativeID: "two"},
+				Observation{Company: "Acme", Title: "Software Engineer Intern", SourceNativeID: "one", Location: "New York", Country: "US"},
+				Observation{Company: "Acme", Title: "Backend Engineer New Grad", SourceNativeID: "two", Location: "New York", Country: "US"},
 			), nil
 		}),
 		Store: store, Channel: "telegram", Recipient: "chat-1",
@@ -489,6 +495,31 @@ func TestRunnerFinalizesCompleteEmptySnapshot(t *testing.T) {
 	activeIDs, finalized := store.finalized["source"]
 	if !finalized || len(activeIDs) != 0 {
 		t.Fatalf("complete empty snapshot finalization=%v active=%v", finalized, activeIDs)
+	}
+}
+
+func TestRunnerAuditsRejectedJobsWithoutPopulatingCanonicalStorage(t *testing.T) {
+	store := newRunnerStoreFake()
+	runner := Runner{
+		Sources: []Source{{ID: "source", Company: "Acme", Provider: "lever", URL: "https://example.test"}},
+		Extractor: extractorFunc(func(context.Context, Source) (ExtractionResult, error) {
+			return completeExtraction(Observation{
+				Company: "Acme", Title: "Senior Account Executive", Location: "New York", Country: "US",
+				SourceNativeID: "noise-1", ApplyURL: "https://example.test/noise-1",
+			}), nil
+		}),
+		Store: store, Channel: "telegram", Recipient: "chat-1",
+	}
+
+	report, err := runner.Run(context.Background())
+	if err != nil || report.Created != 0 || report.EligibleCreated != 0 || len(store.jobs) != 0 {
+		t.Fatalf("rejected job polluted canonical storage: report=%#v jobs=%#v err=%v", report, store.jobs, err)
+	}
+	if len(store.rejected) != 1 || store.rejected[0].Code != JobRejectionRole || store.rejected[0].PolicyVersion == "" {
+		t.Fatalf("rejection audit=%#v, want one reason-coded decision", store.rejected)
+	}
+	if active := store.finalized["source"]; len(active) != 0 {
+		t.Fatalf("rejected job remained active: %v", active)
 	}
 }
 

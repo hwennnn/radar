@@ -24,6 +24,12 @@ type Observation struct {
 	SnapshotPending bool
 }
 
+type RejectedObservation struct {
+	Observation
+	Code          string
+	PolicyVersion string
+}
+
 // Posting is Radar's durable, source-independent representation of a job.
 type Posting struct {
 	ID             string

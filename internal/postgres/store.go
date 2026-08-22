@@ -2,8 +2,10 @@ package postgres
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"database/sql/driver"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,6 +30,7 @@ type (
 	DiscoveryCandidateRecord = pipeline.DiscoveryCandidateRecord
 	DiscoverySeed            = pipeline.DiscoverySeed
 	Observation              = pipeline.Observation
+	RejectedObservation      = pipeline.RejectedObservation
 	OperationalState         = pipeline.OperationalState
 	Posting                  = pipeline.Posting
 	RuntimeState             = pipeline.RuntimeState
@@ -128,6 +131,24 @@ func (s *PostgresStore) EnsureSchema(ctx context.Context) error {
 		)`,
 		`ALTER TABLE ` + s.table("job_source_observations") + ` ADD COLUMN IF NOT EXISTS active boolean NOT NULL DEFAULT true`,
 		`CREATE INDEX IF NOT EXISTS lite_job_source_observations_source_idx ON ` + s.table("job_source_observations") + `(source_id, last_observed_at DESC)`,
+		`CREATE TABLE IF NOT EXISTS ` + s.table("job_rejections") + ` (
+			source_id text NOT NULL,
+			fingerprint text NOT NULL,
+			source_native_id text NOT NULL DEFAULT '',
+			company text NOT NULL,
+			title text NOT NULL,
+			location text NOT NULL DEFAULT '',
+			country text NOT NULL DEFAULT '',
+			apply_url text NOT NULL DEFAULT '',
+			code text NOT NULL,
+			policy_version text NOT NULL,
+			first_observed_at timestamptz NOT NULL,
+			last_observed_at timestamptz NOT NULL,
+			observation_count integer NOT NULL DEFAULT 1 CHECK (observation_count > 0),
+			PRIMARY KEY (source_id, fingerprint, code, policy_version),
+			CHECK (last_observed_at >= first_observed_at)
+		)`,
+		`CREATE INDEX IF NOT EXISTS radar_job_rejections_recent_idx ON ` + s.table("job_rejections") + `(last_observed_at DESC)`,
 		`CREATE TABLE IF NOT EXISTS ` + s.table("deliveries") + ` (
             id bigserial PRIMARY KEY,
             job_id text NOT NULL REFERENCES ` + s.table("jobs") + `(id) ON DELETE CASCADE,
@@ -546,6 +567,38 @@ func (l *CycleLease) unlockAndClose(ctx context.Context) error {
 func (s *PostgresStore) Observe(ctx context.Context, observation Observation) (Posting, bool, error) {
 	posting, created, _, _, err := s.observeAndEnqueue(ctx, observation, nil)
 	return posting, created, err
+}
+
+func (s *PostgresStore) RecordRejectedObservation(ctx context.Context, rejected RejectedObservation) error {
+	sourceID := strings.TrimSpace(rejected.SourceID)
+	code := strings.TrimSpace(rejected.Code)
+	policyVersion := strings.TrimSpace(rejected.PolicyVersion)
+	if sourceID == "" || code == "" || policyVersion == "" {
+		return errors.New("radar: rejected observation requires source, code, and policy version")
+	}
+	observedAt := rejected.ObservedAt.UTC()
+	if observedAt.IsZero() {
+		observedAt = s.now().UTC()
+	}
+	seed := strings.Join([]string{
+		strings.TrimSpace(rejected.SourceNativeID), pipeline.CanonicalText(rejected.Company),
+		pipeline.CanonicalText(rejected.Title), pipeline.CanonicalText(rejected.Location),
+		pipeline.CanonicalApplyURL(rejected.ApplyURL),
+	}, "|")
+	sum := sha256.Sum256([]byte(seed))
+	fingerprint := hex.EncodeToString(sum[:16])
+	_, err := s.db.ExecContext(ctx, `
+INSERT INTO `+s.table("job_rejections")+` AS current
+    (source_id, fingerprint, source_native_id, company, title, location, country, apply_url, code, policy_version, first_observed_at, last_observed_at)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+ON CONFLICT (source_id, fingerprint, code, policy_version) DO UPDATE SET
+    last_observed_at = GREATEST(current.last_observed_at, EXCLUDED.last_observed_at),
+    observation_count = current.observation_count + 1`,
+		sourceID, fingerprint, strings.TrimSpace(rejected.SourceNativeID), strings.TrimSpace(rejected.Company),
+		strings.TrimSpace(rejected.Title), strings.TrimSpace(rejected.Location), strings.TrimSpace(rejected.Country),
+		pipeline.CanonicalApplyURL(rejected.ApplyURL), code, policyVersion, observedAt,
+	)
+	return err
 }
 
 // ObserveAndEnqueue atomically persists a first-seen posting and its delivery.

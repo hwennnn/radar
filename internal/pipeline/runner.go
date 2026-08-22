@@ -24,6 +24,7 @@ const (
 // postgres.PostgresStore implements it directly; tests use an in-memory fake.
 type RunnerStore interface {
 	ObserveAndEnqueue(context.Context, Observation, *DeliveryTarget) (Posting, bool, Delivery, bool, error)
+	RecordRejectedObservation(context.Context, RejectedObservation) error
 	FinalizeSourceSnapshot(context.Context, string, []string) error
 	ActivateDeliveries(context.Context, []int64, string, string) (int, error)
 	RecordSourceSuccess(context.Context, string, int, time.Time) error
@@ -181,19 +182,27 @@ func (r Runner) Run(ctx context.Context) (RunReport, error) {
 				EmploymentType: observation.EmploymentType, Level: observation.Level,
 				ApplyURL: observation.ApplyURL, Description: observation.Description, PostedAt: observation.PostedAt,
 			}
-			eligible := EligibleAt(candidate, attemptedAt)
+			decision := EvaluateJobAdmissionAt(candidate, attemptedAt)
+			if !decision.Accepted {
+				if rejectErr := r.Store.RecordRejectedObservation(ctx, RejectedObservation{
+					Observation: observation, Code: decision.Code, PolicyVersion: decision.PolicyVersion,
+				}); rejectErr != nil {
+					sourceComplete = false
+					sourceErrors = append(sourceErrors, fmt.Errorf("persist rejected observation: %w", rejectErr))
+					break
+				}
+				continue
+			}
 			posting, created, _, _, observeErr := r.Store.ObserveAndEnqueue(ctx, observation, nil)
 			if observeErr != nil {
 				sourceComplete = false
 				sourceErrors = append(sourceErrors, fmt.Errorf("persist observation: %w", observeErr))
 				break
 			}
-			prepared = append(prepared, preparedObservation{observation: observation, postingID: posting.ID, eligible: eligible})
+			prepared = append(prepared, preparedObservation{observation: observation, postingID: posting.ID, eligible: true})
 			if created {
 				report.Created++
-				if eligible {
-					report.EligibleCreated++
-				}
+				report.EligibleCreated++
 			}
 		}
 		if sourceComplete {
