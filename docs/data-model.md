@@ -9,6 +9,7 @@ migrations in writer modes.
 | `jobs` | Canonical posting, active-seen timestamps, and apply-link health |
 | `job_identities` | Native ID, canonical URL, requisition, and fallback aliases |
 | `job_source_observations` | Provenance and active state for each source sighting |
+| `job_rejections` | Rejected source observations, reason code, and policy version |
 | `deliveries` | Durable, replay-safe outbox rows |
 | `source_status` | Successful-empty versus failed source health |
 | `bootstrap_state` | Initial snapshot and recovery-baseline state |
@@ -30,6 +31,12 @@ Source reconciliation changes visibility only after a complete snapshot. An
 incomplete or failed source cannot falsely close jobs or replace a previous
 healthy snapshot.
 
+Canonical jobs record the source and authority of their presentation fields.
+Reviewed catalog routes outrank auto-discovered and broad-search evidence; a
+weaker source may add provenance and identity evidence but cannot downgrade the
+canonical company, title, location, description, or apply URL. Accepted jobs
+also record the admission policy version used for the decision.
+
 Apply-link health is stored on the canonical job. Writer cycles select a
 bounded due set, prioritizing unchecked and newly publishable jobs, preserve
 ambiguous failures, and hide a URL only after two
@@ -46,6 +53,11 @@ suppressed or staged rows so historical jobs are not emitted as new alerts.
 Confirmed Telegram responses store the provider message and chat IDs. A lost
 response after a request may have been accepted externally; those rows move to
 `uncertain` instead of retrying blindly and risking a duplicate alert.
+
+Delivery claims require a current admission-policy version and at least one
+active, non-quarantined source observation. Source snapshot activation, source
+health, bootstrap completion, and staged-delivery activation share one
+transaction, so a partial source pass cannot become visible or publishable.
 
 ## Schema-change rules
 

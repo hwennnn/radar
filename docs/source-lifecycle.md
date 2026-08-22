@@ -26,6 +26,14 @@ upstream source failed.
 Empty, ambiguous, mismatched, incomplete, or nontechnical results do not
 promote. A source failure is isolated: healthy sources continue and previously
 healthy state is retained until a complete replacement snapshot exists.
+The production pass repeats the ownership check after promotion, so a route
+that later changes employer identity cannot populate jobs under the catalog
+company name. Invalid or non-HTTP apply links are rejected at normalization.
+
+Role admission happens before canonical storage. Every rejected observation is
+retained in a versioned reason-code ledger for regression analysis, while only
+accepted observations may create identities, active provenance, link checks,
+or delivery decisions.
 
 Broad market-search results cannot promote a generic website fallback. They
 must resolve to a recognized, candidate-matching ATS or explicitly supported

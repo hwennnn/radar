@@ -194,6 +194,16 @@ categories are suppressed before visibility and delivery.
 Completeness matters as much as parsed rows. A failed or partial response may
 surface a source-health error, but it cannot reconcile missing postings as
 closed. Only a complete successful snapshot replaces active source state.
+Apply links must be absolute HTTP(S) URLs, and company-specific extractors retain
+the employer name they actually observed so ownership mismatches fail closed
+instead of being hidden by catalog normalization.
+
+Job admission is reason-coded and versioned. Rejected observations are written
+to a separate audit ledger; they do not create canonical jobs, identities,
+provenance, link checks, or delivery decisions. Reviewed catalog sources also
+have higher canonical-field authority than auto-discovered routes, preventing a
+weaker observation from replacing trusted title, company, location, or apply
+URL evidence.
 
 Source snapshots and apply-link validation cover different failure modes. A
 complete snapshot retires a posting that disappears from its board. A bounded
@@ -237,6 +247,11 @@ flowchart LR
 `job_source_observations` keeps the answer to “where did this come from?” even
 after several sources collapse into one canonical job.
 
+The visibility boundary is one source-pass transaction. Active provenance,
+source health, bootstrap completion, and staged delivery activation commit
+together. A failed commit preserves the previous visible snapshot and leaves
+new delivery rows staged and unclaimable.
+
 ## Persistence model
 
 `internal/postgres/store.go` owns additive, idempotent migrations. The default
@@ -247,6 +262,7 @@ schema is `radar_lite` for compatibility with existing deployments.
 | `jobs` | Canonical role, apply-link health, and first/last seen timestamps |
 | `job_identities` | Native ID, URL, requisition, and fallback aliases |
 | `job_source_observations` | Source-specific provenance and active sightings |
+| `job_rejections` | Versioned, reason-coded observations rejected before inventory |
 | `source_status` | Success, healthy-empty, failure, and retry evidence |
 | `bootstrap_state` | Initial and recovery baseline suppression |
 | `deliveries` | Durable outbox and terminal send state |
